@@ -24,7 +24,7 @@ from dature.types import JSONValue
 
 
 class IniLoader(ILoader):
-    def _get_additional_loaders(self) -> list[Provider]:
+    def _additional_loaders(self) -> list[Provider]:
         return [
             loader(date, date_from_string),
             loader(datetime, datetime_from_string),
@@ -45,5 +45,4 @@ class IniLoader(ILoader):
         config.read(path)
         if self._prefix and self._prefix in config:
             return {self._prefix: dict(config[self._prefix])}
-        return {section: dict(config[section]) for section in config}
         return {section: dict(config[section]) for section in config}

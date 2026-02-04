@@ -19,7 +19,7 @@ from dature.types import JSONValue
 
 
 class TomlLoader(ILoader):
-    def _get_additional_loaders(self) -> list[Provider]:
+    def _additional_loaders(self) -> list[Provider]:
         return [
             loader(date, date_passthrough),
             loader(datetime, datetime_passthrough),
@@ -32,5 +32,4 @@ class TomlLoader(ILoader):
 
     def _load(self, path: Path) -> JSONValue:
         with path.open("rb") as file_:
-            return cast("JSONValue", tomllib.load(file_))
             return cast("JSONValue", tomllib.load(file_))

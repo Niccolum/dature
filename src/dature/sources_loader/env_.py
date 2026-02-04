@@ -21,7 +21,7 @@ from dature.sources_loader.loaders import (
     time_from_string,
     tuple_from_json_string,
 )
-from dature.types import DotSeparatedPath, JSONValue
+from dature.types import DotSeparatedPath, FieldMapping, JSONValue, NameStyle
 
 
 def _set_nested(d: dict[Any, Any], keys: list[str], value: str) -> None:
@@ -31,11 +31,17 @@ def _set_nested(d: dict[Any, Any], keys: list[str], value: str) -> None:
 
 
 class EnvLoader(ILoader):
-    def __init__(self, prefix: DotSeparatedPath | None = None, split_symbols: str = "__") -> None:
+    def __init__(
+        self,
+        prefix: DotSeparatedPath | None = None,
+        split_symbols: str = "__",
+        name_style: NameStyle | None = None,
+        field_mapping: FieldMapping | None = None,
+    ) -> None:
         self._split_symbols = split_symbols
-        super().__init__(prefix)
+        super().__init__(prefix=prefix, name_style=name_style, field_mapping=field_mapping)
 
-    def _get_additional_loaders(self) -> list[Provider]:
+    def _additional_loaders(self) -> list[Provider]:
         return [
             loader(date, date_from_string),
             loader(datetime, datetime_from_string),
@@ -97,5 +103,4 @@ class EnvFileLoader(EnvLoader):
         return env_vars
 
     def _pre_processing(self, data: JSONValue) -> JSONValue:
-        return data
         return data

@@ -41,7 +41,7 @@ yaml.add_constructor("!ENV", _env_var_constructor, Loader=yaml.SafeLoader)
 
 
 class YamlLoader(ILoader):
-    def _get_additional_loaders(self) -> list[Provider]:
+    def _additional_loaders(self) -> list[Provider]:
         return [
             loader(date, date_passthrough),
             loader(datetime, datetime_passthrough),
@@ -52,5 +52,4 @@ class YamlLoader(ILoader):
 
     def _load(self, path: Path) -> JSONValue:
         with path.open() as file_:
-            return cast("JSONValue", yaml.safe_load(file_))
             return cast("JSONValue", yaml.safe_load(file_))

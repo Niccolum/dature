@@ -8,7 +8,7 @@ from dature.sources_loader.env_ import EnvFileLoader, EnvLoader
 from dature.sources_loader.ini_ import IniLoader
 from dature.sources_loader.json_ import JsonLoader
 from dature.sources_loader.toml_ import TomlLoader
-from dature.types import DotSeparatedPath
+from dature.types import DotSeparatedPath, FieldMapping, NameStyle
 
 if TYPE_CHECKING:
     from dature.sources_loader.base import ILoader
@@ -77,6 +77,8 @@ def load[T](
     file_: str | None = None,
     loader: LoaderType | None = None,
     prefix: DotSeparatedPath | None = None,
+    name_style: NameStyle | None = None,
+    field_mapping: FieldMapping | None = None,
     *,
     dataclass_: type[T],
 ) -> T: ...
@@ -87,18 +89,25 @@ def load[T](
     file_: str | None = None,
     loader: LoaderType | None = None,
     prefix: DotSeparatedPath | None = None,
+    name_style: NameStyle | None = None,
+    field_mapping: FieldMapping | None = None,
+    *,
+    dataclass_: None = None,
 ) -> Callable[[type[T]], type[T]]: ...
 
 
-def load[T](
+def load[T](  # noqa: PLR0913
     file_: str | None = None,
     loader: LoaderType | None = None,
     prefix: DotSeparatedPath | None = None,
+    name_style: NameStyle | None = None,
+    field_mapping: FieldMapping | None = None,
+    *,
     dataclass_: type[T] | None = None,
 ) -> T | Callable[[type[T]], type[T]]:
     loader_type = _get_loader_type(file_, loader)
     loader_class = _get_loader_class(loader_type)
-    loader_instance = loader_class(prefix=prefix)
+    loader_instance = loader_class(prefix=prefix, name_style=name_style, field_mapping=field_mapping)
     file_path = Path(file_) if file_ else Path()
 
     def _load_config(cls: type[T]) -> type[T]:

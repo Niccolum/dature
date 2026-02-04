@@ -17,7 +17,7 @@ from dature.types import JSONValue
 
 
 class JsonLoader(ILoader):
-    def _get_additional_loaders(self) -> list[Provider]:
+    def _additional_loaders(self) -> list[Provider]:
         return [
             loader(date, date_from_string),
             loader(datetime, datetime_from_string),
@@ -27,5 +27,4 @@ class JsonLoader(ILoader):
 
     def _load(self, path: Path) -> JSONValue:
         with path.open() as file_:
-            return cast("JSONValue", json.load(file_))
             return cast("JSONValue", json.load(file_))
