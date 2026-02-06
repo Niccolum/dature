@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from dature.main import LoaderType
+    from dature.sources_loader.resolver import LoaderType
     from dature.types import DotSeparatedPath, FieldMapping, NameStyle
     from dature.validators.base import RootValidatorProtocol
 
