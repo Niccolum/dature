@@ -1,7 +1,7 @@
 import abc
 from dataclasses import fields, is_dataclass
 from pathlib import Path
-from typing import TypeVar, get_args, get_origin, get_type_hints
+from typing import TypeVar, cast, get_args, get_origin, get_type_hints
 
 from adaptix import NameStyle as AdaptixNameStyle
 from adaptix import Retort, loader, name_mapping
@@ -14,7 +14,7 @@ from dature.validators.base import (
     create_validator_providers,
     extract_validators_from_type,
 )
-from dature.validators.protocols import ValidatorProtocol
+from dature.validators.protocols import DataclassInstance, ValidatorProtocol
 
 T = TypeVar("T")
 
@@ -66,7 +66,7 @@ class ILoader(abc.ABC):
         providers: list[Provider] = []
         type_hints = get_type_hints(dataclass_, include_extras=True)
 
-        for field in fields(dataclass_):  # type: ignore[arg-type]
+        for field in fields(cast("type[DataclassInstance]", dataclass_)):
             if field.name not in type_hints:
                 continue
 
@@ -84,7 +84,9 @@ class ILoader(abc.ABC):
                     base_type = args[0]
 
             if is_dataclass(base_type):
-                nested_providers = self._get_validator_providers(base_type)  # type: ignore[arg-type]
+                nested_providers = self._get_validator_providers(
+                    cast("type[DataclassInstance]", base_type),
+                )
                 providers.extend(nested_providers)
 
         return providers

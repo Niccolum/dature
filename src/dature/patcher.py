@@ -46,7 +46,7 @@ class _PatchContext:
         self.loader_instance = loader_instance
         self.file_path = file_path
         self.cls = cls
-        self.field_list = fields(cls)  # type: ignore[arg-type]
+        self.field_list = fields(cls)
         self.original_init = cls.__init__
         self.original_post_init = getattr(cls, "__post_init__", None)
         self.validation_loader = validating_retort.get_loader(cls)
@@ -88,7 +88,7 @@ def _make_new_post_init(ctx: _PatchContext) -> Callable[..., None]:
 
         ctx.validating = True
         try:
-            obj_dict = asdict(self)  # type: ignore[call-overload]
+            obj_dict = asdict(self)
             ctx.validation_loader(obj_dict)
         finally:
             ctx.validating = False
@@ -104,7 +104,7 @@ def load_as_function(
     validating_retort = loader_instance._create_validating_retort(dataclass_)  # noqa: SLF001
     validation_loader = validating_retort.get_loader(dataclass_)
     result = loader_instance.load(file_path, dataclass_)
-    result_dict = asdict(result)  # type: ignore[call-overload]
+    result_dict = asdict(result)
     validation_loader(result_dict)
     return result
 
@@ -119,8 +119,8 @@ def make_decorator(
             raise TypeError(msg)
 
         ctx = _PatchContext(loader_instance, file_path, cls)
-        cls.__init__ = _make_new_init(ctx)
-        cls.__post_init__ = _make_new_post_init(ctx)
+        cls.__init__ = _make_new_init(ctx)  # type: ignore[method-assign]
+        cls.__post_init__ = _make_new_post_init(ctx)  # type: ignore[attr-defined]
         return cls
 
     return decorator

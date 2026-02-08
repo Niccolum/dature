@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from pathlib import Path
-from typing import overload
+from typing import Any, overload
 
 from dature.metadata import LoadMetadata
 from dature.patcher import load_as_function, make_decorator
@@ -9,11 +9,11 @@ from dature.validators.protocols import DataclassInstance
 
 
 @overload
-def load(
+def load[T](
     metadata: LoadMetadata | None,
     /,
-    dataclass_: type[DataclassInstance],
-) -> DataclassInstance: ...
+    dataclass_: type[T],
+) -> T: ...
 
 
 @overload
@@ -27,8 +27,8 @@ def load(
 def load(
     metadata: LoadMetadata | None = None,
     /,
-    dataclass_: type[DataclassInstance] | None = None,
-) -> DataclassInstance | Callable[[type[DataclassInstance]], type[DataclassInstance]]:
+    dataclass_: type[Any] | None = None,
+) -> Any:
     if metadata is None:
         metadata = LoadMetadata()
 

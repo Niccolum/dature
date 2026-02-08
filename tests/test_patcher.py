@@ -163,7 +163,7 @@ class TestMakeDecorator:
         decorator = make_decorator(JsonLoader(), json_file)
         result = decorator(Config)
 
-        assert result is Config  # type: ignore[comparison-overlap]
+        assert result is Config
 
     def test_preserves_original_post_init(self, tmp_path: Path):
         json_file = tmp_path / "config.json"

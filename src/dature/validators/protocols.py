@@ -1,9 +1,10 @@
 from collections.abc import Callable
-from typing import Any, Protocol
+from dataclasses import Field
+from typing import Any, ClassVar, Protocol
 
 
 class DataclassInstance(Protocol):
-    __dataclass_fields__: dict[str, Any]
+    __dataclass_fields__: ClassVar[dict[str, Field[Any]]]
 
 
 class ValidatorProtocol(Protocol):
