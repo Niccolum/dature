@@ -50,3 +50,51 @@ class TestTomlLoader:
         data = loader._load(toml_file)
 
         assert data == {}
+
+    def test_toml_env_var_substitution(self, tmp_path: Path, monkeypatch):
+        monkeypatch.setenv("APP_NAME", "MyApp")
+        monkeypatch.setenv("APP_PORT", "9090")
+
+        toml_file = tmp_path / "env.toml"
+        toml_file.write_text('name = "$APP_NAME"\nport = "$APP_PORT"')
+
+        @dataclass
+        class Config:
+            name: str
+            port: int
+
+        loader = TomlLoader()
+        result = loader.load(toml_file, Config)
+
+        assert result.name == "MyApp"
+        assert result.port == 9090
+
+    def test_toml_dollar_sign_mid_string_existing_var(self, tmp_path: Path, monkeypatch):
+        monkeypatch.setenv("abc", "replaced")
+
+        toml_file = tmp_path / "dollar.toml"
+        toml_file.write_text('value = "prefix$abc/suffix"')
+
+        @dataclass
+        class Config:
+            value: str
+
+        loader = TomlLoader()
+        result = loader.load(toml_file, Config)
+
+        assert result.value == "prefixreplaced/suffix"
+
+    def test_toml_dollar_sign_mid_string_missing_var(self, tmp_path: Path, monkeypatch):
+        monkeypatch.delenv("nonexistent", raising=False)
+
+        toml_file = tmp_path / "dollar.toml"
+        toml_file.write_text('value = "prefix$nonexistent/suffix"')
+
+        @dataclass
+        class Config:
+            value: str
+
+        loader = TomlLoader()
+        result = loader.load(toml_file, Config)
+
+        assert result.value == "prefix$nonexistent/suffix"

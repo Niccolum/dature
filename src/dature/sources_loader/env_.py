@@ -74,7 +74,7 @@ class EnvLoader(ILoader):
         for key, value in data_dict.items():
             self._pre_processed_row(key=key, value=value, result=result)
 
-        return result
+        return self._expand_env_vars(result)
 
     def _pre_processed_row(self, key: str, value: str, result: dict[str, JSONValue]) -> None:
         if self._prefix and not key.startswith(self._prefix):
@@ -110,4 +110,4 @@ class EnvFileLoader(EnvLoader):
         return env_vars
 
     def _pre_processing(self, data: JSONValue) -> JSONValue:
-        return data
+        return self._expand_env_vars(data)

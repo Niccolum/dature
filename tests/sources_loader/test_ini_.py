@@ -71,3 +71,51 @@ class TestIniLoader:
 
         with pytest.raises(configparser.MissingSectionHeaderError):
             loader._load(ini_file)
+
+    def test_ini_env_var_substitution(self, tmp_path: Path, monkeypatch):
+        monkeypatch.setenv("DB_HOST", "db.example.com")
+        monkeypatch.setenv("DB_PORT", "5432")
+
+        ini_file = tmp_path / "env.ini"
+        ini_file.write_text("[database]\nhost = $DB_HOST\nport = $DB_PORT")
+
+        @dataclass
+        class DbConfig:
+            host: str
+            port: int
+
+        loader = IniLoader(prefix="database")
+        result = loader.load(ini_file, DbConfig)
+
+        assert result.host == "db.example.com"
+        assert result.port == 5432
+
+    def test_ini_dollar_sign_mid_string_existing_var(self, tmp_path: Path, monkeypatch):
+        monkeypatch.setenv("abc", "replaced")
+
+        ini_file = tmp_path / "env.ini"
+        ini_file.write_text("[section]\nvalue = prefix$abc/suffix")
+
+        @dataclass
+        class Config:
+            value: str
+
+        loader = IniLoader(prefix="section")
+        result = loader.load(ini_file, Config)
+
+        assert result.value == "prefixreplaced/suffix"
+
+    def test_ini_dollar_sign_mid_string_missing_var(self, tmp_path: Path, monkeypatch):
+        monkeypatch.delenv("nonexistent", raising=False)
+
+        ini_file = tmp_path / "env.ini"
+        ini_file.write_text("[section]\nvalue = prefix$nonexistent/suffix")
+
+        @dataclass
+        class Config:
+            value: str
+
+        loader = IniLoader(prefix="section")
+        result = loader.load(ini_file, Config)
+
+        assert result.value == "prefix$nonexistent/suffix"

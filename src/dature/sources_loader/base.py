@@ -1,4 +1,5 @@
 import abc
+import os
 from dataclasses import fields, is_dataclass
 from datetime import timedelta
 from pathlib import Path
@@ -176,8 +177,19 @@ class ILoader(abc.ABC):
 
         return data
 
+    @staticmethod
+    def _expand_env_vars(data: JSONValue) -> JSONValue:
+        if isinstance(data, str):
+            return os.path.expandvars(data)
+        if isinstance(data, dict):
+            return {key: ILoader._expand_env_vars(value) for key, value in data.items()}
+        if isinstance(data, list):
+            return [ILoader._expand_env_vars(item) for item in data]
+        return data
+
     def _pre_processing(self, data: JSONValue) -> JSONValue:
-        return self._apply_prefix(data)
+        prefixed = self._apply_prefix(data)
+        return self._expand_env_vars(prefixed)
 
     def _transform_to_dataclass(self, data: JSONValue, dataclass_: type[T]) -> T:
         if dataclass_ not in self._retorts:

@@ -55,6 +55,53 @@ class TestEnvFileLoader:
 
         assert data == {}
 
+    def test_env_file_env_var_substitution(self, tmp_path: Path, monkeypatch):
+        monkeypatch.setenv("BASE_URL", "https://api.example.com")
+
+        env_file = tmp_path / ".env"
+        env_file.write_text("api_url=$BASE_URL/v1\nbase=$BASE_URL")
+
+        @dataclass
+        class Config:
+            api_url: str
+            base: str
+
+        loader = EnvFileLoader()
+        result = loader.load(env_file, Config)
+
+        assert result.api_url == "https://api.example.com/v1"
+        assert result.base == "https://api.example.com"
+
+    def test_env_file_dollar_sign_mid_string_existing_var(self, tmp_path: Path, monkeypatch):
+        monkeypatch.setenv("abc", "replaced")
+
+        env_file = tmp_path / ".env"
+        env_file.write_text("value=prefix$abc/suffix")
+
+        @dataclass
+        class Config:
+            value: str
+
+        loader = EnvFileLoader()
+        result = loader.load(env_file, Config)
+
+        assert result.value == "prefixreplaced/suffix"
+
+    def test_env_file_dollar_sign_mid_string_missing_var(self, tmp_path: Path, monkeypatch):
+        monkeypatch.delenv("nonexistent", raising=False)
+
+        env_file = tmp_path / ".env"
+        env_file.write_text("value=prefix$nonexistent/suffix")
+
+        @dataclass
+        class Config:
+            value: str
+
+        loader = EnvFileLoader()
+        result = loader.load(env_file, Config)
+
+        assert result.value == "prefix$nonexistent/suffix"
+
 
 class TestEnvLoader:
     """Tests for EnvLoader class."""
