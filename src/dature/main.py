@@ -21,6 +21,8 @@ def load(
     metadata: LoadMetadata | None = None,
     /,
     dataclass_: None = None,
+    *,
+    cache: bool = True,
 ) -> Callable[[type[DataclassInstance]], type[DataclassInstance]]: ...
 
 
@@ -28,6 +30,8 @@ def load(
     metadata: LoadMetadata | None = None,
     /,
     dataclass_: type[Any] | None = None,
+    *,
+    cache: bool = True,
 ) -> Any:
     if metadata is None:
         metadata = LoadMetadata()
@@ -38,4 +42,4 @@ def load(
     if dataclass_ is not None:
         return load_as_function(loader_instance, file_path, dataclass_)
 
-    return make_decorator(loader_instance, file_path)
+    return make_decorator(loader_instance, file_path, cache=cache)

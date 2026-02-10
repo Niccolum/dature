@@ -185,6 +185,68 @@ class TestMakeDecorator:
         assert len(post_init_called) == 1
 
 
+class TestCache:
+    def test_cache_returns_same_data(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"name": "original", "port": 8080}')
+
+        @dataclass
+        class Config:
+            name: str
+            port: int
+
+        decorator = make_decorator(JsonLoader(), json_file, cache=True)
+        decorator(Config)
+
+        first = Config()
+        json_file.write_text('{"name": "updated", "port": 9090}')
+        second = Config()
+
+        assert first.name == "original"
+        assert second.name == "original"
+        assert second.port == 8080
+
+    def test_no_cache_rereads_file(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"name": "original", "port": 8080}')
+
+        @dataclass
+        class Config:
+            name: str
+            port: int
+
+        decorator = make_decorator(JsonLoader(), json_file, cache=False)
+        decorator(Config)
+
+        first = Config()
+        json_file.write_text('{"name": "updated", "port": 9090}')
+        second = Config()
+
+        assert first.name == "original"
+        assert second.name == "updated"
+        assert second.port == 9090
+
+    def test_cache_allows_override(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"name": "original", "port": 8080}')
+
+        @dataclass
+        class Config:
+            name: str
+            port: int
+
+        decorator = make_decorator(JsonLoader(), json_file, cache=True)
+        decorator(Config)
+
+        first = Config()
+        assert first.name == "original"
+        assert first.port == 8080
+
+        second = Config(name="overridden")
+        assert second.name == "overridden"
+        assert second.port == 8080
+
+
 class TestLoadAsFunction:
     def test_returns_loaded_dataclass(self, tmp_path: Path):
         json_file = tmp_path / "config.json"

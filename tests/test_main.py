@@ -92,6 +92,46 @@ class TestLoadAsDecorator:
                 pass
 
 
+class TestCache:
+    def test_cache_enabled_by_default(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"name": "original", "port": 8080}')
+
+        metadata = LoadMetadata(file_=str(json_file))
+
+        @load(metadata)
+        @dataclass
+        class Config:
+            name: str
+            port: int
+
+        first = Config()
+        json_file.write_text('{"name": "updated", "port": 9090}')
+        second = Config()
+
+        assert first.name == "original"
+        assert second.name == "original"
+
+    def test_cache_disabled(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"name": "original", "port": 8080}')
+
+        metadata = LoadMetadata(file_=str(json_file))
+
+        @load(metadata, cache=False)
+        @dataclass
+        class Config:
+            name: str
+            port: int
+
+        first = Config()
+        json_file.write_text('{"name": "updated", "port": 9090}')
+        second = Config()
+
+        assert first.name == "original"
+        assert second.name == "updated"
+
+
 class TestLoadAsFunction:
     def test_loads_from_file(self, tmp_path: Path):
         json_file = tmp_path / "config.json"

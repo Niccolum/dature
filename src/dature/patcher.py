@@ -39,6 +39,8 @@ class _PatchContext:
         loader_instance: ILoader,
         file_path: Path,
         cls: type[DataclassInstance],
+        *,
+        cache: bool,
     ) -> None:
         _ensure_retort(loader_instance, cls)
         validating_retort = loader_instance._create_validating_retort(cls)  # noqa: SLF001
@@ -46,6 +48,8 @@ class _PatchContext:
         self.loader_instance = loader_instance
         self.file_path = file_path
         self.cls = cls
+        self.cache = cache
+        self.cached_data: DataclassInstance | None = None
         self.field_list = fields(cls)
         self.original_init = cls.__init__
         self.original_post_init = getattr(cls, "__post_init__", None)
@@ -60,11 +64,16 @@ def _make_new_init(ctx: _PatchContext) -> Callable[..., None]:
             ctx.original_init(self, *args, **kwargs)
             return
 
-        ctx.loading = True
-        try:
-            loaded_data: Any = ctx.loader_instance.load(ctx.file_path, ctx.cls)
-        finally:
-            ctx.loading = False
+        if ctx.cache and ctx.cached_data is not None:
+            loaded_data = ctx.cached_data
+        else:
+            ctx.loading = True
+            try:
+                loaded_data = ctx.loader_instance.load(ctx.file_path, ctx.cls)
+            finally:
+                ctx.loading = False
+            if ctx.cache:
+                ctx.cached_data = loaded_data
 
         complete_kwargs = _merge_fields(loaded_data, ctx.field_list, args, kwargs)
         ctx.original_init(self, *args, **complete_kwargs)
@@ -112,13 +121,15 @@ def load_as_function(
 def make_decorator(
     loader_instance: ILoader,
     file_path: Path,
+    *,
+    cache: bool = True,
 ) -> Callable[[type[DataclassInstance]], type[DataclassInstance]]:
     def decorator(cls: type[DataclassInstance]) -> type[DataclassInstance]:
         if not is_dataclass(cls):
             msg = f"{cls.__name__} must be a dataclass"
             raise TypeError(msg)
 
-        ctx = _PatchContext(loader_instance, file_path, cls)
+        ctx = _PatchContext(loader_instance, file_path, cls, cache=cache)
         cls.__init__ = _make_new_init(ctx)  # type: ignore[method-assign]
         cls.__post_init__ = _make_new_post_init(ctx)  # type: ignore[attr-defined]
         return cls
