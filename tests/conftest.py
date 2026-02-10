@@ -85,6 +85,19 @@ def all_types_json_file(fixtures_dir: Path) -> Path:
     return fixtures_dir / "all_types.json"
 
 
+# JSON5 fixtures
+@pytest.fixture
+def prefixed_json5_file(fixtures_dir: Path) -> Path:
+    """Path to JSON5 file with prefix."""
+    return fixtures_dir / "prefixed.json5"
+
+
+@pytest.fixture
+def all_types_json5_file(fixtures_dir: Path) -> Path:
+    """Path to all_types.json5 file."""
+    return fixtures_dir / "all_types.json5"
+
+
 # TOML fixtures
 @pytest.fixture
 def prefixed_toml_file(fixtures_dir: Path) -> Path:

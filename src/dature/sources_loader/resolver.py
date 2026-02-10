@@ -9,7 +9,7 @@ from dature.sources_loader.ini_ import IniLoader
 from dature.sources_loader.json_ import JsonLoader
 from dature.sources_loader.toml_ import TomlLoader
 
-LoaderType = Literal["env", "envfile", "yaml", "yaml1.1", "yaml1.2", "json", "toml", "ini"]
+LoaderType = Literal["env", "envfile", "yaml", "yaml1.1", "yaml1.2", "json", "json5", "toml", "ini"]
 
 EXTENSION_MAP: MappingProxyType[str, LoaderType] = MappingProxyType(
     {
@@ -17,6 +17,7 @@ EXTENSION_MAP: MappingProxyType[str, LoaderType] = MappingProxyType(
         ".yaml": "yaml",
         ".yml": "yaml",
         ".json": "json",
+        ".json5": "json5",
         ".toml": "toml",
         ".ini": "ini",
         ".cfg": "ini",
@@ -40,6 +41,10 @@ def _get_loader_class(loader_type: LoaderType) -> type[ILoader]:
             return Yaml12Loader
         case "json":
             return JsonLoader
+        case "json5":
+            from dature.sources_loader.json5_ import Json5Loader  # noqa: PLC0415
+
+            return Json5Loader
         case "toml":
             return TomlLoader
         case "ini":

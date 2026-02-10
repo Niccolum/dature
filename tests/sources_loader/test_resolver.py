@@ -7,6 +7,7 @@ import pytest
 from dature.metadata import LoadMetadata
 from dature.sources_loader.env_ import EnvFileLoader, EnvLoader
 from dature.sources_loader.ini_ import IniLoader
+from dature.sources_loader.json5_ import Json5Loader
 from dature.sources_loader.json_ import JsonLoader
 from dature.sources_loader.resolver import (
     _get_loader_class,
@@ -35,6 +36,7 @@ class TestGetLoaderType:
             (".yaml", "yaml"),
             (".yml", "yaml"),
             (".json", "json"),
+            (".json5", "json5"),
             (".toml", "toml"),
             (".ini", "ini"),
             (".cfg", "ini"),
@@ -76,6 +78,7 @@ class TestGetLoaderClass:
             ("yaml1.1", Yaml11Loader),
             ("yaml1.2", Yaml12Loader),
             ("json", JsonLoader),
+            ("json5", Json5Loader),
             ("toml", TomlLoader),
             ("ini", IniLoader),
         ],

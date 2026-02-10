@@ -1,0 +1,14 @@
+{
+  // App configuration
+  app: {
+    name: "PrefixedApp",
+    port: 9000,
+    debug: false,
+    environment: "production",
+  },
+  // Should be ignored
+  other: {
+    value: "should_be_ignored",
+    key: "not_loaded",
+  },
+}
