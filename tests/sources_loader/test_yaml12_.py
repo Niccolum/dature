@@ -67,6 +67,22 @@ class TestYaml12Loader:
         assert result.services.cache == {"host": "redis.local"}
         assert result.services.queue == {"host": "queue.local"}
 
+    def test_yaml_env_var_partial_substitution(self, tmp_path: Path, monkeypatch):
+        monkeypatch.setenv("HOST", "localhost")
+        monkeypatch.setenv("PORT", "8080")
+
+        yaml_file = tmp_path / "env.yaml"
+        yaml_file.write_text('url: "http://${HOST}:${PORT}/api"')
+
+        @dataclass
+        class Config:
+            url: str
+
+        loader = Yaml12Loader()
+        result = loader.load(yaml_file, Config)
+
+        assert result.url == "http://localhost:8080/api"
+
     def test_yaml_dollar_sign_mid_string_existing_var(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("abc", "replaced")
 

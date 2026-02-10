@@ -69,6 +69,22 @@ class TestTomlLoader:
         assert result.name == "MyApp"
         assert result.port == 9090
 
+    def test_toml_env_var_partial_substitution(self, tmp_path: Path, monkeypatch):
+        monkeypatch.setenv("HOST", "localhost")
+        monkeypatch.setenv("PORT", "8080")
+
+        toml_file = tmp_path / "env.toml"
+        toml_file.write_text('url = "http://${HOST}:${PORT}/api"')
+
+        @dataclass
+        class Config:
+            url: str
+
+        loader = TomlLoader()
+        result = loader.load(toml_file, Config)
+
+        assert result.url == "http://localhost:8080/api"
+
     def test_toml_dollar_sign_mid_string_existing_var(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("abc", "replaced")
 

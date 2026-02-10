@@ -90,6 +90,22 @@ class TestIniLoader:
         assert result.host == "db.example.com"
         assert result.port == 5432
 
+    def test_ini_env_var_partial_substitution(self, tmp_path: Path, monkeypatch):
+        monkeypatch.setenv("HOST", "localhost")
+        monkeypatch.setenv("PORT", "8080")
+
+        ini_file = tmp_path / "env.ini"
+        ini_file.write_text("[section]\nurl = http://${HOST}:${PORT}/api")
+
+        @dataclass
+        class Config:
+            url: str
+
+        loader = IniLoader(prefix="section")
+        result = loader.load(ini_file, Config)
+
+        assert result.url == "http://localhost:8080/api"
+
     def test_ini_dollar_sign_mid_string_existing_var(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("abc", "replaced")
 

@@ -72,6 +72,22 @@ class TestEnvFileLoader:
         assert result.api_url == "https://api.example.com/v1"
         assert result.base == "https://api.example.com"
 
+    def test_env_file_env_var_partial_substitution(self, tmp_path: Path, monkeypatch):
+        monkeypatch.setenv("HOST", "localhost")
+        monkeypatch.setenv("PORT", "8080")
+
+        env_file = tmp_path / ".env"
+        env_file.write_text("url=http://${HOST}:${PORT}/api")
+
+        @dataclass
+        class Config:
+            url: str
+
+        loader = EnvFileLoader()
+        result = loader.load(env_file, Config)
+
+        assert result.url == "http://localhost:8080/api"
+
     def test_env_file_dollar_sign_mid_string_existing_var(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("abc", "replaced")
 
