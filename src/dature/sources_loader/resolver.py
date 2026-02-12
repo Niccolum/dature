@@ -1,6 +1,6 @@
 from pathlib import Path
 from types import MappingProxyType
-from typing import Literal
+from typing import Any, Literal
 
 from dature.metadata import LoadMetadata
 from dature.sources_loader.base import ILoader
@@ -54,7 +54,7 @@ def _get_loader_class(loader_type: LoaderType) -> type[ILoader]:
             raise ValueError(msg)
 
 
-def _get_loader_type(metadata: LoadMetadata) -> LoaderType:
+def get_loader_type(metadata: LoadMetadata) -> LoaderType:
     if metadata.loader:
         return metadata.loader
 
@@ -78,11 +78,17 @@ def _get_loader_type(metadata: LoadMetadata) -> LoaderType:
 
 
 def resolve_loader(metadata: LoadMetadata) -> ILoader:
-    loader_type = _get_loader_type(metadata)
+    loader_type = get_loader_type(metadata)
     loader_class = _get_loader_class(loader_type)
-    return loader_class(
-        prefix=metadata.prefix,
-        name_style=metadata.name_style,
-        field_mapping=metadata.field_mapping,
-        root_validators=metadata.root_validators,
-    )
+
+    kwargs: dict[str, Any] = {
+        "prefix": metadata.prefix,
+        "name_style": metadata.name_style,
+        "field_mapping": metadata.field_mapping,
+        "root_validators": metadata.root_validators,
+    }
+
+    if issubclass(loader_class, EnvLoader):
+        kwargs["split_symbols"] = metadata.split_symbols
+
+    return loader_class(**kwargs)

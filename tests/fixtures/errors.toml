@@ -1,0 +1,10 @@
+port = "abc"
+status = "unknown"
+name = "AB"
+email = "not-an-email"
+age = 200
+tags = []
+
+[address]
+city = "N"
+zip_code = "ABCDE"

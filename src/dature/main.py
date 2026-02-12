@@ -40,6 +40,16 @@ def load(
     file_path = Path(metadata.file_) if metadata.file_ else Path()
 
     if dataclass_ is not None:
-        return load_as_function(loader_instance, file_path, dataclass_)
+        return load_as_function(
+            loader_instance=loader_instance,
+            file_path=file_path,
+            dataclass_=dataclass_,
+            metadata=metadata,
+        )
 
-    return make_decorator(loader_instance, file_path, cache=cache)
+    return make_decorator(
+        loader_instance=loader_instance,
+        file_path=file_path,
+        metadata=metadata,
+        cache=cache,
+    )

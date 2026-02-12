@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from pathlib import Path
+from textwrap import dedent
 from typing import Annotated
 
 import pytest
-from adaptix.load_error import AggregateLoadError, ValidationLoadError
 
 from dature import LoadMetadata, load
+from dature.errors import DatureConfigError
 from dature.validators.number import Ge, Gt, Le, Lt
 
 
@@ -29,17 +30,23 @@ class TestGt:
             age: Annotated[int, Gt(value=18)]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"age": 18}')
+        content = '{"age": 18}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Value must be greater than 18"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [age]  Value must be greater than 18
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
 
 class TestGe:
@@ -62,17 +69,23 @@ class TestGe:
             age: Annotated[int, Ge(value=18)]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"age": 17}')
+        content = '{"age": 17}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Value must be greater than or equal to 18"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [age]  Value must be greater than or equal to 18
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
 
 class TestLt:
@@ -95,17 +108,23 @@ class TestLt:
             age: Annotated[int, Lt(value=100)]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"age": 100}')
+        content = '{"age": 100}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Value must be less than 100"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [age]  Value must be less than 100
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
 
 class TestLe:
@@ -128,17 +147,23 @@ class TestLe:
             age: Annotated[int, Le(value=100)]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"age": 101}')
+        content = '{"age": 101}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Value must be less than or equal to 100"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [age]  Value must be less than or equal to 100
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
 
 class TestCombined:
@@ -161,14 +186,20 @@ class TestCombined:
             age: Annotated[int, Ge(value=18), Le(value=65)]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"age": 70}')
+        content = '{"age": 70}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Value must be less than or equal to 65"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [age]  Value must be less than or equal to 65
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)

@@ -1,17 +1,15 @@
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from textwrap import dedent
 from typing import Annotated, Any
 
 import pytest
-from adaptix.load_error import AggregateLoadError, ValidationLoadError
 
 from dature import LoadMetadata, load
+from dature.errors import DatureConfigError
 from dature.validators.number import Ge, Le
 from dature.validators.sequence import MinItems, UniqueItems
 from dature.validators.string import MaxLength, MinLength, RegexPattern
-
-CollectErrors = Callable[[BaseException], list[ValidationLoadError]]
 
 
 class TestMultipleFields:
@@ -40,22 +38,31 @@ class TestMultipleFields:
             tags: Annotated[list[str], MinItems(value=1), UniqueItems()]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"name": "AB", "age": 200, "tags": []}')
+        content = '{"name": "AB", "age": 200, "tags": []}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 3
-        for exc in e.exceptions:
-            assert isinstance(exc, ValidationLoadError)
+        assert len(e.errors) == 3
+        assert str(e) == dedent(f"""\
+            Config loading errors (3)
 
-        error_messages = [exc.msg for exc in e.exceptions]
-        assert "Value must have at least 3 characters" in error_messages
-        assert "Value must be less than or equal to 150" in error_messages
-        assert "Value must have at least 1 items" in error_messages
+              [name]  Value must have at least 3 characters
+               └── FILE '{json_file}', line 1
+                   {content}
+
+              [age]  Value must be less than or equal to 150
+               └── FILE '{json_file}', line 1
+                   {content}
+
+              [tags]  Value must have at least 1 items
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
 
 class TestNestedDataclass:
@@ -84,7 +91,7 @@ class TestNestedDataclass:
         assert result.address.city == "NYC"
         assert result.address.zip_code == "12345"
 
-    def test_all_invalid(self, tmp_path: Path, collect_validation_errors: CollectErrors):
+    def test_all_invalid(self, tmp_path: Path):
         @dataclass
         class Address:
             city: Annotated[str, MinLength(value=2)]
@@ -97,24 +104,35 @@ class TestNestedDataclass:
             address: Address
 
         json_file = tmp_path / "config.json"
-        json_file.write_text(
-            '{"name": "Al", "age": 15, "address": {"city": "N", "zip_code": "ABCDE"}}',
-        )
+        content = '{"name": "Al", "age": 15, "address": {"city": "N", "zip_code": "ABCDE"}}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, User)
 
-        validation_errors = collect_validation_errors(exc_info.value)
+        e = exc_info.value
+        assert len(e.errors) == 4
+        assert str(e) == dedent(f"""\
+            User loading errors (4)
 
-        assert len(validation_errors) == 4
+              [name]  Value must have at least 3 characters
+               └── FILE '{json_file}', line 1
+                   {content}
 
-        error_messages = [e.msg for e in validation_errors]
-        assert "Value must have at least 3 characters" in error_messages
-        assert "Value must be greater than or equal to 18" in error_messages
-        assert "Value must have at least 2 characters" in error_messages
-        assert any("must match pattern" in msg for msg in error_messages if msg is not None)
+              [age]  Value must be greater than or equal to 18
+               └── FILE '{json_file}', line 1
+                   {content}
+
+              [address.city]  Value must have at least 2 characters
+               └── FILE '{json_file}', line 1
+                   {content}
+
+              [address.zip_code]  Value must match pattern '^\\d{{5}}$'
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
 
 class TestCustomErrorMessage:
@@ -124,17 +142,23 @@ class TestCustomErrorMessage:
             age: Annotated[int, Ge(value=18, error_message="Age must be 18 or older")]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"age": 15}')
+        content = '{"age": 15}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Age must be 18 or older"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [age]  Age must be 18 or older
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
 
 class TestDictListDict:
@@ -159,17 +183,23 @@ class TestDictListDict:
             groups: Annotated[dict[str, list[dict[str, Any]]], MinItems(value=1)]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"groups": {}}')
+        content = '{"groups": {}}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Value must have at least 1 items"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [groups]  Value must have at least 1 items
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
     def test_nested_dataclass_in_dict_list_success(self, tmp_path: Path):
         @dataclass
@@ -192,11 +222,7 @@ class TestDictListDict:
         assert result.teams["backend"][0].name == "Alice"
         assert result.teams["backend"][0].role == "admin"
 
-    def test_nested_dataclass_in_dict_list_validation_fails(
-        self,
-        tmp_path: Path,
-        collect_validation_errors: CollectErrors,
-    ):
+    def test_nested_dataclass_in_dict_list_validation_fails(self, tmp_path: Path):
         @dataclass
         class Member:
             name: Annotated[str, MinLength(value=2)]
@@ -207,17 +233,24 @@ class TestDictListDict:
             teams: dict[str, list[Member]]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text(
-            '{"teams": {"backend": [{"name": "A", "role": "ab"}]}}',
-        )
+        content = '{"teams": {"backend": [{"name": "A", "role": "ab"}]}}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises((AggregateLoadError, ValidationLoadError)) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
-        validation_errors = collect_validation_errors(exc_info.value)
+        e = exc_info.value
+        assert len(e.errors) == 2
+        assert str(e) == dedent(f"""\
+            Config loading errors (2)
 
-        error_messages = [e.msg for e in validation_errors]
-        assert "Value must have at least 2 characters" in error_messages
-        assert "Value must have at least 3 characters" in error_messages
+              [teams.backend.0.name]  Value must have at least 2 characters
+               └── FILE '{json_file}', line 1
+                   {content}
+
+              [teams.backend.0.role]  Value must have at least 3 characters
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)

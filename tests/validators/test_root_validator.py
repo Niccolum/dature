@@ -1,10 +1,11 @@
 from dataclasses import dataclass
 from pathlib import Path
+from textwrap import dedent
 
 import pytest
-from adaptix.load_error import ValidationLoadError
 
 from dature import LoadMetadata, load
+from dature.errors import DatureConfigError
 from dature.validators.root import RootValidator
 
 
@@ -51,11 +52,17 @@ class TestRootValidator:
             root_validators=(RootValidator(func=validate_config),),
         )
 
-        with pytest.raises(ValidationLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert e.msg == "Root validation failed"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [<root>]  Root validation failed
+               └── FILE '{json_file}'
+            """)
 
     def test_multiple_root_validators(self, tmp_path: Path):
         @dataclass
@@ -110,11 +117,17 @@ class TestRootValidator:
             ),
         )
 
-        with pytest.raises(ValidationLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert e.msg == "Root validation failed"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [<root>]  Root validation failed
+               └── FILE '{json_file}'
+            """)
 
     def test_root_validator_privileged_port(self, tmp_path: Path):
         @dataclass
@@ -133,11 +146,17 @@ class TestRootValidator:
             root_validators=(RootValidator(func=validate_config),),
         )
 
-        with pytest.raises(ValidationLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert e.msg == "Root validation failed"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [<root>]  Root validation failed
+               └── FILE '{json_file}'
+            """)
 
     def test_root_validator_with_decorator(self, tmp_path: Path):
         def validate_credentials(obj) -> bool:
@@ -159,11 +178,17 @@ class TestRootValidator:
             username: str
             password: str
 
-        with pytest.raises(ValidationLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             Credentials()
 
         e = exc_info.value
-        assert e.msg == "Root validation failed"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Credentials loading errors (1)
+
+              [<root>]  Root validation failed
+               └── FILE '{json_file}'
+            """)
 
     def test_custom_error_message(self, tmp_path: Path):
         @dataclass
@@ -189,8 +214,14 @@ class TestRootValidator:
             ),
         )
 
-        with pytest.raises(ValidationLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert e.msg == "Ports below 1024 require root user"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [<root>]  Ports below 1024 require root user
+               └── FILE '{json_file}'
+            """)

@@ -22,6 +22,7 @@ target-version = "py312"
 select = ["ALL"]
 ignore = [
     "D",      # pydocstyle
+    "ANN204", # missing return type for __init__
 ]
 
 [tool.ruff.lint.per-file-ignores]

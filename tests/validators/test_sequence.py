@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from pathlib import Path
+from textwrap import dedent
 from typing import Annotated
 
 import pytest
-from adaptix.load_error import AggregateLoadError, ValidationLoadError
 
 from dature import LoadMetadata, load
+from dature.errors import DatureConfigError
 from dature.validators.sequence import MaxItems, MinItems, UniqueItems
 
 
@@ -29,17 +30,23 @@ class TestMinItems:
             tags: Annotated[list[str], MinItems(value=3)]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"tags": ["python"]}')
+        content = '{"tags": ["python"]}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Value must have at least 3 items"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [tags]  Value must have at least 3 items
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
 
 class TestMaxItems:
@@ -62,17 +69,23 @@ class TestMaxItems:
             tags: Annotated[list[str], MaxItems(value=2)]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"tags": ["python", "typing", "validation"]}')
+        content = '{"tags": ["python", "typing", "validation"]}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Value must have at most 2 items"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [tags]  Value must have at most 2 items
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
 
 class TestUniqueItems:
@@ -95,17 +108,23 @@ class TestUniqueItems:
             tags: Annotated[list[str], UniqueItems()]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"tags": ["python", "typing", "python"]}')
+        content = '{"tags": ["python", "typing", "python"]}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Value must contain unique items"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [tags]  Value must contain unique items
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
 
 class TestCombined:
@@ -128,14 +147,20 @@ class TestCombined:
             tags: Annotated[list[str], MinItems(value=2), MaxItems(value=5), UniqueItems()]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"tags": ["python", "typing", "validation", "testing", "coding", "extra"]}')
+        content = '{"tags": ["python", "typing", "validation", "testing", "coding", "extra"]}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Value must have at most 5 items"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [tags]  Value must have at most 5 items
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)

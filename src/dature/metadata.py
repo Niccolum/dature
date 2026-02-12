@@ -12,6 +12,7 @@ class LoadMetadata:
     file_: str | None = None
     loader: "LoaderType | None" = None
     prefix: "DotSeparatedPath | None" = None
+    split_symbols: str = "__"
     name_style: "NameStyle | None" = None
     field_mapping: "FieldMapping | None" = None
     root_validators: "tuple[ValidatorProtocol, ...] | None" = None

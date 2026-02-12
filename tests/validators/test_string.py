@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from pathlib import Path
+from textwrap import dedent
 from typing import Annotated
 
 import pytest
-from adaptix.load_error import AggregateLoadError, ValidationLoadError
 
 from dature import LoadMetadata, load
+from dature.errors import DatureConfigError
 from dature.validators.string import MaxLength, MinLength, RegexPattern
 
 
@@ -29,17 +30,23 @@ class TestMinLength:
             name: Annotated[str, MinLength(value=5)]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"name": "Bob"}')
+        content = '{"name": "Bob"}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Value must have at least 5 characters"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [name]  Value must have at least 5 characters
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
 
 class TestMaxLength:
@@ -62,17 +69,23 @@ class TestMaxLength:
             name: Annotated[str, MaxLength(value=5)]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"name": "Alexander"}')
+        content = '{"name": "Alexander"}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Value must have at most 5 characters"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [name]  Value must have at most 5 characters
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
 
 class TestRegexPattern:
@@ -95,19 +108,23 @@ class TestRegexPattern:
             email: Annotated[str, RegexPattern(pattern=r"^[\w\.-]+@[\w\.-]+\.\w+$")]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"email": "invalid-email"}')
+        content = '{"email": "invalid-email"}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        error_msg = e.exceptions[0].msg
-        assert error_msg is not None
-        assert "Value must match pattern" in error_msg
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [email]  Value must match pattern '^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$'
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)
 
 
 class TestCombined:
@@ -130,14 +147,20 @@ class TestCombined:
             username: Annotated[str, MinLength(value=3), MaxLength(value=20)]
 
         json_file = tmp_path / "config.json"
-        json_file.write_text('{"username": "this_is_a_very_long_username_that_exceeds_limit"}')
+        content = '{"username": "this_is_a_very_long_username_that_exceeds_limit"}'
+        json_file.write_text(content)
 
         metadata = LoadMetadata(file_=str(json_file))
 
-        with pytest.raises(AggregateLoadError) as exc_info:
+        with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.exceptions) == 1
-        assert isinstance(e.exceptions[0], ValidationLoadError)
-        assert e.exceptions[0].msg == "Value must have at most 20 characters"
+        assert len(e.errors) == 1
+        assert str(e) == dedent(f"""\
+            Config loading errors (1)
+
+              [username]  Value must have at most 20 characters
+               └── FILE '{json_file}', line 1
+                   {content}
+            """)

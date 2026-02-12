@@ -1,0 +1,19 @@
+{
+  // ValueLoadError: Bad string format
+  port: "abc",
+  // BadVariantLoadError
+  status: "unknown",
+  // ValidationLoadError: MinLength
+  name: "AB",
+  // ValidationLoadError: RegexPattern
+  email: "not-an-email",
+  // ValidationLoadError: Le
+  age: 200,
+  // ValidationLoadError: MinItems
+  tags: [],
+  // Nested ValidationLoadError
+  address: {
+    city: "N",
+    zip_code: "ABCDE",
+  },
+}

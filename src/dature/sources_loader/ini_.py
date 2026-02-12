@@ -1,6 +1,7 @@
 import configparser
 from datetime import date, datetime, time
 from pathlib import Path
+from typing import cast
 
 from adaptix import loader
 from adaptix.provider import Provider
@@ -44,5 +45,23 @@ class IniLoader(ILoader):
         config = configparser.ConfigParser(interpolation=None)
         config.read(path)
         if self._prefix and self._prefix in config:
-            return {self._prefix: dict(config[self._prefix])}
-        return {section: dict(config[section]) for section in config}
+            result: dict[str, JSONValue] = dict(config[self._prefix])
+            child_prefix = self._prefix + "."
+            for section in config.sections():
+                if section.startswith(child_prefix):
+                    nested_key = section[len(child_prefix) :]
+                    result[nested_key] = dict(config[section])
+            return {self._prefix: result}
+
+        all_sections: dict[str, JSONValue] = {}
+        if config.defaults():
+            all_sections["DEFAULT"] = dict(config.defaults())
+        for section in config.sections():
+            parts = section.split(".")
+            target = all_sections
+            for part in parts[:-1]:
+                if part not in target:
+                    target[part] = {}
+                target = cast("dict[str, JSONValue]", target[part])
+            target[parts[-1]] = dict(config[section])
+        return all_sections
