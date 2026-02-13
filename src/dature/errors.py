@@ -74,3 +74,32 @@ class DatureConfigError(Exception):
             lines.append("")
 
         return "\n".join(lines)
+
+
+class MergeConflictError(DatureConfigError):
+    def __init__(
+        self,
+        conflicts: list[tuple[FieldErrorInfo, list[SourceLocation]]],
+        dataclass_name: str,
+    ) -> None:
+        self.conflicts = conflicts
+        errors = [FieldError(error=info, location=locations[0] if locations else None) for info, locations in conflicts]
+        super().__init__(errors, dataclass_name)
+
+    def _format_message(self) -> str:
+        lines: list[str] = []
+        lines.append(f"{self.dataclass_name} merge conflicts ({len(self.conflicts)})")
+        lines.append("")
+
+        for info, locations in self.conflicts:
+            path_str = ".".join(info.field_path)
+            if not path_str:
+                path_str = "<root>"
+            lines.append(f"  [{path_str}]  {info.message}")
+
+            for loc in locations:
+                lines.extend(_format_location(loc))
+
+            lines.append("")
+
+        return "\n".join(lines)

@@ -53,7 +53,7 @@ class ILoader(abc.ABC):
         self._name_style = name_style
         self._field_mapping = field_mapping
         self._root_validators = root_validators or ()
-        self._retorts: dict[type, Retort] = {}
+        self.retorts: dict[type, Retort] = {}
 
     def _additional_loaders(self) -> list[Provider]:
         return []
@@ -127,7 +127,7 @@ class ILoader(abc.ABC):
 
         return result
 
-    def _create_retort(self) -> Retort:
+    def create_retort(self) -> Retort:
         default_loaders: list[Provider] = [
             loader(bytes, bytes_from_string),
             loader(complex, complex_from_string),
@@ -148,7 +148,7 @@ class ILoader(abc.ABC):
             ],
         )
 
-    def _create_validating_retort(self, dataclass_: type[T]) -> Retort:
+    def create_validating_retort(self, dataclass_: type[T]) -> Retort:
         root_validator_providers = create_root_validator_providers(
             dataclass_,
             self._root_validators,
@@ -191,12 +191,16 @@ class ILoader(abc.ABC):
         prefixed = self._apply_prefix(data)
         return self._expand_env_vars(prefixed)
 
-    def _transform_to_dataclass(self, data: JSONValue, dataclass_: type[T]) -> T:
-        if dataclass_ not in self._retorts:
-            self._retorts[dataclass_] = self._create_retort()
-        return self._retorts[dataclass_].load(data, dataclass_)
+    def transform_to_dataclass(self, data: JSONValue, dataclass_: type[T]) -> T:
+        if dataclass_ not in self.retorts:
+            self.retorts[dataclass_] = self.create_retort()
+        return self.retorts[dataclass_].load(data, dataclass_)
+
+    def load_raw(self, path: Path) -> JSONValue:
+        data = self._load(path)
+        return self._pre_processing(data)
 
     def load(self, path: Path, dataclass_: type[T]) -> T:
         data = self._load(path)
         pre_processed_data = self._pre_processing(data)
-        return self._transform_to_dataclass(pre_processed_data, dataclass_)
+        return self.transform_to_dataclass(pre_processed_data, dataclass_)

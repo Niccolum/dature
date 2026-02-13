@@ -98,7 +98,7 @@ class TestILoaderBase:
         data = {"name": "TestApp", "port": 8080}
         loader = MockLoader(test_data=data)
 
-        result = loader._transform_to_dataclass(data, Config)
+        result = loader.transform_to_dataclass(data, Config)
 
         assert result == expected_data
 
@@ -118,7 +118,7 @@ class TestILoaderBase:
         data = {"database": {"host": "localhost", "port": 5432}}
         loader = MockLoader(test_data=data)
 
-        result = loader._transform_to_dataclass(data, Config)
+        result = loader.transform_to_dataclass(data, Config)
 
         assert result == expected_data
 

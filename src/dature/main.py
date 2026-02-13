@@ -2,7 +2,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, overload
 
-from dature.metadata import LoadMetadata
+from dature.merge import merge_load_as_function, merge_make_decorator
+from dature.metadata import LoadMetadata, MergeMetadata
 from dature.patcher import load_as_function, make_decorator
 from dature.sources_loader.resolver import resolve_loader
 from dature.validators.protocols import DataclassInstance
@@ -10,7 +11,7 @@ from dature.validators.protocols import DataclassInstance
 
 @overload
 def load[T](
-    metadata: LoadMetadata | None,
+    metadata: LoadMetadata | MergeMetadata | tuple[LoadMetadata, ...] | None,
     /,
     dataclass_: type[T],
 ) -> T: ...
@@ -18,7 +19,7 @@ def load[T](
 
 @overload
 def load(
-    metadata: LoadMetadata | None = None,
+    metadata: LoadMetadata | MergeMetadata | tuple[LoadMetadata, ...] | None = None,
     /,
     dataclass_: None = None,
     *,
@@ -27,12 +28,20 @@ def load(
 
 
 def load(
-    metadata: LoadMetadata | None = None,
+    metadata: LoadMetadata | MergeMetadata | tuple[LoadMetadata, ...] | None = None,
     /,
     dataclass_: type[Any] | None = None,
     *,
     cache: bool = True,
 ) -> Any:
+    if isinstance(metadata, tuple):
+        metadata = MergeMetadata(sources=metadata)
+
+    if isinstance(metadata, MergeMetadata):
+        if dataclass_ is not None:
+            return merge_load_as_function(metadata, dataclass_)
+        return merge_make_decorator(metadata, cache=cache)
+
     if metadata is None:
         metadata = LoadMetadata()
 

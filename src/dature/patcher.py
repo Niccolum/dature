@@ -31,9 +31,9 @@ def _merge_fields(
 
 def _ensure_retort(loader_instance: ILoader, cls: type) -> None:
     """Создаёт retort до замены __init__, чтобы adaptix видел оригинальную сигнатуру."""
-    if cls not in loader_instance._retorts:  # noqa: SLF001
-        loader_instance._retorts[cls] = loader_instance._create_retort()  # noqa: SLF001
-    loader_instance._retorts[cls].get_loader(cls)  # noqa: SLF001
+    if cls not in loader_instance.retorts:
+        loader_instance.retorts[cls] = loader_instance.create_retort()
+    loader_instance.retorts[cls].get_loader(cls)
 
 
 class _PatchContext:
@@ -47,7 +47,7 @@ class _PatchContext:
         cache: bool,
     ) -> None:
         _ensure_retort(loader_instance, cls)
-        validating_retort = loader_instance._create_validating_retort(cls)  # noqa: SLF001
+        validating_retort = loader_instance.create_validating_retort(cls)
 
         self.loader_instance = loader_instance
         self.file_path = file_path
@@ -150,7 +150,7 @@ def load_as_function(
         ctx=error_ctx,
     )
 
-    validating_retort = loader_instance._create_validating_retort(dataclass_)  # noqa: SLF001
+    validating_retort = loader_instance.create_validating_retort(dataclass_)
     validation_loader = validating_retort.get_loader(dataclass_)
     result_dict = asdict(result)
 

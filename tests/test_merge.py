@@ -1,0 +1,724 @@
+"""Tests for merge functionality — multi-source config loading."""
+
+from dataclasses import dataclass
+from pathlib import Path
+from textwrap import dedent
+
+import pytest
+
+from dature import LoadMetadata, MergeMetadata, MergeStrategy, load
+from dature.errors import DatureConfigError, MergeConflictError
+from dature.merge import deep_merge
+
+
+class TestDeepMerge:
+    def test_flat_last_wins(self):
+        base = {"a": 1, "b": 2}
+        override = {"b": 3, "c": 4}
+
+        result = deep_merge(base, override, MergeStrategy.LAST_WINS)
+
+        assert result == {"a": 1, "b": 3, "c": 4}
+
+    def test_flat_first_wins(self):
+        base = {"a": 1, "b": 2}
+        override = {"b": 3, "c": 4}
+
+        result = deep_merge(base, override, MergeStrategy.FIRST_WINS)
+
+        assert result == {"a": 1, "b": 2, "c": 4}
+
+    def test_nested_last_wins(self):
+        base = {"db": {"host": "localhost", "port": 5432}}
+        override = {"db": {"host": "prod-host", "name": "mydb"}}
+
+        result = deep_merge(base, override, MergeStrategy.LAST_WINS)
+
+        assert result == {"db": {"host": "prod-host", "port": 5432, "name": "mydb"}}
+
+    def test_nested_first_wins(self):
+        base = {"db": {"host": "localhost", "port": 5432}}
+        override = {"db": {"host": "prod-host", "name": "mydb"}}
+
+        result = deep_merge(base, override, MergeStrategy.FIRST_WINS)
+
+        assert result == {"db": {"host": "localhost", "port": 5432, "name": "mydb"}}
+
+    def test_lists_replaced_entirely(self):
+        base = {"tags": ["a", "b"]}
+        override = {"tags": ["c"]}
+
+        result = deep_merge(base, override, MergeStrategy.LAST_WINS)
+
+        assert result == {"tags": ["c"]}
+
+    def test_scalar_override(self):
+        result = deep_merge("old", "new", MergeStrategy.LAST_WINS)
+        assert result == "new"
+
+    def test_scalar_first_wins(self):
+        result = deep_merge("old", "new", MergeStrategy.FIRST_WINS)
+        assert result == "old"
+
+    def test_empty_base(self):
+        result = deep_merge({}, {"a": 1}, MergeStrategy.LAST_WINS)
+        assert result == {"a": 1}
+
+    def test_empty_override(self):
+        result = deep_merge({"a": 1}, {}, MergeStrategy.LAST_WINS)
+        assert result == {"a": 1}
+
+    def test_deeply_nested(self):
+        base = {"a": {"b": {"c": 1, "d": 2}}}
+        override = {"a": {"b": {"c": 99, "e": 3}}}
+
+        result = deep_merge(base, override, MergeStrategy.LAST_WINS)
+
+        assert result == {"a": {"b": {"c": 99, "d": 2, "e": 3}}}
+
+
+class TestMergeLoadAsFunction:
+    def test_two_json_sources_last_wins(self, tmp_path: Path):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text('{"host": "localhost", "port": 3000}')
+
+        overrides = tmp_path / "overrides.json"
+        overrides.write_text('{"port": 8080}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(defaults)),
+                    LoadMetadata(file_=str(overrides)),
+                ),
+            ),
+            Config,
+        )
+
+        assert result.host == "localhost"
+        assert result.port == 8080
+
+    def test_two_json_sources_first_wins(self, tmp_path: Path):
+        first = tmp_path / "first.json"
+        first.write_text('{"host": "first-host", "port": 3000}')
+
+        second = tmp_path / "second.json"
+        second.write_text('{"host": "second-host", "port": 8080}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(first)),
+                    LoadMetadata(file_=str(second)),
+                ),
+                strategy=MergeStrategy.FIRST_WINS,
+            ),
+            Config,
+        )
+
+        assert result.host == "first-host"
+        assert result.port == 3000
+
+    def test_partial_sources(self, tmp_path: Path):
+        file_a = tmp_path / "a.json"
+        file_a.write_text('{"host": "myhost"}')
+
+        file_b = tmp_path / "b.json"
+        file_b.write_text('{"port": 9090}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(file_a)),
+                    LoadMetadata(file_=str(file_b)),
+                ),
+            ),
+            Config,
+        )
+
+        assert result.host == "myhost"
+        assert result.port == 9090
+
+    def test_nested_dataclass(self, tmp_path: Path):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text('{"database": {"host": "localhost", "port": 5432}}')
+
+        overrides = tmp_path / "overrides.json"
+        overrides.write_text('{"database": {"host": "prod-host"}}')
+
+        @dataclass
+        class Database:
+            host: str
+            port: int
+
+        @dataclass
+        class Config:
+            database: Database
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(defaults)),
+                    LoadMetadata(file_=str(overrides)),
+                ),
+            ),
+            Config,
+        )
+
+        assert result.database.host == "prod-host"
+        assert result.database.port == 5432
+
+    def test_three_sources(self, tmp_path: Path):
+        a = tmp_path / "a.json"
+        a.write_text('{"host": "a-host", "port": 1000, "debug": false}')
+
+        b = tmp_path / "b.json"
+        b.write_text('{"port": 2000}')
+
+        c = tmp_path / "c.json"
+        c.write_text('{"debug": true}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+            debug: bool
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(a)),
+                    LoadMetadata(file_=str(b)),
+                    LoadMetadata(file_=str(c)),
+                ),
+            ),
+            Config,
+        )
+
+        assert result.host == "a-host"
+        assert result.port == 2000
+        assert result.debug is True
+
+    def test_tuple_shorthand(self, tmp_path: Path):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text('{"host": "localhost", "port": 3000}')
+
+        overrides = tmp_path / "overrides.json"
+        overrides.write_text('{"port": 8080}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        result = load(
+            (
+                LoadMetadata(file_=str(defaults)),
+                LoadMetadata(file_=str(overrides)),
+            ),
+            Config,
+        )
+
+        assert result.host == "localhost"
+        assert result.port == 8080
+
+    def test_json_and_env(self, tmp_path: Path, monkeypatch):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text('{"host": "localhost", "port": 3000}')
+
+        monkeypatch.setenv("APP_PORT", "9090")
+        monkeypatch.setenv("APP_HOST", "env-host")
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(defaults)),
+                    LoadMetadata(prefix="APP_"),
+                ),
+            ),
+            Config,
+        )
+
+        assert result.host == "env-host"
+        assert result.port == 9090
+
+    def test_json_and_env_missing_field_error(self, tmp_path: Path, monkeypatch):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text('{"host": "localhost"}')
+
+        monkeypatch.delenv("APP_PORT", raising=False)
+        monkeypatch.delenv("APP_HOST", raising=False)
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(
+                MergeMetadata(
+                    sources=(
+                        LoadMetadata(file_=str(defaults)),
+                        LoadMetadata(prefix="APP_"),
+                    ),
+                ),
+                Config,
+            )
+
+        err = exc_info.value
+        assert len(err.errors) == 1
+        assert str(err) == dedent("""\
+            Config loading errors (1)
+
+              [port]  Missing required field
+               └── ENV 'APP_PORT'
+            """)
+
+    def test_missing_field_in_all_sources(self, tmp_path: Path):
+        a = tmp_path / "a.json"
+        a.write_text('{"host": "localhost"}')
+
+        b = tmp_path / "b.json"
+        b.write_text("{}")
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(
+                MergeMetadata(
+                    sources=(
+                        LoadMetadata(file_=str(a)),
+                        LoadMetadata(file_=str(b)),
+                    ),
+                ),
+                Config,
+            )
+
+        err = exc_info.value
+        assert len(err.errors) == 1
+        assert str(err) == dedent(f"""\
+            Config loading errors (1)
+
+              [port]  Missing required field
+               └── FILE '{b}'
+            """)
+
+    def test_backward_compat_single_load_metadata(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"name": "test", "port": 8080}')
+
+        @dataclass
+        class Config:
+            name: str
+            port: int
+
+        result = load(LoadMetadata(file_=str(json_file)), Config)
+
+        assert result.name == "test"
+        assert result.port == 8080
+
+    def test_backward_compat_none_metadata(self, monkeypatch):
+        monkeypatch.setenv("MY_VAR", "from_env")
+
+        @dataclass
+        class Config:
+            my_var: str
+
+        result = load(None, Config)
+
+        assert result.my_var == "from_env"
+
+
+class TestMergeAsDecorator:
+    def test_decorator_with_merge(self, tmp_path: Path):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text('{"host": "localhost", "port": 3000}')
+
+        overrides = tmp_path / "overrides.json"
+        overrides.write_text('{"port": 9090}')
+
+        meta = MergeMetadata(
+            sources=(
+                LoadMetadata(file_=str(defaults)),
+                LoadMetadata(file_=str(overrides)),
+            ),
+        )
+
+        @load(meta)
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        config = Config()
+        assert config.host == "localhost"
+        assert config.port == 9090
+
+    def test_decorator_cache(self, tmp_path: Path):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text('{"host": "original", "port": 3000}')
+
+        meta = MergeMetadata(sources=(LoadMetadata(file_=str(defaults)),))
+
+        @load(meta)
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        first = Config()
+        defaults.write_text('{"host": "updated", "port": 9090}')
+        second = Config()
+
+        assert first.host == "original"
+        assert second.host == "original"
+
+    def test_decorator_no_cache(self, tmp_path: Path):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text('{"host": "original", "port": 3000}')
+
+        meta = MergeMetadata(sources=(LoadMetadata(file_=str(defaults)),))
+
+        @load(meta, cache=False)
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        first = Config()
+        defaults.write_text('{"host": "updated", "port": 9090}')
+        second = Config()
+
+        assert first.host == "original"
+        assert second.host == "updated"
+
+    def test_decorator_with_tuple(self, tmp_path: Path):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text('{"host": "localhost", "port": 3000}')
+
+        overrides = tmp_path / "overrides.json"
+        overrides.write_text('{"port": 8080}')
+
+        @load(
+            (
+                LoadMetadata(file_=str(defaults)),
+                LoadMetadata(file_=str(overrides)),
+            ),
+        )
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        config = Config()
+        assert config.host == "localhost"
+        assert config.port == 8080
+
+    def test_decorator_init_override(self, tmp_path: Path):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text('{"host": "localhost", "port": 3000}')
+
+        meta = MergeMetadata(sources=(LoadMetadata(file_=str(defaults)),))
+
+        @load(meta)
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        config = Config(host="overridden")
+        assert config.host == "overridden"
+        assert config.port == 3000
+
+    def test_decorator_not_dataclass(self):
+        meta = MergeMetadata(sources=(LoadMetadata(),))
+
+        with pytest.raises(TypeError, match="must be a dataclass"):
+
+            @load(meta)
+            class NotDataclass:
+                pass
+
+    def test_decorator_first_wins(self, tmp_path: Path):
+        first = tmp_path / "first.json"
+        first.write_text('{"host": "first-host", "port": 1000}')
+
+        second = tmp_path / "second.json"
+        second.write_text('{"host": "second-host", "port": 2000}')
+
+        meta = MergeMetadata(
+            sources=(
+                LoadMetadata(file_=str(first)),
+                LoadMetadata(file_=str(second)),
+            ),
+            strategy=MergeStrategy.FIRST_WINS,
+        )
+
+        @load(meta)
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        config = Config()
+        assert config.host == "first-host"
+        assert config.port == 1000
+
+
+class TestRaiseOnConflict:
+    def test_raises_on_scalar_conflict(self, tmp_path: Path):
+        a = tmp_path / "a.json"
+        a.write_text('{\n  "host": "host-a",\n  "port": 3000\n}')
+
+        b = tmp_path / "b.json"
+        b.write_text('{\n  "host": "host-b"\n}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        with pytest.raises(MergeConflictError) as exc_info:
+            load(
+                MergeMetadata(
+                    sources=(
+                        LoadMetadata(file_=str(a)),
+                        LoadMetadata(file_=str(b)),
+                    ),
+                    strategy=MergeStrategy.RAISE_ON_CONFLICT,
+                ),
+                Config,
+            )
+
+        assert str(exc_info.value) == dedent(f"""\
+            Config merge conflicts (1)
+
+              [host]  Conflicting values in multiple sources
+               └── FILE '{a}', line 2
+                   "host": "host-a",
+               └── FILE '{b}', line 2
+                   "host": "host-b"
+            """)
+
+    def test_no_conflict_disjoint_keys(self, tmp_path: Path):
+        a = tmp_path / "a.json"
+        a.write_text('{"host": "localhost"}')
+
+        b = tmp_path / "b.json"
+        b.write_text('{"port": 8080}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(a)),
+                    LoadMetadata(file_=str(b)),
+                ),
+                strategy=MergeStrategy.RAISE_ON_CONFLICT,
+            ),
+            Config,
+        )
+
+        assert result.host == "localhost"
+        assert result.port == 8080
+
+    def test_nested_conflict(self, tmp_path: Path):
+        a = tmp_path / "a.json"
+        a.write_text('{\n  "database": {\n    "host": "a-host",\n    "port": 5432\n  }\n}')
+
+        b = tmp_path / "b.json"
+        b.write_text('{\n  "database": {\n    "host": "b-host"\n  }\n}')
+
+        @dataclass
+        class Database:
+            host: str
+            port: int
+
+        @dataclass
+        class Config:
+            database: Database
+
+        with pytest.raises(MergeConflictError) as exc_info:
+            load(
+                MergeMetadata(
+                    sources=(
+                        LoadMetadata(file_=str(a)),
+                        LoadMetadata(file_=str(b)),
+                    ),
+                    strategy=MergeStrategy.RAISE_ON_CONFLICT,
+                ),
+                Config,
+            )
+
+        assert str(exc_info.value) == dedent(f"""\
+            Config merge conflicts (1)
+
+              [database.host]  Conflicting values in multiple sources
+               └── FILE '{a}', line 3
+                   "host": "a-host",
+               └── FILE '{b}', line 3
+                   "host": "b-host"
+            """)
+
+    def test_conflict_error_message_format(self, tmp_path: Path):
+        a = tmp_path / "a.json"
+        a.write_text('{\n  "host": "a-host"\n}')
+
+        b = tmp_path / "b.json"
+        b.write_text('{\n  "host": "b-host"\n}')
+
+        @dataclass
+        class Config:
+            host: str
+
+        with pytest.raises(MergeConflictError) as exc_info:
+            load(
+                MergeMetadata(
+                    sources=(
+                        LoadMetadata(file_=str(a)),
+                        LoadMetadata(file_=str(b)),
+                    ),
+                    strategy=MergeStrategy.RAISE_ON_CONFLICT,
+                ),
+                Config,
+            )
+
+        assert str(exc_info.value) == dedent(f"""\
+            Config merge conflicts (1)
+
+              [host]  Conflicting values in multiple sources
+               └── FILE '{a}', line 2
+                   "host": "a-host"
+               └── FILE '{b}', line 2
+                   "host": "b-host"
+            """)
+
+    def test_conflict_with_env_source(self, tmp_path: Path, monkeypatch):
+        a = tmp_path / "a.json"
+        a.write_text('{\n  "host": "json-host",\n  "port": 3000\n}')
+
+        monkeypatch.setenv("APP_HOST", "env-host")
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        with pytest.raises(MergeConflictError) as exc_info:
+            load(
+                MergeMetadata(
+                    sources=(
+                        LoadMetadata(file_=str(a)),
+                        LoadMetadata(prefix="APP_"),
+                    ),
+                    strategy=MergeStrategy.RAISE_ON_CONFLICT,
+                ),
+                Config,
+            )
+
+        assert str(exc_info.value) == dedent(f"""\
+            Config merge conflicts (1)
+
+              [host]  Conflicting values in multiple sources
+               └── FILE '{a}', line 2
+                   "host": "json-host",
+               └── ENV 'APP_HOST'
+            """)
+
+    def test_multiple_conflicts(self, tmp_path: Path):
+        a = tmp_path / "a.json"
+        a.write_text('{\n  "host": "a-host",\n  "port": 1000\n}')
+
+        b = tmp_path / "b.json"
+        b.write_text('{\n  "host": "b-host",\n  "port": 2000\n}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        with pytest.raises(MergeConflictError) as exc_info:
+            load(
+                MergeMetadata(
+                    sources=(
+                        LoadMetadata(file_=str(a)),
+                        LoadMetadata(file_=str(b)),
+                    ),
+                    strategy=MergeStrategy.RAISE_ON_CONFLICT,
+                ),
+                Config,
+            )
+
+        assert len(exc_info.value.conflicts) == 2
+        assert str(exc_info.value) == dedent(f"""\
+            Config merge conflicts (2)
+
+              [host]  Conflicting values in multiple sources
+               └── FILE '{a}', line 2
+                   "host": "a-host",
+               └── FILE '{b}', line 2
+                   "host": "b-host",
+
+              [port]  Conflicting values in multiple sources
+               └── FILE '{a}', line 3
+                   "port": 1000
+               └── FILE '{b}', line 3
+                   "port": 2000
+            """)
+
+    def test_is_subclass_of_dature_config_error(self):
+        assert issubclass(MergeConflictError, DatureConfigError)
+
+
+class TestMergeWithYamlAndEnvFile:
+    def test_yaml_and_env_file(self, tmp_path: Path):
+        yaml_file = tmp_path / "defaults.yaml"
+        yaml_file.write_text("host: localhost\nport: 3000\n")
+
+        env_file = tmp_path / "overrides.env"
+        env_file.write_text("PORT=9090\n")
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(yaml_file)),
+                    LoadMetadata(file_=str(env_file)),
+                ),
+            ),
+            Config,
+        )
+
+        assert result.host == "localhost"
+        assert result.port == 9090
