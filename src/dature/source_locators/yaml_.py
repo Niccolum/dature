@@ -10,7 +10,7 @@ class YamlPathFinder:
                 continue
 
             indent = len(line) - len(stripped)
-            # Разделяем по первому двоеточию
+            # Separate by the first colon
             key_part, sep, _ = stripped.partition(":")
             if not sep:
                 continue

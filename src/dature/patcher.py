@@ -30,7 +30,7 @@ def _merge_fields(
 
 
 def _ensure_retort(loader_instance: ILoader, cls: type) -> None:
-    """Создаёт retort до замены __init__, чтобы adaptix видел оригинальную сигнатуру."""
+    """Creates a replacement response to __init__ so that Adaptix sees the original signature."""
     if cls not in loader_instance.retorts:
         loader_instance.retorts[cls] = loader_instance.create_retort()
     loader_instance.retorts[cls].get_loader(cls)

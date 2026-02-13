@@ -31,7 +31,7 @@ class JsonPathFinder:
                 continue
 
             if ch != '"':
-                # Скалярное значение (число, true, false, null)
+                # Scalar value (number, true, false, null)
                 _increment_parent_array(stack)
                 pos = _skip_until(content, pos, length)
                 continue
@@ -40,12 +40,12 @@ class JsonPathFinder:
             colon_pos = _skip_ws(content, pos, length)
 
             if colon_pos >= length or content[colon_pos] != ":":
-                # Строковое значение, не ключ
+                # String value, not a key
                 _increment_parent_array(stack)
                 last_key = None
                 continue
 
-            # Нашли ключ
+            # Found the key
             if _build_path(stack, string_value) == target_path:
                 return line
 

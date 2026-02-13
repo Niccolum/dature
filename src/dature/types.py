@@ -4,7 +4,7 @@ from urllib.parse import ParseResult
 
 type JSONValue = dict[str, JSONValue] | list[JSONValue] | str | int | float | bool | None
 
-# Результат get_type_hints() / get_args(): конкретный класс или параметризованный дженерик
+# Result of get_type_hints() / get_args(): concrete class or parameterized generic
 type TypeAnnotation = type[object] | types.GenericAlias
 
 # Examples: "app", "app.database", "app.database.host"

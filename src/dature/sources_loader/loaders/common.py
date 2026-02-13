@@ -2,10 +2,10 @@ import json
 from datetime import date, datetime, time
 from typing import Any, cast
 
-# Ожидаемое количество частей времени в формате HH:MM:SS
+# Expected number of time parts in HH:MM:SS format
 TIME_PARTS_WITH_SECONDS = 3
 
-# Ожидаемое количество частей времени в формате HH:MM
+# Expected number of time parts in HH:MM format
 TIME_PARTS_WITHOUT_SECONDS = 2
 
 

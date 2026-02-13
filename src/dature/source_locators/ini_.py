@@ -12,13 +12,13 @@ class TablePathFinder:
             if not stripped or stripped.startswith(("#", ";")):
                 continue
 
-            # Работа c секциями [section] или [parent.child]
+            # Working with sections [section] or [parent.child]
             if stripped.startswith("[") and "]" in stripped:
                 section_name = stripped.strip("[] ")
                 current_section = section_name.split(".")
                 continue
 
-            # Работа c ключами key = value
+            # Working with keys key = value
             sep = "=" if "=" in stripped else ":"
             if sep in stripped:
                 key = stripped.partition(sep)[0].strip().strip("\"'")
