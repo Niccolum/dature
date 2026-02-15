@@ -14,6 +14,23 @@ class MergeStrategy(StrEnum):
     RAISE_ON_CONFLICT = "raise_on_conflict"
 
 
+class FieldMergeStrategy(StrEnum):
+    FIRST_WINS = "first_wins"
+    LAST_WINS = "last_wins"
+    APPEND = "append"
+    APPEND_UNIQUE = "append_unique"
+    PREPEND = "prepend"
+    PREPEND_UNIQUE = "prepend_unique"
+    MAX = "max"
+    MIN = "min"
+
+
+@dataclass(frozen=True, slots=True)
+class MergeRule:
+    predicate: object
+    strategy: FieldMergeStrategy
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class LoadMetadata:
     file_: str | None = None
@@ -30,3 +47,4 @@ class LoadMetadata:
 class MergeMetadata:
     sources: tuple[LoadMetadata, ...]
     strategy: MergeStrategy = MergeStrategy.LAST_WINS
+    field_merges: tuple[MergeRule, ...] = ()

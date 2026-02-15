@@ -15,8 +15,9 @@ from dature.load_report import (
     compute_field_origins,
     get_load_report,
 )
-from dature.metadata import LoadMetadata, MergeMetadata, MergeStrategy
+from dature.metadata import FieldMergeStrategy, LoadMetadata, MergeMetadata, MergeStrategy
 from dature.patcher import ensure_retort, merge_fields
+from dature.predicate import build_field_merge_map
 from dature.sources_loader.base import ILoader
 from dature.sources_loader.resolver import get_loader_type, resolve_loader
 from dature.types import JSONValue
@@ -114,14 +115,15 @@ def _merge_raw_dicts(
     raw_dicts: list[JSONValue],
     strategy: MergeStrategy,
     dataclass_name: str,
+    field_merge_map: dict[str, FieldMergeStrategy] | None = None,
 ) -> JSONValue:
     merged: JSONValue = {}
     for step_idx, raw in enumerate(raw_dicts):
         before = merged
         if strategy == MergeStrategy.RAISE_ON_CONFLICT:
-            merged = deep_merge_last_wins(merged, raw)
+            merged = deep_merge_last_wins(merged, raw, field_merge_map=field_merge_map)
         else:
-            merged = deep_merge(merged, raw, strategy=strategy)
+            merged = deep_merge(merged, raw, strategy=strategy, field_merge_map=field_merge_map)
 
         _log_merge_step(
             dataclass_name=dataclass_name,
@@ -195,13 +197,18 @@ def _load_and_merge[T](
         msg = "MergeMetadata.sources must not be empty"
         raise ValueError(msg)
 
+    field_merge_map: dict[str, FieldMergeStrategy] | None = None
+    if merge_meta.field_merges:
+        field_merge_map = build_field_merge_map(merge_meta.field_merges)
+
     if merge_meta.strategy == MergeStrategy.RAISE_ON_CONFLICT:
-        raise_on_conflict(raw_dicts, source_ctxs, dataclass_.__name__)
+        raise_on_conflict(raw_dicts, source_ctxs, dataclass_.__name__, field_merge_map=field_merge_map)
 
     merged = _merge_raw_dicts(
         raw_dicts=raw_dicts,
         strategy=merge_meta.strategy,
         dataclass_name=dataclass_.__name__,
+        field_merge_map=field_merge_map,
     )
 
     logger.debug(

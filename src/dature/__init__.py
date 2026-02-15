@@ -1,5 +1,15 @@
+from dature.field_path import F
 from dature.load_report import get_load_report
 from dature.main import load
-from dature.metadata import LoadMetadata, MergeMetadata, MergeStrategy
+from dature.metadata import FieldMergeStrategy, LoadMetadata, MergeMetadata, MergeRule, MergeStrategy
 
-__all__ = ["LoadMetadata", "MergeMetadata", "MergeStrategy", "get_load_report", "load"]
+__all__ = [
+    "F",
+    "FieldMergeStrategy",
+    "LoadMetadata",
+    "MergeMetadata",
+    "MergeRule",
+    "MergeStrategy",
+    "get_load_report",
+    "load",
+]

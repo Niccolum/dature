@@ -237,9 +237,73 @@ class Config:
 |----------|----------|
 | `LAST_WINS` | Last source overrides (default) |
 | `FIRST_WINS` | First source wins |
-| `RAISE_ON_CONFLICT` | Raises `MergeConflictError` if the same key appears in multiple sources |
+| `RAISE_ON_CONFLICT` | Raises `MergeConflictError` if the same key appears in multiple sources with different values |
 
 Nested dicts are merged recursively. Lists and scalars are replaced entirely according to the strategy.
+
+### Per-Field Merge Strategies
+
+Override the global strategy for individual fields using `field_merges`:
+
+```python
+from dature import F, FieldMergeStrategy, LoadMetadata, MergeMetadata, MergeRule, MergeStrategy, load
+
+@dataclass
+class Config:
+    host: str
+    port: int
+    tags: list[str]
+
+config = load(
+    MergeMetadata(
+        sources=(
+            LoadMetadata(file_="defaults.yaml"),
+            LoadMetadata(file_="overrides.yaml"),
+        ),
+        strategy=MergeStrategy.LAST_WINS,
+        field_merges=(
+            MergeRule(F[Config].host, FieldMergeStrategy.FIRST_WINS),
+            MergeRule(F[Config].tags, FieldMergeStrategy.APPEND),
+        ),
+    ),
+    Config,
+)
+```
+
+`F[Config].host` builds a field path with eager validation -- the dataclass and field name are checked immediately. For decorator mode where the class is not yet defined, use a string: `F["Config"].host` (validation is skipped).
+
+| Strategy | Behavior |
+|----------|----------|
+| `FIRST_WINS` | Keep the value from the first source |
+| `LAST_WINS` | Keep the value from the last source |
+| `APPEND` | Concatenate lists: `base + override` |
+| `APPEND_UNIQUE` | Concatenate lists, removing duplicates |
+| `PREPEND` | Concatenate lists: `override + base` |
+| `PREPEND_UNIQUE` | Concatenate lists in reverse order, removing duplicates |
+| `MAX` | Keep the larger value (int, float, str) |
+| `MIN` | Keep the smaller value (int, float, str) |
+
+Nested fields are supported: `F[Config].database.host`.
+
+Per-field strategies also work with `RAISE_ON_CONFLICT` -- fields with an explicit strategy are excluded from conflict detection:
+
+```python
+config = load(
+    MergeMetadata(
+        sources=(
+            LoadMetadata(file_="a.yaml"),
+            LoadMetadata(file_="b.yaml"),
+        ),
+        strategy=MergeStrategy.RAISE_ON_CONFLICT,
+        field_merges=(
+            MergeRule(F[Config].host, FieldMergeStrategy.LAST_WINS),
+        ),
+    ),
+    Config,
+)
+# "host" can differ between sources without raising an error,
+# all other fields still raise MergeConflictError on conflict.
+```
 
 ## Load Report
 

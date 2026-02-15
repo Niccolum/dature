@@ -482,6 +482,32 @@ class TestRaiseOnConflict:
         assert result.host == "localhost"
         assert result.port == 8080
 
+    def test_no_conflict_same_values(self, tmp_path: Path):
+        a = tmp_path / "a.json"
+        a.write_text('{"host": "same", "port": 3000}')
+
+        b = tmp_path / "b.json"
+        b.write_text('{"host": "same", "port": 3000}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(a)),
+                    LoadMetadata(file_=str(b)),
+                ),
+                strategy=MergeStrategy.RAISE_ON_CONFLICT,
+            ),
+            Config,
+        )
+
+        assert result.host == "same"
+        assert result.port == 3000
+
     def test_nested_conflict(self, tmp_path: Path):
         a = tmp_path / "a.json"
         a.write_text('{\n  "database": {\n    "host": "a-host",\n    "port": 5432\n  }\n}')
