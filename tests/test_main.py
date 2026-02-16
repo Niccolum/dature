@@ -2,10 +2,12 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import get_args
 
 import pytest
 
 from dature import LoadMetadata, load
+from dature.sources_loader.resolver import LoaderType
 
 
 class TestLoadAsDecorator:
@@ -173,3 +175,35 @@ class TestLoadAsFunction:
         result = load(None, Config)
 
         assert result.my_var == "from_env"
+
+
+class TestFileNotFoundWithLoad:
+    @pytest.mark.parametrize(
+        "loader_type",
+        [i for i in get_args(LoaderType) if i != "env"],
+    )
+    def test_load_function_single_source_file_not_found(self, loader_type: LoaderType):
+
+        @dataclass
+        class Config:
+            name: str
+
+        metadata = LoadMetadata(file_="/non/existent/file.json", loader=loader_type)
+
+        with pytest.raises(FileNotFoundError):
+            load(metadata, Config)
+
+    @pytest.mark.parametrize(
+        "loader_type",
+        [i for i in get_args(LoaderType) if i != "env"],
+    )
+    def test_load_decorator_single_source_file_not_found(self, loader_type: LoaderType):
+        metadata = LoadMetadata(file_="/non/existent/config.json", loader=loader_type)
+
+        @load(metadata)
+        @dataclass
+        class Config:
+            name: str
+
+        with pytest.raises(FileNotFoundError):
+            Config()

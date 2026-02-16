@@ -41,6 +41,7 @@ class LoadMetadata:
     field_mapping: "FieldMapping | None" = None
     root_validators: "tuple[ValidatorProtocol, ...] | None" = None
     enable_expand_env_vars: bool = True
+    skip_if_broken: bool | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -48,3 +49,4 @@ class MergeMetadata:
     sources: tuple[LoadMetadata, ...]
     strategy: MergeStrategy = MergeStrategy.LAST_WINS
     field_merges: tuple[MergeRule, ...] = ()
+    skip_broken_sources: bool = False

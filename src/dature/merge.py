@@ -1,12 +1,12 @@
 import logging
 from collections.abc import Callable
-from dataclasses import asdict, fields, is_dataclass
+from dataclasses import asdict, dataclass, fields, is_dataclass
 from pathlib import Path
 from typing import cast
 
 from dature.deep_merge import deep_merge, deep_merge_last_wins, raise_on_conflict
 from dature.error_formatter import ErrorContext, handle_load_errors, read_file_content
-from dature.errors import DatureConfigError
+from dature.errors import DatureConfigError, FieldError, FieldErrorInfo, SourceLocation
 from dature.load_report import (
     FieldOrigin,
     LoadReport,
@@ -137,13 +137,26 @@ def _merge_raw_dicts(
     return merged
 
 
-def _load_and_merge[T](
+def _should_skip_broken(source_meta: LoadMetadata, merge_meta: MergeMetadata) -> bool:
+    if source_meta.skip_if_broken is not None:
+        return source_meta.skip_if_broken
+    return merge_meta.skip_broken_sources
+
+
+@dataclass(frozen=True, slots=True)
+class _LoadedSources:
+    raw_dicts: list[JSONValue]
+    source_ctxs: list[tuple[ErrorContext, str | None]]
+    source_entries: list[SourceEntry]
+    last_loader: ILoader
+
+
+def _load_sources(
     *,
     merge_meta: MergeMetadata,
-    dataclass_: type[T],
+    dataclass_name: str,
     loaders: tuple[ILoader, ...] | None = None,
-    debug: bool = False,
-) -> T:
+) -> _LoadedSources:
     raw_dicts: list[JSONValue] = []
     source_ctxs: list[tuple[ErrorContext, str | None]] = []
     source_entries: list[SourceEntry] = []
@@ -152,22 +165,59 @@ def _load_and_merge[T](
     for i, source_meta in enumerate(merge_meta.sources):
         loader_instance = _resolve_loader_for_source(loaders=loaders, index=i, source_meta=source_meta)
         file_path = Path(source_meta.file_) if source_meta.file_ else Path()
-        error_ctx = _build_error_ctx(source_meta, dataclass_.__name__)
+        error_ctx = _build_error_ctx(source_meta, dataclass_name)
 
         def _load_raw(li: ILoader = loader_instance, fp: Path = file_path) -> JSONValue:
             return li.load_raw(fp)
 
-        raw = handle_load_errors(
-            func=_load_raw,
-            ctx=error_ctx,
-        )
+        try:
+            raw = handle_load_errors(
+                func=_load_raw,
+                ctx=error_ctx,
+            )
+        except (DatureConfigError, FileNotFoundError):
+            if not _should_skip_broken(source_meta, merge_meta):
+                raise
+            logger.warning(
+                "[%s] Source %d skipped (broken): file=%s",
+                dataclass_name,
+                i,
+                source_meta.file_ or "<env>",
+            )
+            continue
+        except Exception as exc:
+            if not _should_skip_broken(source_meta, merge_meta):
+                location = SourceLocation(
+                    source_type=get_loader_type(source_meta),
+                    file_path=error_ctx.file_path,
+                    line_number=None,
+                    line_content=None,
+                    env_var_name=None,
+                )
+                field_error = FieldError(
+                    error=FieldErrorInfo(
+                        field_path=[],
+                        message=str(exc),
+                        input_value=None,
+                    ),
+                    location=location,
+                )
+                raise DatureConfigError([field_error], dataclass_name) from exc
+            logger.warning(
+                "[%s] Source %d skipped (broken): file=%s",
+                dataclass_name,
+                i,
+                source_meta.file_ or "<env>",
+            )
+            continue
+
         raw_dicts.append(raw)
 
         loader_type = get_loader_type(source_meta)
 
         logger.debug(
             "[%s] Source %d loaded: loader=%s, file=%s, keys=%s",
-            dataclass_.__name__,
+            dataclass_name,
             i,
             loader_type,
             source_meta.file_ or "<env>",
@@ -175,7 +225,7 @@ def _load_and_merge[T](
         )
         logger.debug(
             "[%s] Source %d raw data: %s",
-            dataclass_.__name__,
+            dataclass_name,
             i,
             raw,
         )
@@ -194,18 +244,50 @@ def _load_and_merge[T](
         last_loader = loader_instance
 
     if last_loader is None:
-        msg = "MergeMetadata.sources must not be empty"
-        raise ValueError(msg)
+        if merge_meta.sources:
+            msg = f"All {len(merge_meta.sources)} source(s) failed to load"
+        else:
+            msg = "MergeMetadata.sources must not be empty"
+        field_error = FieldError(
+            error=FieldErrorInfo(
+                field_path=[],
+                message=msg,
+                input_value=None,
+            ),
+            location=None,
+        )
+        raise DatureConfigError([field_error], dataclass_name)
+
+    return _LoadedSources(
+        raw_dicts=raw_dicts,
+        source_ctxs=source_ctxs,
+        source_entries=source_entries,
+        last_loader=last_loader,
+    )
+
+
+def _load_and_merge[T](
+    *,
+    merge_meta: MergeMetadata,
+    dataclass_: type[T],
+    loaders: tuple[ILoader, ...] | None = None,
+    debug: bool = False,
+) -> T:
+    loaded = _load_sources(
+        merge_meta=merge_meta,
+        dataclass_name=dataclass_.__name__,
+        loaders=loaders,
+    )
 
     field_merge_map: dict[str, FieldMergeStrategy] | None = None
     if merge_meta.field_merges:
         field_merge_map = build_field_merge_map(merge_meta.field_merges)
 
     if merge_meta.strategy == MergeStrategy.RAISE_ON_CONFLICT:
-        raise_on_conflict(raw_dicts, source_ctxs, dataclass_.__name__, field_merge_map=field_merge_map)
+        raise_on_conflict(loaded.raw_dicts, loaded.source_ctxs, dataclass_.__name__, field_merge_map=field_merge_map)
 
     merged = _merge_raw_dicts(
-        raw_dicts=raw_dicts,
+        raw_dicts=loaded.raw_dicts,
         strategy=merge_meta.strategy,
         dataclass_name=dataclass_.__name__,
         field_merge_map=field_merge_map,
@@ -215,13 +297,13 @@ def _load_and_merge[T](
         "[%s] Merged result (strategy=%s, %d sources): %s",
         dataclass_.__name__,
         merge_meta.strategy.value,
-        len(raw_dicts),
+        len(loaded.raw_dicts),
         merged,
     )
 
-    frozen_entries = tuple(source_entries)
+    frozen_entries = tuple(loaded.source_entries)
     field_origins = compute_field_origins(
-        raw_dicts=raw_dicts,
+        raw_dicts=loaded.raw_dicts,
         source_entries=frozen_entries,
         strategy=merge_meta.strategy,
     )
@@ -241,10 +323,10 @@ def _load_and_merge[T](
             merged_data=merged,
         )
 
-    last_error_ctx = source_ctxs[-1][0]
+    last_error_ctx = loaded.source_ctxs[-1][0]
     try:
         result = handle_load_errors(
-            func=lambda: last_loader.transform_to_dataclass(merged, dataclass_),
+            func=lambda: loaded.last_loader.transform_to_dataclass(merged, dataclass_),
             ctx=last_error_ctx,
         )
     except DatureConfigError:

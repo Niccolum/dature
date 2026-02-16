@@ -1,5 +1,3 @@
-"""Tests for base module (ILoader base class)."""
-
 from dataclasses import dataclass
 from pathlib import Path
 

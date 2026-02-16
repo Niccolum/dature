@@ -43,7 +43,8 @@ class IniLoader(ILoader):
 
     def _load(self, path: Path) -> JSONValue:
         config = configparser.ConfigParser(interpolation=None)
-        config.read(path)
+        with path.open() as f:
+            config.read_file(f)
         if self._prefix and self._prefix in config:
             result: dict[str, JSONValue] = dict(config[self._prefix])
             child_prefix = self._prefix + "."

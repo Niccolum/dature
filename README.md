@@ -77,6 +77,7 @@ class LoadMetadata:
     field_mapping: dict[str, str] | None = None
     root_validators: tuple[ValidatorProtocol, ...] | None = None
     enable_expand_env_vars: bool = True
+    skip_if_broken: bool | None = None
 ```
 
 ### prefix
@@ -304,6 +305,41 @@ config = load(
 # "host" can differ between sources without raising an error,
 # all other fields still raise MergeConflictError on conflict.
 ```
+
+### Skipping Broken Sources
+
+If a source fails to load (missing file, invalid syntax, etc.), by default the entire load fails. Use `skip_broken_sources` to skip broken sources and continue with the rest:
+
+```python
+config = load(
+    MergeMetadata(
+        sources=(
+            LoadMetadata(file_="defaults.yaml"),
+            LoadMetadata(file_="optional.yaml"),
+            LoadMetadata(prefix="APP_"),
+        ),
+        skip_broken_sources=True,
+    ),
+    Config,
+)
+```
+
+Override per source with `skip_if_broken` on `LoadMetadata` (takes priority over the global flag):
+
+```python
+config = load(
+    MergeMetadata(
+        sources=(
+            LoadMetadata(file_="defaults.yaml"),                       # uses global (False)
+            LoadMetadata(file_="optional.yaml", skip_if_broken=True),  # always skip if broken
+            LoadMetadata(prefix="APP_", skip_if_broken=False),         # never skip, even if global is True
+        ),
+    ),
+    Config,
+)
+```
+
+If all sources fail to load, a `ValueError` is raised.
 
 ## Load Report
 
