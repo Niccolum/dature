@@ -47,7 +47,7 @@ class TestMultipleFields:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.errors) == 3
+        assert len(e.exceptions) == 3
         assert str(e) == dedent(f"""\
             Config loading errors (3)
 
@@ -113,7 +113,7 @@ class TestNestedDataclass:
             load(metadata, User)
 
         e = exc_info.value
-        assert len(e.errors) == 4
+        assert len(e.exceptions) == 4
         assert str(e) == dedent(f"""\
             User loading errors (4)
 
@@ -151,7 +151,7 @@ class TestCustomErrorMessage:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.errors) == 1
+        assert len(e.exceptions) == 1
         assert str(e) == dedent(f"""\
             Config loading errors (1)
 
@@ -192,7 +192,7 @@ class TestDictListDict:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.errors) == 1
+        assert len(e.exceptions) == 1
         assert str(e) == dedent(f"""\
             Config loading errors (1)
 
@@ -242,7 +242,7 @@ class TestDictListDict:
             load(metadata, Config)
 
         e = exc_info.value
-        assert len(e.errors) == 2
+        assert len(e.exceptions) == 2
         assert str(e) == dedent(f"""\
             Config loading errors (2)
 

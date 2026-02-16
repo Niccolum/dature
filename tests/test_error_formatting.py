@@ -8,7 +8,7 @@ from adaptix.load_error import AggregateLoadError, LoadError
 
 from dature import LoadMetadata, load
 from dature.error_formatter import ErrorContext, extract_field_errors, resolve_source_location
-from dature.errors import DatureConfigError, FieldError, FieldErrorInfo, SourceLocation
+from dature.errors import DatureConfigError, FieldLoadError, SourceLocation
 
 
 class TestExtractFieldErrors:
@@ -162,12 +162,10 @@ class TestResolveSourceLocation:
 class TestDatureConfigErrorFormat:
     def test_single_error_message(self):
         errors = [
-            FieldError(
-                error=FieldErrorInfo(
-                    field_path=["timeout"],
-                    message="Expected int, got str",
-                    input_value="30",
-                ),
+            FieldLoadError(
+                field_path=["timeout"],
+                message="Expected int, got str",
+                input_value="30",
                 location=SourceLocation(
                     source_type="toml",
                     file_path=Path("config.toml"),
@@ -177,7 +175,7 @@ class TestDatureConfigErrorFormat:
                 ),
             ),
         ]
-        exc = DatureConfigError(errors, "Config")
+        exc = DatureConfigError("Config", errors)
         assert str(exc) == dedent("""\
             Config loading errors (1)
 
@@ -188,12 +186,10 @@ class TestDatureConfigErrorFormat:
 
     def test_multiple_errors_message(self):
         errors = [
-            FieldError(
-                error=FieldErrorInfo(
-                    field_path=["timeout"],
-                    message="Bad string format",
-                    input_value="abc",
-                ),
+            FieldLoadError(
+                field_path=["timeout"],
+                message="Bad string format",
+                input_value="abc",
                 location=SourceLocation(
                     source_type="json",
                     file_path=Path("config.json"),
@@ -202,12 +198,10 @@ class TestDatureConfigErrorFormat:
                     env_var_name=None,
                 ),
             ),
-            FieldError(
-                error=FieldErrorInfo(
-                    field_path=["db", "port"],
-                    message="Missing required field",
-                    input_value=None,
-                ),
+            FieldLoadError(
+                field_path=["db", "port"],
+                message="Missing required field",
+                input_value=None,
                 location=SourceLocation(
                     source_type="json",
                     file_path=Path("config.json"),
@@ -217,7 +211,7 @@ class TestDatureConfigErrorFormat:
                 ),
             ),
         ]
-        exc = DatureConfigError(errors, "Config")
+        exc = DatureConfigError("Config", errors)
         assert str(exc) == dedent("""\
             Config loading errors (2)
 
@@ -231,12 +225,10 @@ class TestDatureConfigErrorFormat:
 
     def test_env_error_message(self):
         errors = [
-            FieldError(
-                error=FieldErrorInfo(
-                    field_path=["database", "port"],
-                    message="Bad string format",
-                    input_value="abc",
-                ),
+            FieldLoadError(
+                field_path=["database", "port"],
+                message="Bad string format",
+                input_value="abc",
                 location=SourceLocation(
                     source_type="env",
                     file_path=None,
@@ -246,7 +238,7 @@ class TestDatureConfigErrorFormat:
                 ),
             ),
         ]
-        exc = DatureConfigError(errors, "Config")
+        exc = DatureConfigError("Config", errors)
         assert str(exc) == dedent("""\
             Config loading errors (1)
 
@@ -272,9 +264,17 @@ class TestLoadIntegrationErrors:
             Config()
 
         err = exc_info.value
-        assert len(err.errors) == 1
-        assert err.errors[0].error.field_path == ["timeout"]
-        assert str(json_file) in str(err)
+        assert len(err.exceptions) == 1
+        first = err.exceptions[0]
+        assert isinstance(first, FieldLoadError)
+        assert first.field_path == ["timeout"]
+        assert str(err) == dedent(f"""\
+            Config loading errors (1)
+
+              [timeout]  Bad string format
+               └── FILE '{json_file}', line 1
+                   {json_file.read_text()}
+            """)
 
     def test_json_missing_field_function(self, tmp_path: Path):
         json_file = tmp_path / "config.json"
@@ -291,8 +291,10 @@ class TestLoadIntegrationErrors:
             load(metadata, Config)
 
         err = exc_info.value
-        assert len(err.errors) == 1
-        assert err.errors[0].error.field_path == ["port"]
+        assert len(err.exceptions) == 1
+        first = err.exceptions[0]
+        assert isinstance(first, FieldLoadError)
+        assert first.field_path == ["port"]
         assert str(err) == dedent(f"""\
             Config loading errors (1)
 
@@ -315,11 +317,20 @@ class TestLoadIntegrationErrors:
             load(metadata, Config)
 
         err = exc_info.value
-        assert len(err.errors) == 2
-        paths = [e.error.field_path for e in err.errors]
+        assert len(err.exceptions) == 2
+        paths = [e.field_path for e in err.exceptions if isinstance(e, FieldLoadError)]
         assert ["timeout"] in paths
         assert ["name"] in paths
-        assert "Config loading errors (2)" in str(err)
+        assert str(err) == dedent(f"""\
+            Config loading errors (2)
+
+              [timeout]  Bad string format
+               └── FILE '{json_file}', line 1
+                   {json_file.read_text()}
+
+              [name]  Missing required field
+               └── FILE '{json_file}'
+            """)
 
     def test_nested_dataclass_error(self, tmp_path: Path):
         json_file = tmp_path / "config.json"
@@ -340,8 +351,10 @@ class TestLoadIntegrationErrors:
             load(metadata, Config)
 
         err = exc_info.value
-        assert len(err.errors) == 1
-        assert err.errors[0].error.field_path == ["db", "port"]
+        assert len(err.exceptions) == 1
+        first = err.exceptions[0]
+        assert isinstance(first, FieldLoadError)
+        assert first.field_path == ["db", "port"]
         assert str(err) == dedent(f"""\
             Config loading errors (1)
 
@@ -366,7 +379,7 @@ class TestLoadIntegrationErrors:
             Config()
 
         err = exc_info.value
-        assert len(err.errors) == 1
+        assert len(err.exceptions) == 1
         assert str(err) == dedent("""\
             Config loading errors (1)
 
@@ -389,9 +402,11 @@ class TestLoadIntegrationErrors:
             load(metadata, Config)
 
         err = exc_info.value
-        assert len(err.errors) == 1
-        assert err.errors[0].location is not None
-        assert err.errors[0].location.line_number == 2
+        assert len(err.exceptions) == 1
+        first = err.exceptions[0]
+        assert isinstance(first, FieldLoadError)
+        assert first.location is not None
+        assert first.location.line_number == 2
         assert str(err) == dedent(f"""\
             Config loading errors (1)
 
@@ -415,8 +430,10 @@ class TestLoadIntegrationErrors:
             load(metadata, Config)
 
         err = exc_info.value
-        assert err.errors[0].location is not None
-        assert err.errors[0].location.line_number == 3
+        first = err.exceptions[0]
+        assert isinstance(first, FieldLoadError)
+        assert first.location is not None
+        assert first.location.line_number == 3
         assert str(err) == dedent(f"""\
             Config loading errors (1)
 

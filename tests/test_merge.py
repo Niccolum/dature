@@ -219,7 +219,7 @@ class TestMergeLoadAsFunction:
             )
 
         err = exc_info.value
-        assert len(err.errors) == 1
+        assert len(err.exceptions) == 1
         assert str(err) == dedent("""\
             Config loading errors (1)
 
@@ -251,7 +251,7 @@ class TestMergeLoadAsFunction:
             )
 
         err = exc_info.value
-        assert len(err.errors) == 1
+        assert len(err.exceptions) == 1
         assert str(err) == dedent(f"""\
             Config loading errors (1)
 
@@ -635,7 +635,7 @@ class TestRaiseOnConflict:
                 Config,
             )
 
-        assert len(exc_info.value.conflicts) == 2
+        assert len(exc_info.value.exceptions) == 2
         assert str(exc_info.value) == dedent(f"""\
             Config merge conflicts (2)
 
@@ -746,7 +746,7 @@ class TestSkipBrokenSources:
         class Config:
             host: str
 
-        with pytest.raises(DatureConfigError, match="All 2 source\\(s\\) failed to load"):
+        with pytest.raises(DatureConfigError) as exc_info:
             load(
                 MergeMetadata(
                     sources=(
@@ -757,6 +757,12 @@ class TestSkipBrokenSources:
                 ),
                 Config,
             )
+
+        assert str(exc_info.value) == dedent("""\
+            Config loading errors (1)
+
+              [<root>]  All 2 source(s) failed to load
+            """)
 
     def test_broken_source_without_flag_raises(self, tmp_path: Path):
         valid = tmp_path / "valid.json"
@@ -891,11 +897,17 @@ class TestSkipBrokenSources:
         class Config:
             host: str
 
-        with pytest.raises(DatureConfigError, match=r"MergeMetadata\.sources must not be empty"):
+        with pytest.raises(DatureConfigError) as exc_info:
             load(
                 MergeMetadata(sources=()),
                 Config,
             )
+
+        assert str(exc_info.value) == dedent("""\
+            Config loading errors (1)
+
+              [<root>]  MergeMetadata.sources must not be empty
+            """)
 
     def test_all_sources_broken_mixed_errors(self, tmp_path: Path):
         missing = str(tmp_path / "does_not_exist.json")
@@ -907,7 +919,7 @@ class TestSkipBrokenSources:
         class Config:
             host: str
 
-        with pytest.raises(DatureConfigError, match=r"All 2 source\(s\) failed to load"):
+        with pytest.raises(DatureConfigError) as exc_info:
             load(
                 MergeMetadata(
                     sources=(
@@ -918,3 +930,9 @@ class TestSkipBrokenSources:
                 ),
                 Config,
             )
+
+        assert str(exc_info.value) == dedent("""\
+            Config loading errors (1)
+
+              [<root>]  All 2 source(s) failed to load
+            """)

@@ -6,7 +6,7 @@ from typing import cast
 
 from dature.deep_merge import deep_merge, deep_merge_last_wins, raise_on_conflict
 from dature.error_formatter import ErrorContext, handle_load_errors, read_file_content
-from dature.errors import DatureConfigError, FieldError, FieldErrorInfo, SourceLocation
+from dature.errors import DatureConfigError, SourceLoadError, SourceLocation
 from dature.load_report import (
     FieldOrigin,
     LoadReport,
@@ -194,15 +194,11 @@ def _load_sources(
                     line_content=None,
                     env_var_name=None,
                 )
-                field_error = FieldError(
-                    error=FieldErrorInfo(
-                        field_path=[],
-                        message=str(exc),
-                        input_value=None,
-                    ),
+                source_error = SourceLoadError(
+                    message=str(exc),
                     location=location,
                 )
-                raise DatureConfigError([field_error], dataclass_name) from exc
+                raise DatureConfigError(dataclass_name, [source_error]) from exc
             logger.warning(
                 "[%s] Source %d skipped (broken): file=%s",
                 dataclass_name,
@@ -248,15 +244,8 @@ def _load_sources(
             msg = f"All {len(merge_meta.sources)} source(s) failed to load"
         else:
             msg = "MergeMetadata.sources must not be empty"
-        field_error = FieldError(
-            error=FieldErrorInfo(
-                field_path=[],
-                message=msg,
-                input_value=None,
-            ),
-            location=None,
-        )
-        raise DatureConfigError([field_error], dataclass_name)
+        source_error = SourceLoadError(message=msg)
+        raise DatureConfigError(dataclass_name, [source_error])
 
     return _LoadedSources(
         raw_dicts=raw_dicts,

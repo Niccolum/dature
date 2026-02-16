@@ -1,5 +1,5 @@
 from dature.error_formatter import ErrorContext, resolve_source_location
-from dature.errors import FieldErrorInfo, MergeConflictError, SourceLocation
+from dature.errors import MergeConflictError, MergeConflictFieldError, SourceLocation
 from dature.metadata import FieldMergeStrategy, MergeStrategy
 from dature.types import JSONValue
 
@@ -199,21 +199,22 @@ def raise_on_conflict(
     if not conflicts:
         return
 
-    conflict_errors: list[tuple[FieldErrorInfo, list[SourceLocation]]] = []
+    conflict_errors: list[MergeConflictFieldError] = []
     for field_path, sources in conflicts:
-        info = FieldErrorInfo(
-            field_path=field_path,
-            message="Conflicting values in multiple sources",
-            input_value=None,
-        )
         locations: list[SourceLocation] = []
         for source_idx, _ in sources:
             ctx, file_content = source_ctxs[source_idx]
             loc = resolve_source_location(field_path, ctx, file_content)
             locations.append(loc)
-        conflict_errors.append((info, locations))
+        conflict_errors.append(
+            MergeConflictFieldError(
+                field_path=field_path,
+                message="Conflicting values in multiple sources",
+                locations=locations,
+            ),
+        )
 
-    raise MergeConflictError(conflict_errors, dataclass_name)
+    raise MergeConflictError(dataclass_name, conflict_errors)
 
 
 def deep_merge(

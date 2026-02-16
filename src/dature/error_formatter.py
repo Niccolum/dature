@@ -16,7 +16,7 @@ from adaptix.load_error import (
 )
 from adaptix.struct_trail import get_trail
 
-from dature.errors import DatureConfigError, FieldError, FieldErrorInfo, SourceLocation
+from dature.errors import DatureConfigError, FieldLoadError, SourceLocation
 from dature.source_locators.ini_ import TablePathFinder
 from dature.source_locators.json5_ import Json5PathFinder
 from dature.source_locators.json_ import JsonPathFinder
@@ -66,7 +66,7 @@ def _describe_error(exc: BaseException) -> str:
 def _walk_exception(
     exc: BaseException,
     parent_path: list[str],
-    result: list[FieldErrorInfo],
+    result: list[FieldLoadError],
 ) -> None:
     trail = list(get_trail(exc))
     current_path = parent_path + [str(elem) for elem in trail]
@@ -78,7 +78,7 @@ def _walk_exception(
 
     if isinstance(exc, NoRequiredFieldsLoadError):
         result.extend(
-            FieldErrorInfo(
+            FieldLoadError(
                 field_path=[*current_path, field_name],
                 message="Missing required field",
                 input_value=None,
@@ -88,7 +88,7 @@ def _walk_exception(
         return
 
     result.append(
-        FieldErrorInfo(
+        FieldLoadError(
             field_path=current_path,
             message=_describe_error(exc),
             input_value=getattr(exc, "input_value", None),
@@ -96,8 +96,8 @@ def _walk_exception(
     )
 
 
-def extract_field_errors(exc: BaseException) -> list[FieldErrorInfo]:
-    result: list[FieldErrorInfo] = []
+def extract_field_errors(exc: BaseException) -> list[FieldLoadError]:
+    result: list[FieldLoadError] = []
     _walk_exception(exc, [], result)
     return result
 
@@ -245,8 +245,15 @@ def handle_load_errors[T](
     except (AggregateLoadError, LoadError) as exc:
         file_content = read_file_content(ctx.file_path)
         field_errors = extract_field_errors(exc)
-        enriched: list[FieldError] = []
+        enriched: list[FieldLoadError] = []
         for fe in field_errors:
             location = resolve_source_location(fe.field_path, ctx, file_content)
-            enriched.append(FieldError(error=fe, location=location))
-        raise DatureConfigError(enriched, ctx.dataclass_name) from exc
+            enriched.append(
+                FieldLoadError(
+                    field_path=fe.field_path,
+                    message=fe.message,
+                    input_value=fe.input_value,
+                    location=location,
+                ),
+            )
+        raise DatureConfigError(ctx.dataclass_name, enriched) from exc
