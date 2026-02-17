@@ -53,11 +53,17 @@ class FieldPath:
         return ".".join(self.parts)
 
 
+def _validate_field_path_parts(field_path: FieldPath, dataclass_: type) -> None:
+    for i, part in enumerate(field_path.parts):
+        _validate_field(dataclass_, field_path.parts[:i], part)
+
+
 def validate_field_path_owner(field_path: FieldPath, dataclass_: type[DataclassInstance]) -> None:
     if isinstance(field_path.owner, str):
         if field_path.owner != dataclass_.__name__:
             msg = f"FieldPath owner '{field_path.owner}' does not match target dataclass '{dataclass_.__name__}'"
             raise TypeError(msg)
+        _validate_field_path_parts(field_path, dataclass_)
         return
     if field_path.owner is not dataclass_:
         msg = f"FieldPath owner '{field_path.owner.__name__}' does not match target dataclass '{dataclass_.__name__}'"

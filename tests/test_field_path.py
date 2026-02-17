@@ -78,3 +78,14 @@ class TestValidateFieldPathOwner:
         with pytest.raises(TypeError) as exc_info:
             validate_field_path_owner(F[_Database].uri, _Cfg)
         assert str(exc_info.value) == "FieldPath owner '_Database' does not match target dataclass '_Cfg'"
+
+    def test_string_owner_nonexistent_field(self):
+        with pytest.raises(AttributeError, match="'_Cfg' has no field 'nonexistent'"):
+            validate_field_path_owner(F["_Cfg"].nonexistent, _Cfg)
+
+    def test_string_owner_nonexistent_nested_field(self):
+        with pytest.raises(AttributeError, match="'_Database' has no field 'missing'"):
+            validate_field_path_owner(F["_Cfg"].database.missing, _Cfg)
+
+    def test_string_owner_valid_nested_path(self):
+        validate_field_path_owner(F["_Cfg"].database.uri, _Cfg)
