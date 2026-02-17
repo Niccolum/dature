@@ -1,6 +1,6 @@
 [project]
 name = "dature"
-version = "0.5.0"
+version = "0.6.0"
 description = "Configuration loader with support for multiple formats (env, yaml, json, toml, ini)"
 readme = "README.md"
 requires-python = ">=3.12"
