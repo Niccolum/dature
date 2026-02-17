@@ -2,49 +2,28 @@ import logging
 from collections.abc import Callable
 from dataclasses import asdict, fields, is_dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from dature.error_formatter import ErrorContext, handle_load_errors
+from dature.error_formatter import enrich_skipped_errors, handle_load_errors
 from dature.errors import DatureConfigError
-from dature.load_report import (
-    FieldOrigin,
-    LoadReport,
-    SourceEntry,
-    attach_load_report,
+from dature.load_report import FieldOrigin, LoadReport, SourceEntry, attach_load_report
+from dature.loader_type import get_loader_type
+from dature.loading_context import (
+    apply_skip_invalid,
+    build_error_ctx,
+    ensure_retort,
+    make_validating_post_init,
+    merge_fields,
 )
 from dature.metadata import LoadMetadata
 from dature.sources_loader.base import ILoader
-from dature.sources_loader.resolver import get_loader_type
 from dature.types import JSONValue
 from dature.validators.protocols import DataclassInstance
 
+if TYPE_CHECKING:
+    from adaptix import Retort
+
 logger = logging.getLogger("dature")
-
-
-def merge_fields(
-    loaded_data: Any,  # noqa: ANN401
-    field_list: tuple[Any, ...],
-    args: tuple[Any, ...],
-    kwargs: dict[str, Any],
-) -> dict[str, Any]:
-    explicit_fields = set(kwargs.keys())
-    for i, _ in enumerate(args):
-        if i < len(field_list):
-            explicit_fields.add(field_list[i].name)
-
-    complete_kwargs = dict(kwargs)
-    for field in field_list:
-        if field.name not in explicit_fields:
-            complete_kwargs[field.name] = getattr(loaded_data, field.name)
-
-    return complete_kwargs
-
-
-def ensure_retort(loader_instance: ILoader, cls: type) -> None:
-    """Creates a replacement response to __init__ so that Adaptix sees the original signature."""
-    if cls not in loader_instance.retorts:
-        loader_instance.retorts[cls] = loader_instance.create_retort()
-    loader_instance.retorts[cls].get_loader(cls)
 
 
 def _log_single_source_load(
@@ -127,21 +106,54 @@ class _PatchContext:
         self.field_list = fields(cls)
         self.original_init = cls.__init__
         self.original_post_init = getattr(cls, "__post_init__", None)
-        self.validation_loader = validating_retort.get_loader(cls)
+        self.validation_loader: Callable[[JSONValue], DataclassInstance] = validating_retort.get_loader(cls)
         self.validating = False
         self.loading = False
 
-        self.loader_type = get_loader_type(metadata)
-        self.error_file_path = Path(metadata.file_) if metadata.file_ else None
-        self.prefix = metadata.prefix
-        self.split_symbols = metadata.split_symbols
-        self.error_ctx = ErrorContext(
-            dataclass_name=cls.__name__,
-            loader_type=self.loader_type,
-            file_path=self.error_file_path,
-            prefix=self.prefix,
-            split_symbols=self.split_symbols,
+        self.loader_type = get_loader_type(metadata.loader, metadata.file_)
+        self.error_ctx = build_error_ctx(metadata, cls.__name__)
+
+        # probe_retort создаётся заранее, чтобы adaptix увидел оригинальную сигнатуру
+        self.probe_retort: Retort | None = None
+        if metadata.skip_if_invalid:
+            self.probe_retort = loader_instance.create_probe_retort()
+            self.probe_retort.get_loader(cls)
+
+
+def _load_single_source(ctx: _PatchContext) -> DataclassInstance:
+    raw_data = handle_load_errors(
+        func=lambda: ctx.loader_instance.load_raw(ctx.file_path),
+        ctx=ctx.error_ctx,
+    )
+
+    filter_result = apply_skip_invalid(
+        raw=raw_data,
+        skip_if_invalid=ctx.metadata.skip_if_invalid,
+        loader_instance=ctx.loader_instance,
+        dataclass_=ctx.cls,
+        log_prefix=f"[{ctx.cls.__name__}]",
+        probe_retort=ctx.probe_retort,
+    )
+    raw_data = filter_result.cleaned_dict
+
+    skipped_fields: dict[str, list[LoadMetadata]] = {}
+    for path in filter_result.skipped_paths:
+        skipped_fields.setdefault(path, []).append(ctx.metadata)
+
+    def _transform(rd: JSONValue = raw_data) -> DataclassInstance:
+        return ctx.loader_instance.transform_to_dataclass(rd, ctx.cls)
+
+    try:
+        loaded_data = handle_load_errors(
+            func=_transform,
+            ctx=ctx.error_ctx,
         )
+    except DatureConfigError as exc:
+        if skipped_fields:
+            raise enrich_skipped_errors(exc, skipped_fields) from exc
+        raise
+
+    return loaded_data
 
 
 def _make_new_init(ctx: _PatchContext) -> Callable[..., None]:
@@ -155,10 +167,7 @@ def _make_new_init(ctx: _PatchContext) -> Callable[..., None]:
         else:
             ctx.loading = True
             try:
-                loaded_data = handle_load_errors(
-                    func=lambda: ctx.loader_instance.load(ctx.file_path, ctx.cls),
-                    ctx=ctx.error_ctx,
-                )
+                loaded_data = _load_single_source(ctx)
             finally:
                 ctx.loading = False
 
@@ -191,30 +200,6 @@ def _make_new_init(ctx: _PatchContext) -> Callable[..., None]:
     return new_init
 
 
-def _make_new_post_init(ctx: _PatchContext) -> Callable[..., None]:
-    def new_post_init(self: DataclassInstance) -> None:
-        if ctx.loading:
-            return
-
-        if ctx.validating:
-            return
-
-        if ctx.original_post_init is not None:
-            ctx.original_post_init(self)
-
-        ctx.validating = True
-        try:
-            obj_dict = asdict(self)
-            handle_load_errors(
-                func=lambda: ctx.validation_loader(obj_dict),
-                ctx=ctx.error_ctx,
-            )
-        finally:
-            ctx.validating = False
-
-    return new_post_init
-
-
 def load_as_function(
     *,
     loader_instance: ILoader,
@@ -223,20 +208,26 @@ def load_as_function(
     metadata: LoadMetadata,
     debug: bool,
 ) -> DataclassInstance:
-    loader_type = get_loader_type(metadata)
-    error_file_path = Path(metadata.file_) if metadata.file_ else None
-    error_ctx = ErrorContext(
-        dataclass_name=dataclass_.__name__,
-        loader_type=loader_type,
-        file_path=error_file_path,
-        prefix=metadata.prefix,
-        split_symbols=metadata.split_symbols,
-    )
+    loader_type = get_loader_type(metadata.loader, metadata.file_)
+    error_ctx = build_error_ctx(metadata, dataclass_.__name__)
 
     raw_data = handle_load_errors(
         func=lambda: loader_instance.load_raw(file_path),
         ctx=error_ctx,
     )
+
+    filter_result = apply_skip_invalid(
+        raw=raw_data,
+        skip_if_invalid=metadata.skip_if_invalid,
+        loader_instance=loader_instance,
+        dataclass_=dataclass_,
+        log_prefix=f"[{dataclass_.__name__}]",
+    )
+    raw_data = filter_result.cleaned_dict
+
+    skipped_fields: dict[str, list[LoadMetadata]] = {}
+    for path in filter_result.skipped_paths:
+        skipped_fields.setdefault(path, []).append(metadata)
 
     report: LoadReport | None = None
     if debug:
@@ -259,9 +250,11 @@ def load_as_function(
             func=lambda: loader_instance.transform_to_dataclass(raw_data, dataclass_),
             ctx=error_ctx,
         )
-    except DatureConfigError:
+    except DatureConfigError as exc:
         if report is not None:
             attach_load_report(dataclass_, report)
+        if skipped_fields:
+            raise enrich_skipped_errors(exc, skipped_fields) from exc
         raise
 
     result_dict = asdict(result)
@@ -274,9 +267,11 @@ def load_as_function(
             func=lambda: validation_loader(result_dict),
             ctx=error_ctx,
         )
-    except DatureConfigError:
+    except DatureConfigError as exc:
         if report is not None:
             attach_load_report(dataclass_, report)
+        if skipped_fields:
+            raise enrich_skipped_errors(exc, skipped_fields) from exc
         raise
 
     if report is not None:
@@ -307,7 +302,7 @@ def make_decorator(
             debug=debug,
         )
         cls.__init__ = _make_new_init(ctx)  # type: ignore[method-assign]
-        cls.__post_init__ = _make_new_post_init(ctx)  # type: ignore[attr-defined]
+        cls.__post_init__ = make_validating_post_init(ctx)  # type: ignore[attr-defined]
         return cls
 
     return decorator

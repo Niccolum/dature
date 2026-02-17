@@ -1,12 +1,11 @@
 import logging
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, fields, is_dataclass
-from pathlib import Path
+from dataclasses import asdict, fields, is_dataclass
 from typing import cast
 
 from dature.deep_merge import deep_merge, deep_merge_last_wins, raise_on_conflict
-from dature.error_formatter import ErrorContext, handle_load_errors, read_file_content
-from dature.errors import DatureConfigError, SourceLoadError, SourceLocation
+from dature.error_formatter import enrich_skipped_errors, handle_load_errors
+from dature.errors import DatureConfigError
 from dature.load_report import (
     FieldOrigin,
     LoadReport,
@@ -15,38 +14,21 @@ from dature.load_report import (
     compute_field_origins,
     get_load_report,
 )
-from dature.metadata import FieldMergeStrategy, LoadMetadata, MergeMetadata, MergeStrategy
-from dature.patcher import ensure_retort, merge_fields
+from dature.loading_context import (
+    build_error_ctx,
+    ensure_retort,
+    make_validating_post_init,
+    merge_fields,
+)
+from dature.metadata import FieldMergeStrategy, MergeMetadata, MergeStrategy
 from dature.predicate import build_field_merge_map
+from dature.source_loading import load_sources
 from dature.sources_loader.base import ILoader
-from dature.sources_loader.resolver import get_loader_type, resolve_loader
+from dature.sources_loader.resolver import resolve_loader
 from dature.types import JSONValue
 from dature.validators.protocols import DataclassInstance
 
 logger = logging.getLogger("dature")
-
-
-def _build_error_ctx(metadata: LoadMetadata, dataclass_name: str) -> ErrorContext:
-    loader_type = get_loader_type(metadata)
-    error_file_path = Path(metadata.file_) if metadata.file_ else None
-    return ErrorContext(
-        dataclass_name=dataclass_name,
-        loader_type=loader_type,
-        file_path=error_file_path,
-        prefix=metadata.prefix,
-        split_symbols=metadata.split_symbols,
-    )
-
-
-def _resolve_loader_for_source(
-    *,
-    loaders: tuple[ILoader, ...] | None,
-    index: int,
-    source_meta: LoadMetadata,
-) -> ILoader:
-    if loaders is not None:
-        return loaders[index]
-    return resolve_loader(source_meta)
 
 
 def _log_merge_step(
@@ -137,134 +119,17 @@ def _merge_raw_dicts(
     return merged
 
 
-def _should_skip_broken(source_meta: LoadMetadata, merge_meta: MergeMetadata) -> bool:
-    if source_meta.skip_if_broken is not None:
-        return source_meta.skip_if_broken
-    return merge_meta.skip_broken_sources
-
-
-@dataclass(frozen=True, slots=True)
-class _LoadedSources:
-    raw_dicts: list[JSONValue]
-    source_ctxs: list[tuple[ErrorContext, str | None]]
-    source_entries: list[SourceEntry]
-    last_loader: ILoader
-
-
-def _load_sources(
-    *,
-    merge_meta: MergeMetadata,
-    dataclass_name: str,
-    loaders: tuple[ILoader, ...] | None = None,
-) -> _LoadedSources:
-    raw_dicts: list[JSONValue] = []
-    source_ctxs: list[tuple[ErrorContext, str | None]] = []
-    source_entries: list[SourceEntry] = []
-    last_loader: ILoader | None = None
-
-    for i, source_meta in enumerate(merge_meta.sources):
-        loader_instance = _resolve_loader_for_source(loaders=loaders, index=i, source_meta=source_meta)
-        file_path = Path(source_meta.file_) if source_meta.file_ else Path()
-        error_ctx = _build_error_ctx(source_meta, dataclass_name)
-
-        def _load_raw(li: ILoader = loader_instance, fp: Path = file_path) -> JSONValue:
-            return li.load_raw(fp)
-
-        try:
-            raw = handle_load_errors(
-                func=_load_raw,
-                ctx=error_ctx,
-            )
-        except (DatureConfigError, FileNotFoundError):
-            if not _should_skip_broken(source_meta, merge_meta):
-                raise
-            logger.warning(
-                "[%s] Source %d skipped (broken): file=%s",
-                dataclass_name,
-                i,
-                source_meta.file_ or "<env>",
-            )
-            continue
-        except Exception as exc:
-            if not _should_skip_broken(source_meta, merge_meta):
-                location = SourceLocation(
-                    source_type=get_loader_type(source_meta),
-                    file_path=error_ctx.file_path,
-                    line_number=None,
-                    line_content=None,
-                    env_var_name=None,
-                )
-                source_error = SourceLoadError(
-                    message=str(exc),
-                    location=location,
-                )
-                raise DatureConfigError(dataclass_name, [source_error]) from exc
-            logger.warning(
-                "[%s] Source %d skipped (broken): file=%s",
-                dataclass_name,
-                i,
-                source_meta.file_ or "<env>",
-            )
-            continue
-
-        raw_dicts.append(raw)
-
-        loader_type = get_loader_type(source_meta)
-
-        logger.debug(
-            "[%s] Source %d loaded: loader=%s, file=%s, keys=%s",
-            dataclass_name,
-            i,
-            loader_type,
-            source_meta.file_ or "<env>",
-            sorted(raw.keys()) if isinstance(raw, dict) else "<non-dict>",
-        )
-        logger.debug(
-            "[%s] Source %d raw data: %s",
-            dataclass_name,
-            i,
-            raw,
-        )
-
-        source_entries.append(
-            SourceEntry(
-                index=i,
-                file_path=source_meta.file_,
-                loader_type=loader_type,
-                raw_data=raw,
-            ),
-        )
-
-        file_content = read_file_content(error_ctx.file_path)
-        source_ctxs.append((error_ctx, file_content))
-        last_loader = loader_instance
-
-    if last_loader is None:
-        if merge_meta.sources:
-            msg = f"All {len(merge_meta.sources)} source(s) failed to load"
-        else:
-            msg = "MergeMetadata.sources must not be empty"
-        source_error = SourceLoadError(message=msg)
-        raise DatureConfigError(dataclass_name, [source_error])
-
-    return _LoadedSources(
-        raw_dicts=raw_dicts,
-        source_ctxs=source_ctxs,
-        source_entries=source_entries,
-        last_loader=last_loader,
-    )
-
-
-def _load_and_merge[T](
+def _load_and_merge[T: DataclassInstance](
     *,
     merge_meta: MergeMetadata,
     dataclass_: type[T],
     loaders: tuple[ILoader, ...] | None = None,
     debug: bool = False,
 ) -> T:
-    loaded = _load_sources(
+    loaded = load_sources(
         merge_meta=merge_meta,
         dataclass_name=dataclass_.__name__,
+        dataclass_=dataclass_,
         loaders=loaders,
     )
 
@@ -318,9 +183,11 @@ def _load_and_merge[T](
             func=lambda: loaded.last_loader.transform_to_dataclass(merged, dataclass_),
             ctx=last_error_ctx,
         )
-    except DatureConfigError:
+    except DatureConfigError as exc:
         if report is not None:
             attach_load_report(dataclass_, report)
+        if loaded.skipped_fields:
+            raise enrich_skipped_errors(exc, loaded.skipped_fields) from exc
         raise
 
     if report is not None:
@@ -329,7 +196,7 @@ def _load_and_merge[T](
     return result
 
 
-def merge_load_as_function[T](
+def merge_load_as_function[T: DataclassInstance](
     merge_meta: MergeMetadata,
     dataclass_: type[T],
     *,
@@ -347,7 +214,7 @@ def merge_load_as_function[T](
     validation_loader = validating_retort.get_loader(dataclass_)
     result_dict = asdict(cast("DataclassInstance", result))
 
-    last_error_ctx = _build_error_ctx(last_meta, dataclass_.__name__)
+    last_error_ctx = build_error_ctx(last_meta, dataclass_.__name__)
     try:
         handle_load_errors(
             func=lambda: validation_loader(result_dict),
@@ -387,16 +254,16 @@ class _MergePatchContext:
 
         last_loader = self.loaders[-1]
         validating_retort = last_loader.create_validating_retort(cls)
-        self.validation_loader = validating_retort.get_loader(cls)
+        self.validation_loader: Callable[[JSONValue], DataclassInstance] = validating_retort.get_loader(cls)
 
         last_meta = merge_meta.sources[-1]
-        self.error_ctx = _build_error_ctx(last_meta, cls.__name__)
+        self.error_ctx = build_error_ctx(last_meta, cls.__name__)
 
     @staticmethod
     def _prepare_loaders(
         *,
         merge_meta: MergeMetadata,
-        cls: type,
+        cls: type[DataclassInstance],
     ) -> tuple[ILoader, ...]:
         loaders: list[ILoader] = []
         for source_meta in merge_meta.sources:
@@ -442,30 +309,6 @@ def _make_merge_new_init(ctx: _MergePatchContext) -> Callable[..., None]:
     return new_init
 
 
-def _make_merge_new_post_init(ctx: _MergePatchContext) -> Callable[..., None]:
-    def new_post_init(self: DataclassInstance) -> None:
-        if ctx.loading:
-            return
-
-        if ctx.validating:
-            return
-
-        if ctx.original_post_init is not None:
-            ctx.original_post_init(self)
-
-        ctx.validating = True
-        try:
-            obj_dict = asdict(self)
-            handle_load_errors(
-                func=lambda: ctx.validation_loader(obj_dict),
-                ctx=ctx.error_ctx,
-            )
-        finally:
-            ctx.validating = False
-
-    return new_post_init
-
-
 def merge_make_decorator(
     merge_meta: MergeMetadata,
     *,
@@ -484,7 +327,7 @@ def merge_make_decorator(
             debug=debug,
         )
         cls.__init__ = _make_merge_new_init(ctx)  # type: ignore[method-assign]
-        cls.__post_init__ = _make_merge_new_post_init(ctx)  # type: ignore[attr-defined]
+        cls.__post_init__ = make_validating_post_init(ctx)  # type: ignore[attr-defined]
         return cls
 
     return decorator

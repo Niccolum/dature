@@ -78,6 +78,7 @@ class LoadMetadata:
     root_validators: tuple[ValidatorProtocol, ...] | None = None
     enable_expand_env_vars: bool = True
     skip_if_broken: bool | None = None
+    skip_if_invalid: bool | tuple[FieldPath, ...] | None = None
 ```
 
 ### prefix
@@ -340,6 +341,79 @@ config = load(
 ```
 
 If all sources fail to load, a `ValueError` is raised.
+
+### Skipping Invalid Fields
+
+If a source contains a field with an invalid value (e.g. `"abc"` for an `int` field), by default loading fails. Use `skip_invalid_fields` to silently drop such fields and let other sources or defaults fill them in:
+
+```python
+config = load(
+    MergeMetadata(
+        sources=(
+            LoadMetadata(file_="defaults.yaml"),
+            LoadMetadata(file_="overrides.yaml"),
+        ),
+        skip_invalid_fields=True,
+    ),
+    Config,
+)
+```
+
+Override per source with `skip_if_invalid` on `LoadMetadata` (takes priority over the global flag):
+
+```python
+config = load(
+    MergeMetadata(
+        sources=(
+            LoadMetadata(file_="defaults.yaml"),                       # uses global (False)
+            LoadMetadata(file_="overrides.yaml", skip_if_invalid=True),  # skip invalid fields
+        ),
+    ),
+    Config,
+)
+```
+
+Restrict skipping to specific fields using a tuple of field paths:
+
+```python
+from dature import F
+
+config = load(
+    MergeMetadata(
+        sources=(
+            LoadMetadata(
+                file_="overrides.yaml",
+                skip_if_invalid=(F[Config].port, F[Config].timeout),
+            ),
+            LoadMetadata(file_="defaults.yaml"),
+        ),
+    ),
+    Config,
+)
+```
+
+Only `port` and `timeout` will be skipped if invalid; other fields still raise errors.
+
+Works with single-source loads too:
+
+```python
+@dataclass
+class Config:
+    host: str
+    port: int = 8080
+
+config = load(LoadMetadata(file_="config.json", skip_if_invalid=True), Config)
+```
+
+If a required field is invalid in all sources and has no default, the error message indicates which sources contained the invalid value:
+
+```
+Config loading errors (1)
+
+  [port]  Missing required field (invalid in: yaml 'defaults.yaml', yaml 'overrides.yaml')
+   └── FILE 'overrides.yaml', line 1
+       {"port": "abc"}
+```
 
 ## Load Report
 

@@ -1,28 +1,12 @@
-from pathlib import Path
-from types import MappingProxyType
-from typing import Any, Literal
+from typing import Any
 
+from dature.loader_type import LoaderType, get_loader_type
 from dature.metadata import LoadMetadata
 from dature.sources_loader.base import ILoader
 from dature.sources_loader.env_ import EnvFileLoader, EnvLoader
 from dature.sources_loader.ini_ import IniLoader
 from dature.sources_loader.json_ import JsonLoader
 from dature.sources_loader.toml_ import TomlLoader
-
-LoaderType = Literal["env", "envfile", "yaml", "yaml1.1", "yaml1.2", "json", "json5", "toml", "ini"]
-
-EXTENSION_MAP: MappingProxyType[str, LoaderType] = MappingProxyType(
-    {
-        ".env": "envfile",
-        ".yaml": "yaml",
-        ".yml": "yaml",
-        ".json": "json",
-        ".json5": "json5",
-        ".toml": "toml",
-        ".ini": "ini",
-        ".cfg": "ini",
-    },
-)
 
 
 def _get_loader_class(loader_type: LoaderType) -> type[ILoader]:
@@ -54,31 +38,8 @@ def _get_loader_class(loader_type: LoaderType) -> type[ILoader]:
             raise ValueError(msg)
 
 
-def get_loader_type(metadata: LoadMetadata) -> LoaderType:
-    if metadata.loader:
-        return metadata.loader
-
-    if not metadata.file_:
-        return "env"
-
-    file_path = Path(metadata.file_)
-
-    if (extension := file_path.suffix.lower()) in EXTENSION_MAP:
-        return EXTENSION_MAP[extension]
-
-    if file_path.name.startswith(".env"):
-        return "envfile"
-
-    supported = ", ".join(EXTENSION_MAP.keys())
-    msg = (
-        f"Cannot determine loader type for file '{metadata.file_}'. "
-        f"Please specify loader explicitly or use a supported extension: {supported}"
-    )
-    raise ValueError(msg)
-
-
 def resolve_loader(metadata: LoadMetadata) -> ILoader:
-    loader_type = get_loader_type(metadata)
+    loader_type = get_loader_type(metadata.loader, metadata.file_)
     loader_class = _get_loader_class(loader_type)
 
     kwargs: dict[str, Any] = {

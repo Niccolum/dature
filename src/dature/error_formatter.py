@@ -2,6 +2,7 @@ from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from adaptix.load_error import (
     AggregateLoadError,
@@ -16,8 +17,11 @@ from adaptix.load_error import (
 )
 from adaptix.struct_trail import get_trail
 
-from dature.errors import DatureConfigError, FieldLoadError, SourceLocation
+from dature.errors import DatureConfigError, DatureError, FieldLoadError, SourceLocation
 from dature.source_locators.ini_ import TablePathFinder
+
+if TYPE_CHECKING:
+    from dature.metadata import LoadMetadata
 from dature.source_locators.json5_ import Json5PathFinder
 from dature.source_locators.json_ import JsonPathFinder
 from dature.source_locators.toml_ import TomlPathFinder
@@ -257,3 +261,36 @@ def handle_load_errors[T](
                 ),
             )
         raise DatureConfigError(ctx.dataclass_name, enriched) from exc
+
+
+def enrich_skipped_errors(
+    err: DatureConfigError,
+    skipped_fields: "dict[str, list[LoadMetadata]]",
+) -> DatureConfigError:
+    updated: list[DatureError] = []
+    for exc in err.exceptions:
+        if not isinstance(exc, FieldLoadError):
+            if isinstance(exc, DatureError):
+                updated.append(exc)
+            continue
+
+        if exc.message != "Missing required field":
+            updated.append(exc)
+            continue
+
+        field_name = exc.field_path[-1] if exc.field_path else ""
+        sources = skipped_fields.get(field_name)
+        if sources is None:
+            updated.append(exc)
+            continue
+
+        source_reprs = ", ".join(repr(meta) for meta in sources)
+        updated.append(
+            FieldLoadError(
+                field_path=exc.field_path,
+                message=f"Missing required field (invalid in: {source_reprs})",
+                input_value=exc.input_value,
+                location=exc.location,
+            ),
+        )
+    return DatureConfigError(err.dataclass_name, updated)

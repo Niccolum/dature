@@ -2,8 +2,10 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
+from dature.loader_type import LoaderType, get_loader_type
+
 if TYPE_CHECKING:
-    from dature.sources_loader.resolver import LoaderType
+    from dature.field_path import FieldPath
     from dature.types import DotSeparatedPath, FieldMapping, NameStyle
     from dature.validators.protocols import ValidatorProtocol
 
@@ -42,6 +44,13 @@ class LoadMetadata:
     root_validators: "tuple[ValidatorProtocol, ...] | None" = None
     enable_expand_env_vars: bool = True
     skip_if_broken: bool | None = None
+    skip_if_invalid: "bool | tuple[FieldPath, ...] | None" = None
+
+    def __repr__(self) -> str:
+        loader_type = get_loader_type(self.loader, self.file_)
+        if self.file_ is not None:
+            return f"{loader_type} '{self.file_}'"
+        return loader_type
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -50,3 +59,4 @@ class MergeMetadata:
     strategy: MergeStrategy = MergeStrategy.LAST_WINS
     field_merges: tuple[MergeRule, ...] = ()
     skip_broken_sources: bool = False
+    skip_invalid_fields: bool = False

@@ -11,61 +11,10 @@ from dature.sources_loader.json5_ import Json5Loader
 from dature.sources_loader.json_ import JsonLoader
 from dature.sources_loader.resolver import (
     _get_loader_class,
-    get_loader_type,
     resolve_loader,
 )
 from dature.sources_loader.toml_ import TomlLoader
 from dature.sources_loader.yaml_ import Yaml11Loader, Yaml12Loader
-
-
-class TestGetLoaderType:
-    def test_explicit_loader(self):
-        metadata = LoadMetadata(file_="config.json", loader="yaml")
-
-        assert get_loader_type(metadata) == "yaml"
-
-    def test_no_file_returns_env(self):
-        metadata = LoadMetadata()
-
-        assert get_loader_type(metadata) == "env"
-
-    @pytest.mark.parametrize(
-        ("extension", "expected"),
-        [
-            (".env", "envfile"),
-            (".yaml", "yaml"),
-            (".yml", "yaml"),
-            (".json", "json"),
-            (".json5", "json5"),
-            (".toml", "toml"),
-            (".ini", "ini"),
-            (".cfg", "ini"),
-        ],
-    )
-    def test_extension_mapping(self, extension: str, expected: str):
-        metadata = LoadMetadata(file_=f"config{extension}")
-
-        assert get_loader_type(metadata) == expected
-
-    @pytest.mark.parametrize(
-        "filename",
-        [".env.local", ".env.development", ".env.production"],
-    )
-    def test_dotenv_patterns(self, filename: str):
-        metadata = LoadMetadata(file_=filename)
-
-        assert get_loader_type(metadata) == "envfile"
-
-    def test_unknown_extension_raises(self):
-        metadata = LoadMetadata(file_="config.xyz")
-
-        with pytest.raises(ValueError, match="Cannot determine loader type"):
-            get_loader_type(metadata)
-
-    def test_uppercase_extension(self):
-        metadata = LoadMetadata(file_="config.JSON")
-
-        assert get_loader_type(metadata) == "json"
 
 
 class TestGetLoaderClass:

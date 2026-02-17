@@ -1,8 +1,33 @@
 import types
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 from urllib.parse import ParseResult
 
 type JSONValue = dict[str, JSONValue] | list[JSONValue] | str | int | float | bool | None
+
+
+class NotLoaded:
+    _instance: "NotLoaded | None" = None
+
+    def __new__(cls) -> Self:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance  # type: ignore[return-value]
+
+    def __repr__(self) -> str:
+        return "NOT_LOADED"
+
+    def __bool__(self) -> bool:
+        return False
+
+    def __hash__(self) -> int:
+        return hash("NOT_LOADED")
+
+
+NOT_LOADED = NotLoaded()
+
+type ProbeValue = dict[str, ProbeValue] | list[ProbeValue] | str | int | float | bool | NotLoaded | None
+
+type ProbeDict = dict[str, ProbeValue]
 
 # Result of get_type_hints() / get_args(): concrete class or parameterized generic
 type TypeAnnotation = type[object] | types.GenericAlias

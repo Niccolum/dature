@@ -11,6 +11,7 @@ from adaptix import Retort, loader, name_mapping
 from adaptix.provider import Provider
 
 from dature.fields import ByteSize, PaymentCardNumber, SecretStr
+from dature.skip_field_provider import ModelToDictProvider, SkipFieldProvider
 from dature.sources_loader.loaders.base import (
     base64url_bytes_from_string,
     base64url_str_from_string,
@@ -133,7 +134,7 @@ class ILoader(abc.ABC):
 
         return result
 
-    def create_retort(self) -> Retort:
+    def _base_recipe(self) -> list[Provider]:
         default_loaders: list[Provider] = [
             loader(bytes, bytes_from_string),
             loader(complex, complex_from_string),
@@ -145,13 +146,22 @@ class ILoader(abc.ABC):
             loader(PaymentCardNumber, payment_card_number_from_string),
             loader(ByteSize, byte_size_from_string),
         ]
+        return [
+            *default_loaders,
+            *self._additional_loaders(),
+            *self._get_name_mapping_provider(),
+        ]
+
+    def create_retort(self) -> Retort:
         return Retort(
             strict_coercion=False,
-            recipe=[
-                *default_loaders,
-                *self._additional_loaders(),
-                *self._get_name_mapping_provider(),
-            ],
+            recipe=self._base_recipe(),
+        )
+
+    def create_probe_retort(self) -> Retort:
+        return Retort(
+            strict_coercion=False,
+            recipe=[*self._base_recipe(), SkipFieldProvider(), ModelToDictProvider()],
         )
 
     def create_validating_retort(self, dataclass_: type[T]) -> Retort:
