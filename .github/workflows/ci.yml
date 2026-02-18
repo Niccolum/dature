@@ -71,22 +71,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Check version change and create tag
         id: create-tag
         run: |
           VERSION=$(grep -Po '(?<=^version = ")[^"]+' pyproject.toml)
-          OLD_VERSION=$(git show HEAD~1:pyproject.toml | grep -Po '(?<=^version = ")[^"]+' || echo "")
 
-          if [ "$VERSION" != "$OLD_VERSION" ]; then
-            echo "Version changed: $OLD_VERSION -> $VERSION"
+          if ! git tag -l "v$VERSION" | grep -q .; then
+            echo "Tag v$VERSION does not exist, creating"
             git tag "v$VERSION"
             git push origin "v$VERSION"
             echo "tagged=true" >> "$GITHUB_OUTPUT"
             echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           else
-            echo "Version unchanged: $VERSION"
+            echo "Tag v$VERSION already exists"
             echo "tagged=false" >> "$GITHUB_OUTPUT"
           fi
 
