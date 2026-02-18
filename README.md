@@ -548,6 +548,114 @@ config = load(
 )
 ```
 
+### Custom Validators
+
+Create your own field validators by implementing two methods: `get_validator_func()` and `get_error_message()`. The validator must be a frozen dataclass:
+
+```python
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Annotated
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Divisible:
+    value: int
+    error_message: str = "Value must be divisible by {value}"
+
+    def get_validator_func(self) -> Callable[[int], bool]:
+        def validate(val: int) -> bool:
+            return val % self.value == 0
+
+        return validate
+
+    def get_error_message(self) -> str:
+        return self.error_message.format(value=self.value)
+```
+
+Use it with `Annotated` just like built-in validators:
+
+```python
+@dataclass
+class Config:
+    batch_size: Annotated[int, Divisible(value=32)]
+
+config = load(LoadMetadata(file_="config.yaml"), Config)
+```
+
+On validation failure you get the same error format:
+
+```
+Config loading errors (1)
+
+  [batch_size]  Value must be divisible by 32
+   └── FILE 'config.yaml', line 1
+       batch_size: 50
+```
+
+Custom validators can be combined with built-in ones:
+
+```python
+from dature.validators.number import Ge
+
+@dataclass
+class Config:
+    batch_size: Annotated[int, Ge(value=1), Divisible(value=32)]
+```
+
+### Validation via `__post_init__` and `@property`
+
+You don't have to use `Annotated` validators at all. Standard dataclass `__post_init__` and `@property` work as expected -- dature preserves them during loading.
+
+**`__post_init__` for cross-field validation:**
+
+```python
+@dataclass
+class Config:
+    min_value: int
+    max_value: int
+
+    def __post_init__(self) -> None:
+        if self.min_value >= self.max_value:
+            raise ValueError(
+                f"min_value ({self.min_value}) must be less than max_value ({self.max_value})"
+            )
+
+# Function mode -- __post_init__ runs after loading
+config = load(LoadMetadata(file_="config.yaml"), Config)
+
+# Decorator mode -- __post_init__ runs on every instantiation (including overrides)
+@load(LoadMetadata(file_="config.yaml"))
+@dataclass
+class Config:
+    min_value: int
+    max_value: int
+
+    def __post_init__(self) -> None:
+        if self.min_value >= self.max_value:
+            raise ValueError("min must be less than max")
+
+config = Config()               # validates loaded values
+config = Config(min_value=100)  # validates overridden values too
+```
+
+**`@property` for computed values:**
+
+```python
+@dataclass
+class Config:
+    host: str
+    port: int
+
+    @property
+    def address(self) -> str:
+        return f"{self.host}:{self.port}"
+
+config = load(LoadMetadata(file_="config.yaml"), Config)
+print(config.address)  # localhost:8080
+```
+
+Both approaches work in function mode (`load(meta, Config)`) and decorator mode (`@load(meta)`).
+
 ## Special Types
 
 ```python
