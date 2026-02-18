@@ -1,31 +1,42 @@
-class TablePathFinder:
-    def __init__(self, content: str) -> None:
-        self.lines = content.splitlines()
+from dature.errors import LineRange
+from dature.source_locators.line_base import LinePathFinder
 
-    def find_line(self, target_path: list[str]) -> int:
+
+class TablePathFinder(LinePathFinder):
+    def __init__(self, content: str) -> None:
+        super().__init__(content)
+        self._current_section: list[str] = []
+
+    def _process_line(self, line_num: int, line: str, target_path: list[str]) -> LineRange | None:
         target_key = target_path[-1]
         target_parents = target_path[:-1]
-        current_section: list[str] = []
 
-        for i, line in enumerate(self.lines, 1):
-            stripped = line.strip()
-            if not stripped or stripped.startswith(("#", ";")):
-                continue
+        stripped = line.strip()
+        if not stripped or stripped.startswith(("#", ";")):
+            return None
 
-            # Continuation line (starts with whitespace)
-            if line[0] in (" ", "\t"):
-                continue
+        if line[0] in (" ", "\t"):
+            return None
 
-            # Working with sections [section] or [parent.child]
-            if stripped.startswith("[") and "]" in stripped:
-                section_name = stripped.strip("[] ")
-                current_section = section_name.split(".")
-                continue
+        if stripped.startswith("[") and "]" in stripped:
+            section_name = stripped.strip("[] ")
+            self._current_section = section_name.split(".")
+            return None
 
-            # Working with keys key = value
-            sep = "=" if "=" in stripped else ":"
-            if sep in stripped:
-                key = stripped.partition(sep)[0].strip().strip("\"'")
-                if key == target_key and current_section == target_parents:
-                    return i
-        return -1
+        sep = "=" if "=" in stripped else ":"
+        if sep not in stripped:
+            return None
+
+        key = stripped.partition(sep)[0].strip().strip("\"'")
+        if key != target_key or self._current_section != target_parents:
+            return None
+
+        # Found the key; check for continuation lines
+        end_line = line_num
+        for j in range(line_num, len(self._lines)):
+            next_line = self._lines[j]
+            if not next_line or next_line[0] not in (" ", "\t"):
+                break
+            end_line = j + 1  # 1-based
+
+        return LineRange(start=line_num, end=end_line)

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 
 from dature.field_path import FieldPath, validate_field_path_owner
-from dature.validators.protocols import DataclassInstance
+from dature.protocols import DataclassInstance
 
 if TYPE_CHECKING:
     from dature.metadata import FieldMergeStrategy, MergeRule

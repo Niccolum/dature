@@ -6,6 +6,7 @@ from typing import Any, cast
 from adaptix import loader
 from adaptix.provider import Provider
 
+from dature.protocols import ValidatorProtocol
 from dature.sources_loader.base import ILoader
 from dature.sources_loader.loaders import (
     bool_from_string,
@@ -22,7 +23,6 @@ from dature.sources_loader.loaders import (
     tuple_from_json_string,
 )
 from dature.types import DotSeparatedPath, FieldMapping, JSONValue, NameStyle
-from dature.validators.protocols import ValidatorProtocol
 
 
 def _set_nested(d: dict[Any, Any], keys: list[str], value: str) -> None:

@@ -11,10 +11,10 @@ from dature.field_path import FieldPath
 from dature.loader_type import get_loader_type
 from dature.metadata import LoadMetadata
 from dature.predicate import extract_field_path
+from dature.protocols import DataclassInstance
 from dature.skip_field_provider import FilterResult, filter_invalid_fields
 from dature.sources_loader.base import ILoader
 from dature.types import JSONValue
-from dature.validators.protocols import DataclassInstance
 
 logger = logging.getLogger("dature")
 

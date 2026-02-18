@@ -6,8 +6,8 @@ from dature.loader_type import LoaderType, get_loader_type
 
 if TYPE_CHECKING:
     from dature.field_path import FieldPath
+    from dature.protocols import ValidatorProtocol
     from dature.types import DotSeparatedPath, FieldMapping, NameStyle
-    from dature.validators.protocols import ValidatorProtocol
 
 
 class MergeStrategy(StrEnum):

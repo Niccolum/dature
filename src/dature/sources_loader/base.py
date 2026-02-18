@@ -11,6 +11,7 @@ from adaptix import Retort, loader, name_mapping
 from adaptix.provider import Provider
 
 from dature.fields import ByteSize, PaymentCardNumber, SecretStr
+from dature.protocols import DataclassInstance, ValidatorProtocol
 from dature.skip_field_provider import ModelToDictProvider, SkipFieldProvider
 from dature.sources_loader.loaders.base import (
     base64url_bytes_from_string,
@@ -38,7 +39,6 @@ from dature.validators.base import (
     create_validator_providers,
     extract_validators_from_type,
 )
-from dature.validators.protocols import DataclassInstance, ValidatorProtocol
 
 T = TypeVar("T")
 

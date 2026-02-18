@@ -9,11 +9,11 @@ from dature.load_report import SourceEntry
 from dature.loader_type import get_loader_type
 from dature.loading_context import apply_skip_invalid, build_error_ctx
 from dature.metadata import LoadMetadata, MergeMetadata
+from dature.protocols import DataclassInstance
 from dature.skip_field_provider import FilterResult
 from dature.sources_loader.base import ILoader
 from dature.sources_loader.resolver import resolve_loader
 from dature.types import JSONValue
-from dature.validators.protocols import DataclassInstance
 
 logger = logging.getLogger("dature")
 
@@ -116,7 +116,7 @@ def load_sources(
                 location = SourceLocation(
                     source_type=get_loader_type(source_meta.loader, source_meta.file_),
                     file_path=error_ctx.file_path,
-                    line_number=None,
+                    line_range=None,
                     line_content=None,
                     env_var_name=None,
                 )

@@ -8,7 +8,7 @@ from adaptix.load_error import AggregateLoadError, LoadError
 
 from dature import LoadMetadata, load
 from dature.error_formatter import ErrorContext, extract_field_errors, resolve_source_location
-from dature.errors import DatureConfigError, FieldLoadError, SourceLocation
+from dature.errors import DatureConfigError, FieldLoadError, LineRange, SourceLocation
 
 
 class TestExtractFieldErrors:
@@ -126,8 +126,8 @@ class TestResolveSourceLocation:
         )
         loc = resolve_source_location(["timeout"], ctx, file_content=content)
         assert loc.source_type == "json"
-        assert loc.line_number == 2
-        assert loc.line_content == '"timeout": "30",'
+        assert loc.line_range == LineRange(start=2, end=2)
+        assert loc.line_content == ['"timeout": "30",']
 
     def test_toml_source_with_line(self):
         content = 'timeout = "30"\nname = "test"'
@@ -140,8 +140,8 @@ class TestResolveSourceLocation:
         )
         loc = resolve_source_location(["timeout"], ctx, file_content=content)
         assert loc.source_type == "toml"
-        assert loc.line_number == 1
-        assert loc.line_content == 'timeout = "30"'
+        assert loc.line_range == LineRange(start=1, end=1)
+        assert loc.line_content == ['timeout = "30"']
 
     def test_envfile_source(self):
         content = "# comment\nAPP_TIMEOUT=30\nAPP_NAME=test"
@@ -155,8 +155,8 @@ class TestResolveSourceLocation:
         loc = resolve_source_location(["timeout"], ctx, file_content=content)
         assert loc.source_type == "envfile"
         assert loc.env_var_name == "APP_TIMEOUT"
-        assert loc.line_number == 2
-        assert loc.line_content == "APP_TIMEOUT=30"
+        assert loc.line_range == LineRange(start=2, end=2)
+        assert loc.line_content == ["APP_TIMEOUT=30"]
 
 
 class TestDatureConfigErrorFormat:
@@ -169,8 +169,8 @@ class TestDatureConfigErrorFormat:
                 location=SourceLocation(
                     source_type="toml",
                     file_path=Path("config.toml"),
-                    line_number=2,
-                    line_content='timeout = "30"',
+                    line_range=LineRange(start=2, end=2),
+                    line_content=['timeout = "30"'],
                     env_var_name=None,
                 ),
             ),
@@ -193,8 +193,8 @@ class TestDatureConfigErrorFormat:
                 location=SourceLocation(
                     source_type="json",
                     file_path=Path("config.json"),
-                    line_number=2,
-                    line_content='"timeout": "abc"',
+                    line_range=LineRange(start=2, end=2),
+                    line_content=['"timeout": "abc"'],
                     env_var_name=None,
                 ),
             ),
@@ -205,7 +205,7 @@ class TestDatureConfigErrorFormat:
                 location=SourceLocation(
                     source_type="json",
                     file_path=Path("config.json"),
-                    line_number=None,
+                    line_range=None,
                     line_content=None,
                     env_var_name=None,
                 ),
@@ -232,7 +232,7 @@ class TestDatureConfigErrorFormat:
                 location=SourceLocation(
                     source_type="env",
                     file_path=None,
-                    line_number=None,
+                    line_range=None,
                     line_content=None,
                     env_var_name="APP_DATABASE__PORT",
                 ),
@@ -406,7 +406,7 @@ class TestLoadIntegrationErrors:
         first = err.exceptions[0]
         assert isinstance(first, FieldLoadError)
         assert first.location is not None
-        assert first.location.line_number == 2
+        assert first.location.line_range == LineRange(start=2, end=2)
         assert str(err) == dedent(f"""\
             Config loading errors (1)
 
@@ -433,11 +433,113 @@ class TestLoadIntegrationErrors:
         first = err.exceptions[0]
         assert isinstance(first, FieldLoadError)
         assert first.location is not None
-        assert first.location.line_number == 3
+        assert first.location.line_range == LineRange(start=3, end=3)
         assert str(err) == dedent(f"""\
             Config loading errors (1)
 
               [timeout]  Bad string format
                └── FILE '{json_file}', line 3
                    "timeout": "abc"
+            """)
+
+
+class TestMultilineValueDisplay:
+    def test_json_multiline_dict(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{\n  "db": {\n    "host": "localhost",\n    "port": "abc"\n  }\n}')
+
+        @dataclass
+        class Config:
+            db: int
+
+        metadata = LoadMetadata(file_=str(json_file))
+
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(metadata, Config)
+
+        err = exc_info.value
+        assert str(err) == dedent(f"""\
+            Config loading errors (1)
+
+              [db]  Expected int | float | str, got dict
+               └── FILE '{json_file}', line 2-5
+                   "db": {{
+                     "host": "localhost",
+                     "port": "abc"
+                   }}
+            """)
+
+    def test_yaml_multiline_block(self, tmp_path: Path):
+        yaml_file = tmp_path / "config.yaml"
+        yaml_file.write_text("db:\n  host: localhost\n  port: abc\nname: test\n")
+
+        @dataclass
+        class Config:
+            db: int
+            name: str
+
+        metadata = LoadMetadata(file_=str(yaml_file))
+
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(metadata, Config)
+
+        err = exc_info.value
+        assert str(err) == dedent(f"""\
+            Config loading errors (1)
+
+              [db]  Expected int | float | str, got dict
+               └── FILE '{yaml_file}', line 1-3
+                   db:
+                     host: localhost
+                     port: abc
+            """)
+
+    def test_toml_multiline_array(self, tmp_path: Path):
+        toml_file = tmp_path / "config.toml"
+        toml_file.write_text('tags = [\n  "a",\n  "b"\n]\n')
+
+        @dataclass
+        class Config:
+            tags: int
+
+        metadata = LoadMetadata(file_=str(toml_file))
+
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(metadata, Config)
+
+        err = exc_info.value
+        assert str(err) == dedent(f"""\
+            Config loading errors (1)
+
+              [tags]  Expected int | float | str, got list
+               └── FILE '{toml_file}', line 1-4
+                   tags = [
+                     "a",
+                     "b"
+                   ]
+            """)
+
+    def test_json_multiline_array(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{\n  "tags": [\n    "a",\n    "b"\n  ]\n}')
+
+        @dataclass
+        class Config:
+            tags: int
+
+        metadata = LoadMetadata(file_=str(json_file))
+
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(metadata, Config)
+
+        err = exc_info.value
+        assert str(err) == dedent(f"""\
+            Config loading errors (1)
+
+              [tags]  Expected int | float | str, got list
+               └── FILE '{json_file}', line 2-5
+                   "tags": [
+                     "a",
+                     "b"
+                   ]
             """)

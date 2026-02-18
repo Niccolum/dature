@@ -1,7 +1,7 @@
 from dataclasses import dataclass, fields, is_dataclass
 from typing import TypeVar, get_type_hints, overload
 
-from dature.validators.protocols import DataclassInstance
+from dature.protocols import DataclassInstance
 
 T = TypeVar("T")
 

@@ -5,11 +5,22 @@ from typing import Self
 
 
 @dataclass(frozen=True, slots=True)
+class LineRange:
+    start: int
+    end: int
+
+    def __repr__(self) -> str:
+        if self.start == self.end:
+            return f"line {self.start}"
+        return f"line {self.start}-{self.end}"
+
+
+@dataclass(frozen=True, slots=True)
 class SourceLocation:
     source_type: str
     file_path: Path | None
-    line_number: int | None
-    line_content: str | None
+    line_range: LineRange | None
+    line_content: list[str] | None
     env_var_name: str | None
 
 
@@ -27,15 +38,15 @@ def _format_location(loc: SourceLocation) -> list[str]:
             location_str += f", var '{loc.env_var_name}'"
         lines.append(location_str)
         if loc.line_content is not None:
-            lines.append(f"       {loc.line_content}")
+            lines.extend(f"       {content_line}" for content_line in loc.line_content)
         return lines
 
     location_str = f"   └── FILE '{loc.file_path}'"
-    if loc.line_number is not None:
-        location_str += f", line {loc.line_number}"
+    if loc.line_range is not None:
+        location_str += f", {loc.line_range!r}"
     lines.append(location_str)
     if loc.line_content is not None:
-        lines.append(f"       {loc.line_content}")
+        lines.extend(f"       {content_line}" for content_line in loc.line_content)
 
     return lines
 

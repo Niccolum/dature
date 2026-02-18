@@ -1,100 +1,67 @@
-from dataclasses import dataclass
+from dature.source_locators.char_base import (
+    CharPathFinder,
+    KeyParseResult,
+    PosLine,
+    StackEntry,
+    build_path,
+    increment_parent_array,
+)
 
 
-class JsonPathFinder:
-    def __init__(self, content: str) -> None:
-        self._content = content
+class JsonPathFinder(CharPathFinder):
+    def _skip_noise(self, content: str, pos: int, line: int, length: int) -> PosLine | None:
+        if pos >= length:
+            return None
+        ch = content[pos]
+        if ch in " \t\r\n":
+            if ch == "\n":
+                line += 1
+            return PosLine(pos=pos + 1, line=line)
+        if ch == ",":
+            return PosLine(pos=pos + 1, line=line)
+        return None
 
-    def find_line(self, target_path: list[str]) -> int:
-        content = self._content
-        length = len(content)
-        pos = 0
-        line = 1
-        stack: list[_StackEntry] = []
-        last_key: str | None = None
+    def _try_parse_key(
+        self,
+        content: str,
+        pos: int,
+        line: int,
+        length: int,
+        stack: list[StackEntry],
+        target_path: list[str],
+    ) -> KeyParseResult | None:
+        if content[pos] != '"':
+            return None
 
-        while pos < length:
-            ch = content[pos]
+        string_start = pos + 1
+        end_pos = _skip_string(content, string_start)
+        string_value = content[string_start : end_pos - 1]
 
-            if ch in " \t\r\n":
-                if ch == "\n":
-                    line += 1
-                pos += 1
-                continue
+        colon_pos = _skip_ws(content, end_pos, length)
 
-            if ch == ",":
-                pos += 1
-                continue
+        if colon_pos >= length or content[colon_pos] != ":":
+            increment_parent_array(stack)
+            return KeyParseResult(pos=end_pos, line=line, last_key=None, found=False)
 
-            if ch in "{[":
-                _increment_parent_array(stack)
-                is_array = ch == "["
-                stack.append(_StackEntry(key=last_key, is_array=is_array, array_index=-1))
-                pos += 1
-                last_key = None
-                continue
+        if build_path(stack, string_value) == target_path:
+            return KeyParseResult(pos=end_pos, line=line, last_key=None, found=True)
 
-            if ch in "}]":
-                if stack:
-                    stack.pop()
-                pos += 1
-                last_key = None
-                continue
+        return KeyParseResult(pos=colon_pos + 1, line=line, last_key=string_value, found=False)
 
-            if ch != '"':
-                _increment_parent_array(stack)
-                pos = _skip_scalar(content, pos, length)
-                continue
+    def _find_value_end_line(self, content: str, pos: int, length: int, start_line: int) -> int:
+        pos, current_line = _skip_to_value_start(content, pos, length, start_line)
+        if pos >= length:
+            return current_line
 
-            result = _handle_string(content, pos, length, stack, target_path)
-            pos = result.pos
-            last_key = result.last_key
-            if result.found:
-                return line
+        ch = content[pos]
 
-        return -1
+        if ch == '"':
+            return current_line
 
+        if ch in "{[":
+            return _scan_container_end(content, pos, length, current_line)
 
-@dataclass
-class _StackEntry:
-    key: str | None
-    is_array: bool
-    array_index: int
-
-
-@dataclass(frozen=True, slots=True)
-class _StringResult:
-    pos: int
-    last_key: str | None
-    found: bool
-
-
-def _handle_string(
-    content: str,
-    pos: int,
-    length: int,
-    stack: list[_StackEntry],
-    target_path: list[str],
-) -> _StringResult:
-    string_start = pos + 1
-    end_pos = _skip_string(content, string_start)
-    string_value = content[string_start : end_pos - 1]
-
-    colon_pos = _skip_ws(content, end_pos, length)
-
-    if colon_pos >= length or content[colon_pos] != ":":
-        _increment_parent_array(stack)
-        return _StringResult(pos=end_pos, last_key=None, found=False)
-
-    if _build_path(stack, string_value) == target_path:
-        return _StringResult(pos=end_pos, last_key=None, found=True)
-
-    return _StringResult(pos=colon_pos + 1, last_key=string_value, found=False)
-
-
-def _increment_parent_array(stack: list[_StackEntry]) -> None:
-    if stack and stack[-1].is_array:
-        stack[-1].array_index += 1
+        return current_line
 
 
 def _skip_string(content: str, pos: int) -> int:
@@ -117,18 +84,41 @@ def _skip_ws(content: str, pos: int, length: int) -> int:
     return pos
 
 
-def _skip_scalar(content: str, pos: int, length: int) -> int:
-    while pos < length and content[pos] not in " \t\r\n,}]":
+def _skip_to_value_start(
+    content: str,
+    pos: int,
+    length: int,
+    current_line: int,
+) -> tuple[int, int]:
+    while pos < length and content[pos] != ":":
+        if content[pos] == "\n":
+            current_line += 1
         pos += 1
-    return pos
+    if pos >= length:
+        return pos, current_line
+    pos += 1
+
+    while pos < length and content[pos] in " \t\r\n":
+        if content[pos] == "\n":
+            current_line += 1
+        pos += 1
+
+    return pos, current_line
 
 
-def _build_path(stack: list[_StackEntry], current_key: str) -> list[str]:
-    path: list[str] = []
-    for entry in stack:
-        if entry.key is not None:
-            path.append(entry.key)
-        if entry.is_array:
-            path.append(str(entry.array_index))
-    path.append(current_key)
-    return path
+def _scan_container_end(content: str, pos: int, length: int, current_line: int) -> int:
+    depth = 1
+    pos += 1
+    while pos < length and depth > 0:
+        c = content[pos]
+        if c == "\n":
+            current_line += 1
+        elif c == '"':
+            pos = _skip_string(content, pos + 1)
+            continue
+        elif c in "{[":
+            depth += 1
+        elif c in "}]":
+            depth -= 1
+        pos += 1
+    return current_line

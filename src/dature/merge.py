@@ -14,19 +14,14 @@ from dature.load_report import (
     compute_field_origins,
     get_load_report,
 )
-from dature.loading_context import (
-    build_error_ctx,
-    ensure_retort,
-    make_validating_post_init,
-    merge_fields,
-)
+from dature.loading_context import build_error_ctx, ensure_retort, make_validating_post_init, merge_fields
 from dature.metadata import FieldMergeStrategy, MergeMetadata, MergeStrategy
 from dature.predicate import build_field_merge_map
+from dature.protocols import DataclassInstance
 from dature.source_loading import load_sources
 from dature.sources_loader.base import ILoader
 from dature.sources_loader.resolver import resolve_loader
 from dature.types import JSONValue
-from dature.validators.protocols import DataclassInstance
 
 logger = logging.getLogger("dature")
 

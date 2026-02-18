@@ -1,18 +1,84 @@
 from dataclasses import dataclass
 
+from dature.source_locators.char_base import (
+    CharPathFinder,
+    KeyParseResult,
+    PosLine,
+    StackEntry,
+    build_path,
+    increment_parent_array,
+)
 
-@dataclass
-class _StackEntry:
-    key: str | None
-    is_array: bool
-    array_index: int
 
+class Json5PathFinder(CharPathFinder):
+    def _skip_noise(self, content: str, pos: int, line: int, length: int) -> PosLine | None:
+        ch = content[pos]
+        if ch in " \t\r\n":
+            if ch == "\n":
+                line += 1
+            return PosLine(pos=pos + 1, line=line)
 
-@dataclass
-class _ParseState:
-    pos: int
-    line: int
-    last_key: str | None
+        if ch == ",":
+            return PosLine(pos=pos + 1, line=line)
+
+        if ch != "/" or pos + 1 >= length:
+            return None
+
+        next_ch = content[pos + 1]
+        if next_ch == "/":
+            return PosLine(pos=_skip_line_comment(content, pos + 2, length), line=line)
+        if next_ch == "*":
+            block = _skip_block_comment(content, pos + 2, length, line)
+            return PosLine(pos=block.pos, line=block.line)
+
+        return None
+
+    def _try_parse_key(
+        self,
+        content: str,
+        pos: int,
+        line: int,
+        length: int,
+        stack: list[StackEntry],
+        target_path: list[str],
+    ) -> KeyParseResult | None:
+        ch = content[pos]
+
+        if ch in {'"', "'"}:
+            return _handle_quoted(content, pos, line, length, stack, target_path)
+
+        if _is_ident_start(ch):
+            return _handle_identifier(content, pos, line, length, stack, target_path)
+
+        return None
+
+    def _find_value_end_line(self, content: str, pos: int, length: int, start_line: int) -> int:
+        current_line = start_line
+
+        pl = _skip_ws_and_comments(content, pos, length, current_line)
+        pos = pl.pos
+        current_line = pl.line
+        if pos >= length or content[pos] != ":":
+            return start_line
+        pos += 1
+
+        pl = _skip_ws_and_comments(content, pos, length, current_line)
+        pos = pl.pos
+        current_line = pl.line
+
+        if pos >= length:
+            return current_line
+
+        ch = content[pos]
+
+        if ch in {'"', "'"}:
+            end = _skip_quoted_string(content, pos + 1, ch, current_line)
+            return end.line
+
+        if ch in "{[":
+            return _scan_json5_container_end(content, pos, length, current_line)
+
+        return current_line
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,156 +87,52 @@ class _PosLine:
     line: int
 
 
-@dataclass(frozen=True, slots=True)
-class _KeyResult:
-    pos: int
-    line: int
-    last_key: str | None
-    found: bool
-
-
-class Json5PathFinder:
-    def __init__(self, content: str) -> None:
-        self._content = content
-
-    def find_line(self, target_path: list[str]) -> int:
-        content = self._content
-        length = len(content)
-        state = _ParseState(pos=0, line=1, last_key=None)
-        stack: list[_StackEntry] = []
-
-        while state.pos < length:
-            ch = content[state.pos]
-
-            if _try_skip_noise(ch, content, state, length):
-                continue
-
-            if ch in "{[":
-                _increment_parent_array(stack)
-                is_array = ch == "["
-                stack.append(_StackEntry(key=state.last_key, is_array=is_array, array_index=-1))
-                state.pos += 1
-                state.last_key = None
-                continue
-
-            if ch in "}]":
-                if stack:
-                    stack.pop()
-                state.pos += 1
-                state.last_key = None
-                continue
-
-            if ch in {'"', "'"}:
-                result = _handle_quoted(content, state, length, stack, target_path)
-                if result.found:
-                    return result.line
-                state.pos = result.pos
-                state.line = result.line
-                state.last_key = result.last_key
-                continue
-
-            if _is_ident_start(ch):
-                result = _handle_identifier(content, state, length, stack, target_path)
-                if result.found:
-                    return result.line
-                state.pos = result.pos
-                state.line = result.line
-                state.last_key = result.last_key
-                continue
-
-            _increment_parent_array(stack)
-            state.pos = _skip_scalar(content, state.pos, length)
-
-        return -1
-
-
-def _try_skip_noise(ch: str, content: str, state: _ParseState, length: int) -> bool:
-    if ch in " \t\r\n":
-        if ch == "\n":
-            state.line += 1
-        state.pos += 1
-        return True
-
-    if ch == ",":
-        state.pos += 1
-        return True
-
-    if ch != "/" or state.pos + 1 >= length:
-        return False
-
-    next_ch = content[state.pos + 1]
-    if next_ch == "/":
-        state.pos = _skip_line_comment(content, state.pos + 2, length)
-        return True
-    if next_ch == "*":
-        block = _skip_block_comment(content, state.pos + 2, length, state.line)
-        state.pos = block.pos
-        state.line = block.line
-        return True
-
-    return False
-
-
 def _handle_quoted(
     content: str,
-    state: _ParseState,
+    pos: int,
+    line: int,
     length: int,
-    stack: list[_StackEntry],
+    stack: list[StackEntry],
     target_path: list[str],
-) -> _KeyResult:
-    quote = content[state.pos]
-    string_start = state.pos + 1
-    end = _skip_quoted_string(content, string_start, quote, state.line)
+) -> KeyParseResult:
+    quote = content[pos]
+    string_start = pos + 1
+    end = _skip_quoted_string(content, string_start, quote, line)
     string_value = content[string_start : end.pos - 1]
 
     colon = _skip_ws_and_comments(content, end.pos, length, end.line)
 
     if colon.pos >= length or content[colon.pos] != ":":
-        _increment_parent_array(stack)
-        return _KeyResult(pos=end.pos, line=end.line, last_key=None, found=False)
+        increment_parent_array(stack)
+        return KeyParseResult(pos=end.pos, line=end.line, last_key=None, found=False)
 
-    if _build_path(stack, string_value) == target_path:
-        return _KeyResult(pos=end.pos, line=state.line, last_key=None, found=True)
+    if build_path(stack, string_value) == target_path:
+        return KeyParseResult(pos=end.pos, line=line, last_key=None, found=True)
 
-    return _KeyResult(pos=colon.pos + 1, line=colon.line, last_key=string_value, found=False)
+    return KeyParseResult(pos=colon.pos + 1, line=colon.line, last_key=string_value, found=False)
 
 
 def _handle_identifier(
     content: str,
-    state: _ParseState,
+    pos: int,
+    line: int,
     length: int,
-    stack: list[_StackEntry],
+    stack: list[StackEntry],
     target_path: list[str],
-) -> _KeyResult:
-    ident_end = _skip_identifier(content, state.pos, length)
-    ident = content[state.pos : ident_end]
+) -> KeyParseResult:
+    ident_end = _skip_identifier(content, pos, length)
+    ident = content[pos:ident_end]
 
-    colon = _skip_ws_and_comments(content, ident_end, length, state.line)
+    colon = _skip_ws_and_comments(content, ident_end, length, line)
 
     if colon.pos >= length or content[colon.pos] != ":":
-        _increment_parent_array(stack)
-        return _KeyResult(pos=ident_end, line=state.line, last_key=None, found=False)
+        increment_parent_array(stack)
+        return KeyParseResult(pos=ident_end, line=line, last_key=None, found=False)
 
-    if _build_path(stack, ident) == target_path:
-        return _KeyResult(pos=ident_end, line=state.line, last_key=None, found=True)
+    if build_path(stack, ident) == target_path:
+        return KeyParseResult(pos=ident_end, line=line, last_key=None, found=True)
 
-    return _KeyResult(pos=colon.pos + 1, line=colon.line, last_key=ident, found=False)
-
-
-def _increment_parent_array(stack: list[_StackEntry]) -> None:
-    if stack and stack[-1].is_array:
-        stack[-1].array_index += 1
-
-
-def _build_path(stack: list[_StackEntry], current_key: str) -> list[str]:
-    path: list[str] = []
-    for entry in stack:
-        if entry.key is not None:
-            path.append(entry.key)
-        if entry.is_array:
-            path.append(str(entry.array_index))
-    path.append(current_key)
-    return path
+    return KeyParseResult(pos=colon.pos + 1, line=colon.line, last_key=ident, found=False)
 
 
 def _skip_quoted_string(
@@ -260,7 +222,36 @@ def _skip_ws_and_comments(
     return _PosLine(pos=pos, line=line)
 
 
-def _skip_scalar(content: str, pos: int, length: int) -> int:
-    while pos < length and content[pos] not in " \t\r\n,}]":
+def _scan_json5_container_end(
+    content: str,
+    pos: int,
+    length: int,
+    current_line: int,
+) -> int:
+    depth = 1
+    pos += 1
+    while pos < length and depth > 0:
+        c = content[pos]
+        if c == "\n":
+            current_line += 1
+        elif c in {'"', "'"}:
+            end = _skip_quoted_string(content, pos + 1, c, current_line)
+            pos = end.pos
+            current_line = end.line
+            continue
+        elif c == "/" and pos + 1 < length:
+            nc = content[pos + 1]
+            if nc == "/":
+                pos = _skip_line_comment(content, pos + 2, length)
+                continue
+            if nc == "*":
+                block = _skip_block_comment(content, pos + 2, length, current_line)
+                pos = block.pos
+                current_line = block.line
+                continue
+        elif c in "{[":
+            depth += 1
+        elif c in "}]":
+            depth -= 1
         pos += 1
-    return pos
+    return current_line

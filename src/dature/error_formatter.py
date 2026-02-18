@@ -1,8 +1,9 @@
+import types
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union, get_args
 
 from adaptix.load_error import (
     AggregateLoadError,
@@ -17,7 +18,8 @@ from adaptix.load_error import (
 )
 from adaptix.struct_trail import get_trail
 
-from dature.errors import DatureConfigError, DatureError, FieldLoadError, SourceLocation
+from dature.errors import DatureConfigError, DatureError, FieldLoadError, LineRange, SourceLocation
+from dature.source_locators.base import PathFinder
 from dature.source_locators.ini_ import TablePathFinder
 
 if TYPE_CHECKING:
@@ -27,10 +29,7 @@ from dature.source_locators.json_ import JsonPathFinder
 from dature.source_locators.toml_ import TomlPathFinder
 from dature.source_locators.yaml_ import YamlPathFinder
 
-_PATH_FINDER_MAP: dict[
-    str,
-    type[YamlPathFinder | JsonPathFinder | Json5PathFinder | TomlPathFinder | TablePathFinder],
-] = {
+_PATH_FINDER_MAP: dict[str, type[PathFinder]] = {
     "yaml": YamlPathFinder,
     "yaml1.1": YamlPathFinder,
     "yaml1.2": YamlPathFinder,
@@ -55,7 +54,13 @@ def _describe_error(exc: BaseException) -> str:
         return str(exc.msg)
 
     if isinstance(exc, TypeLoadError):
-        return f"Expected {exc.expected_type.__name__}, got {type(exc.input_value).__name__}"
+        expected = exc.expected_type
+        if isinstance(expected, types.UnionType) or getattr(expected, "__origin__", None) is Union:
+            names = [arg.__name__ for arg in get_args(expected)]
+            expected_name = " | ".join(names)
+        else:
+            expected_name = expected.__name__
+        return f"Expected {expected_name}, got {type(exc.input_value).__name__}"
 
     if isinstance(exc, ExtraFieldsLoadError):
         field_names = ", ".join(sorted(exc.fields))
@@ -146,14 +151,14 @@ def _find_env_line(content: str, var_name: str) -> SourceLocation:
             return SourceLocation(
                 source_type="envfile",
                 file_path=None,
-                line_number=i,
-                line_content=stripped,
+                line_range=LineRange(start=i, end=i),
+                line_content=[stripped],
                 env_var_name=var_name,
             )
     return SourceLocation(
         source_type="envfile",
         file_path=None,
-        line_number=None,
+        line_range=None,
         line_content=None,
         env_var_name=var_name,
     )
@@ -163,10 +168,18 @@ def _empty_file_location(loader_type: str, file_path: Path | None) -> SourceLoca
     return SourceLocation(
         source_type=loader_type,
         file_path=file_path,
-        line_number=None,
+        line_range=None,
         line_content=None,
         env_var_name=None,
     )
+
+
+def _strip_common_indent(raw_lines: list[str]) -> list[str]:
+    indents = [len(line) - len(line.lstrip()) for line in raw_lines if line.strip()]
+    if not indents:
+        return raw_lines
+    min_indent = min(indents)
+    return [line[min_indent:] for line in raw_lines]
 
 
 def _resolve_file_location(
@@ -184,20 +197,23 @@ def _resolve_file_location(
         return _empty_file_location(loader_type, file_path)
 
     search_path = _build_search_path(field_path, prefix)
-    found_line = finder_class(file_content).find_line(search_path)
-    if found_line == -1:
+    finder = finder_class(file_content)
+    line_range = finder.find_line_range(search_path)
+    if line_range is None:
         return _empty_file_location(loader_type, file_path)
 
     lines = file_content.splitlines()
-    line_content = None
-    if 0 < found_line <= len(lines):
-        line_content = lines[found_line - 1].strip()
+    content_lines: list[str] | None = None
+    if 0 < line_range.start <= len(lines):
+        end = min(line_range.end, len(lines))
+        raw = lines[line_range.start - 1 : end]
+        content_lines = _strip_common_indent(raw)
 
     return SourceLocation(
         source_type=loader_type,
         file_path=file_path,
-        line_number=found_line,
-        line_content=line_content,
+        line_range=line_range,
+        line_content=content_lines,
         env_var_name=None,
     )
 
@@ -212,7 +228,7 @@ def resolve_source_location(
         return SourceLocation(
             source_type="env",
             file_path=None,
-            line_number=None,
+            line_range=None,
             line_content=None,
             env_var_name=env_var_name,
         )
@@ -224,14 +240,14 @@ def resolve_source_location(
             return SourceLocation(
                 source_type="envfile",
                 file_path=ctx.file_path,
-                line_number=location.line_number,
+                line_range=location.line_range,
                 line_content=location.line_content,
                 env_var_name=env_var_name,
             )
         return SourceLocation(
             source_type="envfile",
             file_path=ctx.file_path,
-            line_number=None,
+            line_range=None,
             line_content=None,
             env_var_name=env_var_name,
         )

@@ -5,8 +5,8 @@ from typing import Any, overload
 from dature.merge import merge_load_as_function, merge_make_decorator
 from dature.metadata import LoadMetadata, MergeMetadata
 from dature.patcher import load_as_function, make_decorator
+from dature.protocols import DataclassInstance
 from dature.sources_loader.resolver import resolve_loader
-from dature.validators.protocols import DataclassInstance
 
 
 @overload

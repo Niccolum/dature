@@ -14,8 +14,8 @@ from adaptix._internal.provider.request_checkers import AlwaysTrueRequestChecker
 from adaptix._internal.provider.shape_provider import InputShapeRequest, provide_generic_resolved_shape
 from adaptix.load_error import LoadError
 
+from dature.protocols import DataclassInstance
 from dature.types import NOT_LOADED, JSONValue, NotLoaded, ProbeDict
-from dature.validators.protocols import DataclassInstance
 
 
 class SkipFieldProvider(Provider):

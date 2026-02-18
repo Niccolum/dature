@@ -16,9 +16,9 @@ from dature.loading_context import (
     merge_fields,
 )
 from dature.metadata import LoadMetadata
+from dature.protocols import DataclassInstance
 from dature.sources_loader.base import ILoader
 from dature.types import JSONValue
-from dature.validators.protocols import DataclassInstance
 
 if TYPE_CHECKING:
     from adaptix import Retort

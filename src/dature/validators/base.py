@@ -3,7 +3,7 @@ from typing import Annotated, get_args, get_origin
 from adaptix import P, validator
 from adaptix.provider import Provider
 
-from dature.validators.protocols import ValidatorProtocol
+from dature.protocols import ValidatorProtocol
 
 
 def extract_validators_from_type(field_type: object) -> list[ValidatorProtocol]:
