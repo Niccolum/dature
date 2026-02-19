@@ -200,3 +200,69 @@ class MergeConflictError(DatureConfigError):
                 lines.append("")
 
         return "\n".join(lines)
+
+
+class FieldGroupViolationError(DatureError):
+    def __init__(
+        self,
+        *,
+        group_fields: tuple[str, ...],
+        changed_fields: tuple[str, ...],
+        unchanged_fields: tuple[str, ...],
+        changed_sources: tuple[str, ...],
+        unchanged_sources: tuple[str, ...],
+        source_index: int,
+    ) -> None:
+        self.group_fields = group_fields
+        self.changed_fields = changed_fields
+        self.unchanged_fields = unchanged_fields
+        self.changed_sources = changed_sources
+        self.unchanged_sources = unchanged_sources
+        self.source_index = source_index
+        super().__init__(self._format())
+
+    def _format(self) -> str:
+        group_str = ", ".join(self.group_fields)
+        changed_pairs = zip(self.changed_fields, self.changed_sources, strict=True)
+        changed_parts = [f"{field} (from source {src})" for field, src in changed_pairs]
+        unchanged_pairs = zip(self.unchanged_fields, self.unchanged_sources, strict=True)
+        unchanged_parts = [f"{field} (from source {src})" for field, src in unchanged_pairs]
+        lines = [
+            f"  Field group ({group_str}) partially overridden in source {self.source_index}",
+            f"    changed:   {', '.join(changed_parts)}",
+            f"    unchanged: {', '.join(unchanged_parts)}",
+        ]
+        return "\n".join(lines)
+
+
+class FieldGroupError(DatureConfigError):
+    def __new__(
+        cls,
+        dataclass_name: str,
+        errors: Sequence[FieldGroupViolationError],
+    ) -> Self:
+        return super().__new__(cls, dataclass_name, errors)
+
+    def __str__(self) -> str:
+        lines: list[str] = []
+        lines.append(f"{self.dataclass_name} field group errors ({len(self.exceptions)})")
+        lines.append("")
+
+        for exc in self.exceptions:
+            if isinstance(exc, FieldGroupViolationError):
+                group_str = ", ".join(exc.group_fields)
+                changed_pairs = zip(exc.changed_fields, exc.changed_sources, strict=True)
+                changed_parts = [f"{field} (from source {src})" for field, src in changed_pairs]
+                unchanged_pairs = zip(exc.unchanged_fields, exc.unchanged_sources, strict=True)
+                unchanged_parts = [f"{field} (from source {src})" for field, src in unchanged_pairs]
+                lines.append(
+                    f"  Field group ({group_str}) partially overridden in source {exc.source_index}",
+                )
+                lines.append(f"    changed:   {', '.join(changed_parts)}")
+                lines.append(f"    unchanged: {', '.join(unchanged_parts)}")
+                lines.append("")
+            else:
+                lines.append(f"  {exc}")
+                lines.append("")
+
+        return "\n".join(lines)

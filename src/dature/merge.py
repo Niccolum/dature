@@ -6,6 +6,7 @@ from typing import cast
 from dature.deep_merge import deep_merge, deep_merge_last_wins, raise_on_conflict
 from dature.error_formatter import enrich_skipped_errors, handle_load_errors
 from dature.errors import DatureConfigError
+from dature.field_group import FieldGroupContext, validate_field_groups
 from dature.load_report import (
     FieldOrigin,
     LoadReport,
@@ -16,7 +17,7 @@ from dature.load_report import (
 )
 from dature.loading_context import build_error_ctx, ensure_retort, make_validating_post_init, merge_fields
 from dature.metadata import FieldMergeStrategy, MergeMetadata, MergeStrategy
-from dature.predicate import build_field_merge_map
+from dature.predicate import ResolvedFieldGroup, build_field_group_paths, build_field_merge_map
 from dature.protocols import DataclassInstance
 from dature.source_loading import load_sources
 from dature.sources_loader.base import ILoader
@@ -87,6 +88,46 @@ def _build_merge_report(
     )
 
 
+def _collect_leaf_paths(data: JSONValue, prefix: str = "") -> list[str]:
+    if not isinstance(data, dict):
+        return [prefix] if prefix else []
+    paths: list[str] = []
+    for key, value in data.items():
+        child_path = f"{prefix}.{key}" if prefix else key
+        if isinstance(value, dict):
+            paths.extend(_collect_leaf_paths(value, child_path))
+        else:
+            paths.append(child_path)
+    return paths
+
+
+def _validate_all_field_groups(
+    *,
+    raw_dicts: list[JSONValue],
+    field_group_paths: tuple[ResolvedFieldGroup, ...],
+    dataclass_name: str,
+    source_reprs: tuple[str, ...],
+) -> None:
+    merged: JSONValue = {}
+    field_origins: dict[str, int] = {}
+    ctx = FieldGroupContext(
+        source_reprs=source_reprs,
+        field_origins=field_origins,
+        dataclass_name=dataclass_name,
+    )
+    for step_idx, raw in enumerate(raw_dicts):
+        validate_field_groups(
+            base=merged,
+            source=raw,
+            field_group_paths=field_group_paths,
+            source_index=step_idx,
+            ctx=ctx,
+        )
+        for leaf_path in _collect_leaf_paths(raw):
+            field_origins[leaf_path] = step_idx
+        merged = deep_merge_last_wins(merged, raw, field_merge_map=None)
+
+
 def _merge_raw_dicts(
     *,
     raw_dicts: list[JSONValue],
@@ -97,6 +138,7 @@ def _merge_raw_dicts(
     merged: JSONValue = {}
     for step_idx, raw in enumerate(raw_dicts):
         before = merged
+
         if strategy == MergeStrategy.RAISE_ON_CONFLICT:
             merged = deep_merge_last_wins(merged, raw, field_merge_map=field_merge_map)
         else:
@@ -131,6 +173,19 @@ def _load_and_merge[T: DataclassInstance](
     field_merge_map: dict[str, FieldMergeStrategy] | None = None
     if merge_meta.field_merges:
         field_merge_map = build_field_merge_map(merge_meta.field_merges, dataclass_)
+
+    field_group_paths: tuple[ResolvedFieldGroup, ...] = ()
+    if merge_meta.field_groups:
+        field_group_paths = build_field_group_paths(merge_meta.field_groups, dataclass_)
+
+    if field_group_paths:
+        source_reprs = tuple(repr(merge_meta.sources[entry.index]) for entry in loaded.source_entries)
+        _validate_all_field_groups(
+            raw_dicts=loaded.raw_dicts,
+            field_group_paths=field_group_paths,
+            dataclass_name=dataclass_.__name__,
+            source_reprs=source_reprs,
+        )
 
     if merge_meta.strategy == MergeStrategy.RAISE_ON_CONFLICT:
         raise_on_conflict(loaded.raw_dicts, loaded.source_ctxs, dataclass_.__name__, field_merge_map=field_merge_map)

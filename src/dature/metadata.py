@@ -27,12 +27,6 @@ class FieldMergeStrategy(StrEnum):
     MIN = "min"
 
 
-@dataclass(frozen=True, slots=True)
-class MergeRule:
-    predicate: object
-    strategy: FieldMergeStrategy
-
-
 @dataclass(frozen=True, slots=True, kw_only=True)
 class LoadMetadata:
     file_: str | None = None
@@ -53,10 +47,25 @@ class LoadMetadata:
         return loader_type
 
 
+@dataclass(frozen=True, slots=True)
+class MergeRule:
+    predicate: object
+    strategy: FieldMergeStrategy
+
+
+@dataclass(frozen=True, slots=True)
+class FieldGroup:
+    fields: tuple[object, ...]
+
+    def __init__(self, *fields: object) -> None:
+        object.__setattr__(self, "fields", fields)
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class MergeMetadata:
     sources: tuple[LoadMetadata, ...]
     strategy: MergeStrategy = MergeStrategy.LAST_WINS
     field_merges: tuple[MergeRule, ...] = ()
+    field_groups: tuple[FieldGroup, ...] = ()
     skip_broken_sources: bool = False
     skip_invalid_fields: bool = False
