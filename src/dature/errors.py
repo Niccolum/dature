@@ -24,6 +24,12 @@ class SourceLocation:
     env_var_name: str | None
 
 
+def _truncate_line(line: str, max_length: int = 80) -> str:
+    if len(line) > max_length:
+        return line[: max_length - 3] + "..."
+    return line
+
+
 def _format_location(loc: SourceLocation) -> list[str]:
     lines: list[str] = []
 
@@ -38,7 +44,7 @@ def _format_location(loc: SourceLocation) -> list[str]:
             location_str += f", var '{loc.env_var_name}'"
         lines.append(location_str)
         if loc.line_content is not None:
-            lines.extend(f"       {content_line}" for content_line in loc.line_content)
+            lines.extend(f"       {_truncate_line(content_line)}" for content_line in loc.line_content)
         return lines
 
     location_str = f"   └── FILE '{loc.file_path}'"
@@ -46,7 +52,7 @@ def _format_location(loc: SourceLocation) -> list[str]:
         location_str += f", {loc.line_range!r}"
     lines.append(location_str)
     if loc.line_content is not None:
-        lines.extend(f"       {content_line}" for content_line in loc.line_content)
+        lines.extend(f"       {_truncate_line(content_line)}" for content_line in loc.line_content)
 
     return lines
 

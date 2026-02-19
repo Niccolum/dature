@@ -443,6 +443,133 @@ class TestLoadIntegrationErrors:
             """)
 
 
+class TestLineTruncation:
+    @pytest.mark.parametrize(
+        ("line_content", "expected_content"),
+        [
+            pytest.param(
+                "a" * 80,
+                "a" * 80,
+                id="exactly_80_chars_not_truncated",
+            ),
+            pytest.param(
+                "b" * 81,
+                "b" * 77 + "...",
+                id="81_chars_truncated",
+            ),
+            pytest.param(
+                "c" * 120,
+                "c" * 77 + "...",
+                id="120_chars_truncated",
+            ),
+        ],
+    )
+    def test_file_source_truncation(
+        self,
+        line_content: str,
+        expected_content: str,
+    ) -> None:
+        errors = [
+            FieldLoadError(
+                field_path=["timeout"],
+                message="Expected int, got str",
+                input_value="30",
+                location=SourceLocation(
+                    source_type="toml",
+                    file_path=Path("config.toml"),
+                    line_range=LineRange(start=2, end=2),
+                    line_content=[line_content],
+                    env_var_name=None,
+                ),
+            ),
+        ]
+        exc = DatureConfigError("Config", errors)
+        assert str(exc) == dedent(f"""\
+            Config loading errors (1)
+
+              [timeout]  Expected int, got str
+               └── FILE 'config.toml', line 2
+                   {expected_content}
+            """)
+
+    @pytest.mark.parametrize(
+        ("line_content", "expected_content"),
+        [
+            pytest.param(
+                "a" * 80,
+                "a" * 80,
+                id="exactly_80_chars_not_truncated",
+            ),
+            pytest.param(
+                "b" * 81,
+                "b" * 77 + "...",
+                id="81_chars_truncated",
+            ),
+            pytest.param(
+                "c" * 120,
+                "c" * 77 + "...",
+                id="120_chars_truncated",
+            ),
+        ],
+    )
+    def test_envfile_source_truncation(
+        self,
+        line_content: str,
+        expected_content: str,
+    ) -> None:
+        errors = [
+            FieldLoadError(
+                field_path=["timeout"],
+                message="Bad string format",
+                input_value="abc",
+                location=SourceLocation(
+                    source_type="envfile",
+                    file_path=Path(".env"),
+                    line_range=LineRange(start=2, end=2),
+                    line_content=[line_content],
+                    env_var_name="APP_TIMEOUT",
+                ),
+            ),
+        ]
+        exc = DatureConfigError("Config", errors)
+        assert str(exc) == dedent(f"""\
+            Config loading errors (1)
+
+              [timeout]  Bad string format
+               └── ENV FILE '.env', var 'APP_TIMEOUT'
+                   {expected_content}
+            """)
+
+    def test_multiline_content_each_line_truncated(self) -> None:
+        line_short = "short line"
+        line_long = "x" * 100
+        errors = [
+            FieldLoadError(
+                field_path=["db"],
+                message="Expected int, got dict",
+                input_value=None,
+                location=SourceLocation(
+                    source_type="json",
+                    file_path=Path("config.json"),
+                    line_range=LineRange(start=2, end=4),
+                    line_content=[line_long, line_short, line_long],
+                    env_var_name=None,
+                ),
+            ),
+        ]
+        exc = DatureConfigError("Config", errors)
+        truncated = "x" * 77 + "..."
+        assert str(exc) == dedent(f"""\
+            Config loading errors (1)
+
+              [db]  Expected int, got dict
+               └── FILE 'config.json', line 2-4
+                   {truncated}
+                   {line_short}
+                   {truncated}
+            """)
+
+
 class TestMultilineValueDisplay:
     def test_json_multiline_dict(self, tmp_path: Path):
         json_file = tmp_path / "config.json"
