@@ -13,6 +13,9 @@ example_scripts = list(examples_dir.glob("*.py"))
 def test_example_execution(script_path):
     env = os.environ.copy()
 
+    project_root = pathlib.Path(__file__).parent.parent / "src"
+    env["PYTHONPATH"] = str(project_root) + os.pathsep + env.get("PYTHONPATH", "")
+
     result = subprocess.run(  # noqa: PLW1510, S603
         [sys.executable, str(script_path)],
         capture_output=True,
