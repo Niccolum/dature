@@ -19,7 +19,7 @@ from dature.loading_context import build_error_ctx, ensure_retort, make_validati
 from dature.metadata import FieldMergeStrategy, MergeMetadata, MergeStrategy
 from dature.predicate import ResolvedFieldGroup, build_field_group_paths, build_field_merge_map
 from dature.protocols import DataclassInstance
-from dature.source_loading import load_sources
+from dature.source_loading import load_sources, resolve_expand_env_vars
 from dature.sources_loader.base import ILoader
 from dature.sources_loader.resolver import resolve_loader
 from dature.types import JSONValue
@@ -259,7 +259,8 @@ def merge_load_as_function[T: DataclassInstance](
     )
 
     last_meta = merge_meta.sources[-1]
-    last_loader = resolve_loader(last_meta)
+    last_expand = resolve_expand_env_vars(last_meta, merge_meta)
+    last_loader = resolve_loader(last_meta, expand_env_vars=last_expand)
     validating_retort = last_loader.create_validating_retort(dataclass_)
     validation_loader = validating_retort.get_loader(dataclass_)
     result_dict = asdict(cast("DataclassInstance", result))
@@ -317,7 +318,8 @@ class _MergePatchContext:
     ) -> tuple[ILoader, ...]:
         loaders: list[ILoader] = []
         for source_meta in merge_meta.sources:
-            loader_instance = resolve_loader(source_meta)
+            resolved_expand = resolve_expand_env_vars(source_meta, merge_meta)
+            loader_instance = resolve_loader(source_meta, expand_env_vars=resolved_expand)
             ensure_retort(loader_instance, cls)
             loaders.append(loader_instance)
         return tuple(loaders)

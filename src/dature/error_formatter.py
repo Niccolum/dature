@@ -18,7 +18,15 @@ from adaptix.load_error import (
 )
 from adaptix.struct_trail import get_trail
 
-from dature.errors import DatureConfigError, DatureError, FieldLoadError, LineRange, SourceLocation
+from dature.errors import (
+    DatureConfigError,
+    DatureError,
+    EnvVarExpandError,
+    FieldLoadError,
+    LineRange,
+    MissingEnvVarError,
+    SourceLocation,
+)
 from dature.source_locators.base import PathFinder
 from dature.source_locators.ini_ import TablePathFinder
 
@@ -262,6 +270,9 @@ def handle_load_errors[T](
 ) -> T:
     try:
         return func()
+    except EnvVarExpandError as exc:
+        missing = [e for e in exc.exceptions if isinstance(e, MissingEnvVarError)]
+        raise EnvVarExpandError(missing, dataclass_name=ctx.dataclass_name) from exc
     except (AggregateLoadError, LoadError) as exc:
         file_content = read_file_content(ctx.file_path)
         field_errors = extract_field_errors(exc)

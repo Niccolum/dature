@@ -6,6 +6,7 @@ from typing import Any, cast
 from adaptix import loader
 from adaptix.provider import Provider
 
+from dature.env_expand import expand_env_vars
 from dature.protocols import ValidatorProtocol
 from dature.sources_loader.base import ILoader
 from dature.sources_loader.loaders import (
@@ -17,7 +18,7 @@ from dature.sources_loader.loaders import (
     optional_from_empty_string,
     time_from_string,
 )
-from dature.types import DotSeparatedPath, FieldMapping, JSONValue, NameStyle
+from dature.types import DotSeparatedPath, ExpandEnvVarsMode, FieldMapping, JSONValue, NameStyle
 
 
 def _set_nested(d: dict[Any, Any], keys: list[str], value: str) -> None:
@@ -35,7 +36,7 @@ class EnvLoader(ILoader):
         name_style: NameStyle | None = None,
         field_mapping: FieldMapping | None = None,
         root_validators: tuple[ValidatorProtocol, ...] | None = None,
-        enable_expand_env_vars: bool = True,
+        expand_env_vars: ExpandEnvVarsMode = "default",
     ) -> None:
         self._split_symbols = split_symbols
         super().__init__(
@@ -43,7 +44,7 @@ class EnvLoader(ILoader):
             name_style=name_style,
             field_mapping=field_mapping,
             root_validators=root_validators,
-            enable_expand_env_vars=enable_expand_env_vars,
+            expand_env_vars=expand_env_vars,
         )
 
     def _additional_loaders(self) -> list[Provider]:
@@ -67,9 +68,8 @@ class EnvLoader(ILoader):
         for key, value in data_dict.items():
             self._pre_processed_row(key=key, value=value, result=result)
 
-        if self._enable_expand_env_vars:
-            result = cast("dict[str, JSONValue]", self._expand_env_vars(result))
-        return self._parse_string_values(result)
+        expanded = expand_env_vars(result, mode=self._expand_env_vars_mode)
+        return self._parse_string_values(expanded)
 
     def _pre_processed_row(self, key: str, value: str, result: dict[str, JSONValue]) -> None:
         if self._prefix and not key.startswith(self._prefix):
@@ -105,6 +105,5 @@ class EnvFileLoader(EnvLoader):
         return env_vars
 
     def _pre_processing(self, data: JSONValue) -> JSONValue:
-        if self._enable_expand_env_vars:
-            data = self._expand_env_vars(data)
-        return self._parse_string_values(data)
+        expanded = expand_env_vars(data, mode=self._expand_env_vars_mode)
+        return self._parse_string_values(expanded)

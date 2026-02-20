@@ -76,7 +76,7 @@ class LoadMetadata:
     name_style: NameStyle | None = None
     field_mapping: dict[str, str] | None = None
     root_validators: tuple[ValidatorProtocol, ...] | None = None
-    enable_expand_env_vars: bool = True
+    expand_env_vars: ExpandEnvVarsMode | None = None
     skip_if_broken: bool | None = None
     skip_if_invalid: bool | tuple[FieldPath, ...] | None = None
 ```
@@ -819,19 +819,81 @@ class Config:
 
 ## ENV Variable Substitution
 
-All file formats support `$VAR` and `${VAR}` substitution. Environment variables in string values are automatically expanded using `os.path.expandvars`:
+String values in all file formats support environment variable expansion. Supported syntax:
+
+| Syntax | Description |
+|--------|-------------|
+| `$VAR` | Simple variable |
+| `${VAR}` | Braced variable |
+| `${VAR:-default}` | Variable with fallback value |
+| `${VAR:-$FALLBACK_VAR}` | Variable with fallback value, which is also env |
+| `%VAR%` | Windows-style variable |
+| `$$` | Literal `$` (escaped) |
+| `%%` | Literal `%` (escaped) |
 
 ```yaml
 # config.yaml
 api_url: $BASE_URL/api/v1
 secret: ${SECRET_KEY}
+database_url: ${DATABASE_URL:-postgres://localhost:5432/dev}
+price: $$100  # literal "$100"
 ```
 
-If your config contains literal `$` characters that should not be treated as variable references, disable substitution with `enable_expand_env_vars=False`:
+The `expand_env_vars` parameter controls how missing variables are handled:
+
+| Mode | Missing variable |
+|------|------------------|
+| `"default"` | Kept as-is (`$VAR` stays `$VAR`). Default |
+| `"empty"` | Replaced with `""` |
+| `"strict"` | Raises `EnvVarExpandError` |
+| `"disabled"` | No expansion at all |
+
+Set the mode on `LoadMetadata` for single-source loads:
 
 ```python
-config = load(LoadMetadata(file_="config.yaml", enable_expand_env_vars=False), Config)
+# Strict: fail if any variable is not set
+config = load(LoadMetadata(file_="config.yaml", expand_env_vars="strict"), Config)
 ```
+
+For multi-source loads, set it on `MergeMetadata` as the default for all sources:
+
+```python
+config = load(
+    MergeMetadata(
+        sources=(
+            LoadMetadata(file_="defaults.yaml"),
+            LoadMetadata(file_="overrides.yaml"),
+        ),
+        expand_env_vars="strict",  # applies to all sources
+    ),
+    Config,
+)
+```
+
+Override per source with `expand_env_vars` on `LoadMetadata` (takes priority over the merge-level value):
+
+```python
+config = load(
+    MergeMetadata(
+        sources=(
+            LoadMetadata(file_="defaults.yaml"),                          # inherits "strict" from merge
+            LoadMetadata(file_="overrides.yaml", expand_env_vars="disabled"),  # no expansion for this source
+        ),
+        expand_env_vars="strict",
+    ),
+    Config,
+)
+```
+
+In `"strict"` mode, all missing variables are collected and reported at once:
+
+```
+Missing environment variables (2):
+  - DATABASE_URL (position 0 in '$DATABASE_URL')
+  - SECRET_KEY (position 0 in '${SECRET_KEY}')
+```
+
+The `${VAR:-default}` fallback syntax works in all modes -- if `VAR` is not set, the fallback value is used instead of triggering missing-variable behavior.
 
 ## Error Messages
 

@@ -1,7 +1,6 @@
 import abc
 import json
 import logging
-import os
 from dataclasses import fields, is_dataclass
 from datetime import timedelta
 from pathlib import Path
@@ -11,6 +10,7 @@ from adaptix import NameStyle as AdaptixNameStyle
 from adaptix import Retort, loader, name_mapping
 from adaptix.provider import Provider
 
+from dature.env_expand import expand_env_vars
 from dature.fields import ByteSize, PaymentCardNumber, SecretStr
 from dature.protocols import DataclassInstance, ValidatorProtocol
 from dature.skip_field_provider import ModelToDictProvider, SkipFieldProvider
@@ -30,6 +30,7 @@ from dature.types import (
     Base64UrlBytes,
     Base64UrlStr,
     DotSeparatedPath,
+    ExpandEnvVarsMode,
     FieldMapping,
     JSONValue,
     NameStyle,
@@ -54,13 +55,13 @@ class ILoader(abc.ABC):
         name_style: NameStyle | None = None,
         field_mapping: FieldMapping | None = None,
         root_validators: tuple[ValidatorProtocol, ...] | None = None,
-        enable_expand_env_vars: bool = True,
+        expand_env_vars: ExpandEnvVarsMode = "default",
     ) -> None:
         self._prefix = prefix
         self._name_style = name_style
         self._field_mapping = field_mapping
         self._root_validators = root_validators or ()
-        self._enable_expand_env_vars = enable_expand_env_vars
+        self._expand_env_vars_mode = expand_env_vars
         self.retorts: dict[type, Retort] = {}
 
     def _additional_loaders(self) -> list[Provider]:
@@ -219,21 +220,9 @@ class ILoader(abc.ABC):
 
         return data
 
-    @staticmethod
-    def _expand_env_vars(data: JSONValue) -> JSONValue:
-        if isinstance(data, str):
-            return os.path.expandvars(data)
-        if isinstance(data, dict):
-            return {key: ILoader._expand_env_vars(value) for key, value in data.items()}
-        if isinstance(data, list):
-            return [ILoader._expand_env_vars(item) for item in data]
-        return data
-
     def _pre_processing(self, data: JSONValue) -> JSONValue:
         prefixed = self._apply_prefix(data)
-        if self._enable_expand_env_vars:
-            return self._expand_env_vars(prefixed)
-        return prefixed
+        return expand_env_vars(prefixed, mode=self._expand_env_vars_mode)
 
     def transform_to_dataclass(self, data: JSONValue, dataclass_: type[T]) -> T:
         if dataclass_ not in self.retorts:

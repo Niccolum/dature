@@ -13,7 +13,7 @@ from dature.protocols import DataclassInstance
 from dature.skip_field_provider import FilterResult
 from dature.sources_loader.base import ILoader
 from dature.sources_loader.resolver import resolve_loader
-from dature.types import JSONValue
+from dature.types import ExpandEnvVarsMode, JSONValue
 
 logger = logging.getLogger("dature")
 
@@ -23,16 +23,23 @@ def resolve_loader_for_source(
     loaders: tuple[ILoader, ...] | None,
     index: int,
     source_meta: LoadMetadata,
+    expand_env_vars: ExpandEnvVarsMode | None = None,
 ) -> ILoader:
     if loaders is not None:
         return loaders[index]
-    return resolve_loader(source_meta)
+    return resolve_loader(source_meta, expand_env_vars=expand_env_vars)
 
 
 def should_skip_broken(source_meta: LoadMetadata, merge_meta: MergeMetadata) -> bool:
     if source_meta.skip_if_broken is not None:
         return source_meta.skip_if_broken
     return merge_meta.skip_broken_sources
+
+
+def resolve_expand_env_vars(source_meta: LoadMetadata, merge_meta: MergeMetadata) -> ExpandEnvVarsMode:
+    if source_meta.expand_env_vars is not None:
+        return source_meta.expand_env_vars
+    return merge_meta.expand_env_vars
 
 
 def resolve_skip_invalid(
@@ -89,7 +96,13 @@ def load_sources(
     skipped_fields: dict[str, list[LoadMetadata]] = {}
 
     for i, source_meta in enumerate(merge_meta.sources):
-        loader_instance = resolve_loader_for_source(loaders=loaders, index=i, source_meta=source_meta)
+        resolved_expand = resolve_expand_env_vars(source_meta, merge_meta)
+        loader_instance = resolve_loader_for_source(
+            loaders=loaders,
+            index=i,
+            source_meta=source_meta,
+            expand_env_vars=resolved_expand,
+        )
         file_path = Path(source_meta.file_) if source_meta.file_ else Path()
         error_ctx = build_error_ctx(source_meta, dataclass_name)
 

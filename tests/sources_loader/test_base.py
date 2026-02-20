@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+import pytest
+
+from dature.errors import EnvVarExpandError
 from dature.sources_loader.base import ILoader
 from dature.sources_loader.json_ import JsonLoader
-from dature.types import JSONValue
+from dature.types import ExpandEnvVarsMode, JSONValue
 
 
 class MockLoader(ILoader):
@@ -14,9 +17,9 @@ class MockLoader(ILoader):
         *,
         prefix: str | None = None,
         test_data: JSONValue = None,
-        enable_expand_env_vars: bool = True,
+        expand_env_vars: ExpandEnvVarsMode = "default",
     ):
-        super().__init__(prefix=prefix, enable_expand_env_vars=enable_expand_env_vars)
+        super().__init__(prefix=prefix, expand_env_vars=expand_env_vars)
         self._test_data = test_data or {}
 
     def _load(self, path: Path) -> JSONValue:  # noqa: ARG002
@@ -342,7 +345,7 @@ class TestFieldMapping:
 
 
 class TestExpandEnvVars:
-    def test_expand_env_vars_enabled(self, monkeypatch):
+    def test_default_expands_existing(self, monkeypatch):
         monkeypatch.setenv("DATURE_TEST_HOST", "localhost")
         data = {"host": "$DATURE_TEST_HOST", "port": 8080}
         loader = MockLoader(test_data=data)
@@ -351,11 +354,46 @@ class TestExpandEnvVars:
 
         assert result == {"host": "localhost", "port": 8080}
 
-    def test_expand_env_vars_disabled(self, monkeypatch):
+    def test_default_keeps_missing(self, monkeypatch):
+        monkeypatch.delenv("DATURE_MISSING", raising=False)
+        data = {"host": "$DATURE_MISSING", "port": 8080}
+        loader = MockLoader(test_data=data)
+
+        result = loader.load(Path(), dict)
+
+        assert result == {"host": "$DATURE_MISSING", "port": 8080}
+
+    def test_disabled(self, monkeypatch):
         monkeypatch.setenv("DATURE_TEST_HOST", "localhost")
         data = {"host": "$DATURE_TEST_HOST", "port": 8080}
-        loader = MockLoader(test_data=data, enable_expand_env_vars=False)
+        loader = MockLoader(test_data=data, expand_env_vars="disabled")
 
         result = loader.load(Path(), dict)
 
         assert result == {"host": "$DATURE_TEST_HOST", "port": 8080}
+
+    def test_empty_replaces_missing_with_empty_string(self, monkeypatch):
+        monkeypatch.delenv("DATURE_MISSING", raising=False)
+        data = {"host": "$DATURE_MISSING", "port": 8080}
+        loader = MockLoader(test_data=data, expand_env_vars="empty")
+
+        result = loader.load(Path(), dict)
+
+        assert result == {"host": "", "port": 8080}
+
+    def test_strict_raises_on_missing(self, monkeypatch):
+        monkeypatch.delenv("DATURE_MISSING", raising=False)
+        data = {"host": "$DATURE_MISSING", "port": 8080}
+        loader = MockLoader(test_data=data, expand_env_vars="strict")
+
+        with pytest.raises(EnvVarExpandError):
+            loader.load(Path(), dict)
+
+    def test_strict_expands_existing(self, monkeypatch):
+        monkeypatch.setenv("DATURE_TEST_HOST", "localhost")
+        data = {"host": "$DATURE_TEST_HOST", "port": 8080}
+        loader = MockLoader(test_data=data, expand_env_vars="strict")
+
+        result = loader.load(Path(), dict)
+
+        assert result == {"host": "localhost", "port": 8080}

@@ -50,3 +50,5 @@ type URL = ParseResult
 
 type Base64UrlBytes = bytes
 type Base64UrlStr = str
+
+type ExpandEnvVarsMode = Literal["disabled", "default", "empty", "strict"]

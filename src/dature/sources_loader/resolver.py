@@ -7,6 +7,7 @@ from dature.sources_loader.env_ import EnvFileLoader, EnvLoader
 from dature.sources_loader.ini_ import IniLoader
 from dature.sources_loader.json_ import JsonLoader
 from dature.sources_loader.toml_ import TomlLoader
+from dature.types import ExpandEnvVarsMode
 
 
 def _get_loader_class(loader_type: LoaderType) -> type[ILoader]:
@@ -38,16 +39,22 @@ def _get_loader_class(loader_type: LoaderType) -> type[ILoader]:
             raise ValueError(msg)
 
 
-def resolve_loader(metadata: LoadMetadata) -> ILoader:
+def resolve_loader(
+    metadata: LoadMetadata,
+    *,
+    expand_env_vars: ExpandEnvVarsMode | None = None,
+) -> ILoader:
     loader_type = get_loader_type(metadata.loader, metadata.file_)
     loader_class = _get_loader_class(loader_type)
+
+    resolved_expand = expand_env_vars or metadata.expand_env_vars or "default"
 
     kwargs: dict[str, Any] = {
         "prefix": metadata.prefix,
         "name_style": metadata.name_style,
         "field_mapping": metadata.field_mapping,
         "root_validators": metadata.root_validators,
-        "enable_expand_env_vars": metadata.enable_expand_env_vars,
+        "expand_env_vars": resolved_expand,
     }
 
     if issubclass(loader_class, EnvLoader):

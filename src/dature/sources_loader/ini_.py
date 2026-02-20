@@ -6,6 +6,7 @@ from typing import cast
 from adaptix import loader
 from adaptix.provider import Provider
 
+from dature.env_expand import expand_env_vars
 from dature.sources_loader.base import ILoader
 from dature.sources_loader.loaders import (
     bool_loader,
@@ -33,9 +34,8 @@ class IniLoader(ILoader):
 
     def _pre_processing(self, data: JSONValue) -> JSONValue:
         prefixed = self._apply_prefix(data)
-        if self._enable_expand_env_vars:
-            prefixed = self._expand_env_vars(prefixed)
-        return self._parse_string_values(prefixed)
+        expanded = expand_env_vars(prefixed, mode=self._expand_env_vars_mode)
+        return self._parse_string_values(expanded)
 
     def _load(self, path: Path) -> JSONValue:
         config = configparser.ConfigParser(interpolation=None)

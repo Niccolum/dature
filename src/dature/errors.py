@@ -121,6 +121,22 @@ class SourceLoadError(DatureError):
         super().__init__(message)
 
 
+class MissingEnvVarError(DatureError):
+    def __init__(
+        self,
+        *,
+        var_name: str,
+        position: int,
+        source_text: str,
+    ) -> None:
+        self.var_name = var_name
+        self.position = position
+        self.source_text = source_text
+        super().__init__(
+            f"Environment variable '{var_name}' is not set (position {position} in '{source_text}')",
+        )
+
+
 class DatureConfigError(ExceptionGroup[DatureError]):
     dataclass_name: str
 
@@ -170,6 +186,44 @@ class DatureConfigError(ExceptionGroup[DatureError]):
                 lines.append(f"  {exc}")
                 lines.append("")
 
+        return "\n".join(lines)
+
+
+class EnvVarExpandError(DatureConfigError):
+    def __new__(
+        cls,
+        errors: Sequence[MissingEnvVarError],
+        *,
+        dataclass_name: str = "",
+    ) -> Self:
+        obj = super().__new__(cls, dataclass_name, errors)
+        obj.dataclass_name = dataclass_name
+        return obj
+
+    def __init__(
+        self,
+        errors: Sequence[MissingEnvVarError],
+        *,
+        dataclass_name: str = "",
+    ) -> None:
+        pass
+
+    def derive(self, excs: Sequence[MissingEnvVarError], /) -> Self:  # type: ignore[override]
+        return self.__class__(list(excs), dataclass_name=self.dataclass_name)
+
+    def __str__(self) -> str:
+        if self.dataclass_name:
+            header = f"{self.dataclass_name} env expand errors ({len(self.exceptions)}):"
+        else:
+            header = f"Missing environment variables ({len(self.exceptions)}):"
+        lines = [
+            header,
+            *(
+                f"  - {err.var_name} (position {err.position} in '{err.source_text}')"
+                for err in self.exceptions
+                if isinstance(err, MissingEnvVarError)
+            ),
+        ]
         return "\n".join(lines)
 
 

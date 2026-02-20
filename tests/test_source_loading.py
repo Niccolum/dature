@@ -7,7 +7,7 @@ from textwrap import dedent
 import pytest
 
 from dature import LoadMetadata, MergeMetadata, load
-from dature.errors import DatureConfigError
+from dature.errors import DatureConfigError, EnvVarExpandError
 
 
 class TestSkipBrokenSources:
@@ -263,3 +263,123 @@ class TestSkipBrokenSources:
 
               [<root>]  All 2 source(s) failed to load
             """)
+
+
+class TestMergeExpandEnvVars:
+    def test_merge_level_default_expands(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("DATURE_HOST", "from-env")
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"host": "$DATURE_HOST", "port": 8080}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        result = load(
+            MergeMetadata(
+                sources=(LoadMetadata(file_=str(json_file)),),
+            ),
+            Config,
+        )
+
+        assert result.host == "from-env"
+
+    def test_merge_level_disabled(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("DATURE_HOST", "from-env")
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"host": "$DATURE_HOST", "port": 8080}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        result = load(
+            MergeMetadata(
+                sources=(LoadMetadata(file_=str(json_file)),),
+                expand_env_vars="disabled",
+            ),
+            Config,
+        )
+
+        assert result.host == "$DATURE_HOST"
+
+    def test_merge_level_strict_raises(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.delenv("DATURE_MISSING", raising=False)
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"host": "$DATURE_MISSING", "port": 8080}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        with pytest.raises(EnvVarExpandError):
+            load(
+                MergeMetadata(
+                    sources=(LoadMetadata(file_=str(json_file)),),
+                    expand_env_vars="strict",
+                ),
+                Config,
+            )
+
+    def test_source_overrides_merge(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("DATURE_HOST", "from-env")
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"host": "$DATURE_HOST", "port": 8080}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        result = load(
+            MergeMetadata(
+                sources=(LoadMetadata(file_=str(json_file), expand_env_vars="disabled"),),
+                expand_env_vars="default",
+            ),
+            Config,
+        )
+
+        assert result.host == "$DATURE_HOST"
+
+    def test_source_none_inherits_merge(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.setenv("DATURE_HOST", "from-env")
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"host": "$DATURE_HOST", "port": 8080}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        result = load(
+            MergeMetadata(
+                sources=(LoadMetadata(file_=str(json_file), expand_env_vars=None),),
+                expand_env_vars="disabled",
+            ),
+            Config,
+        )
+
+        assert result.host == "$DATURE_HOST"
+
+    def test_merge_level_empty(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        monkeypatch.delenv("DATURE_MISSING", raising=False)
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"host": "$DATURE_MISSING", "port": 8080}')
+
+        @dataclass
+        class Config:
+            host: str
+            port: int
+
+        result = load(
+            MergeMetadata(
+                sources=(LoadMetadata(file_=str(json_file)),),
+                expand_env_vars="empty",
+            ),
+            Config,
+        )
+
+        assert result.host == ""
