@@ -74,7 +74,6 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 pythonpath = [
     "src",
-    ".",
 ]
 
 [dependency-groups]
