@@ -1,0 +1,4 @@
+bug:
+  - head-branch: ['^fix/.*', '^bug/.*']
+feature:
+  - head-branch: ['^feat/.*', '^feature/.*']
