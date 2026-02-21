@@ -8,7 +8,7 @@ from adaptix.provider import Provider
 
 from dature.env_expand import expand_env_vars
 from dature.protocols import ValidatorProtocol
-from dature.sources_loader.base import ILoader
+from dature.sources_loader.base import BaseLoader
 from dature.sources_loader.loaders import (
     bool_loader,
     bytearray_from_json_string,
@@ -27,7 +27,9 @@ def _set_nested(d: dict[Any, Any], keys: list[str], value: str) -> None:
     d[keys[-1]] = value
 
 
-class EnvLoader(ILoader):
+class EnvLoader(BaseLoader):
+    display_name = "env"
+
     def __init__(
         self,
         *,
@@ -86,6 +88,8 @@ class EnvLoader(ILoader):
 
 
 class EnvFileLoader(EnvLoader):
+    display_name = "envfile"
+
     def _load(self, path: Path) -> JSONValue:
         env_vars: dict[str, JSONValue] = {}
 

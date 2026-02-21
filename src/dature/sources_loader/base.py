@@ -4,7 +4,7 @@ import logging
 from dataclasses import fields, is_dataclass
 from datetime import timedelta
 from pathlib import Path
-from typing import Annotated, TypeVar, cast, get_args, get_origin, get_type_hints
+from typing import Annotated, ClassVar, TypeVar, cast, get_args, get_origin, get_type_hints
 
 from adaptix import NameStyle as AdaptixNameStyle
 from adaptix import Retort, loader, name_mapping
@@ -13,7 +13,7 @@ from adaptix.provider import Provider
 from dature.env_expand import expand_env_vars
 from dature.fields import ByteSize, PaymentCardNumber, SecretStr
 from dature.path_finders.base import PathFinder
-from dature.protocols import DataclassInstance, ValidatorProtocol
+from dature.protocols import DataclassInstance, LoaderProtocol, ValidatorProtocol
 from dature.skip_field_provider import ModelToDictProvider, SkipFieldProvider
 from dature.sources_loader.loaders.base import (
     base64url_bytes_from_string,
@@ -48,7 +48,8 @@ T = TypeVar("T")
 logger = logging.getLogger("dature")
 
 
-class ILoader(abc.ABC):
+class BaseLoader(LoaderProtocol, abc.ABC):
+    display_name: ClassVar[str]
     path_finder_class: type[PathFinder] | None = None
 
     def __init__(

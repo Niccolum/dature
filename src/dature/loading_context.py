@@ -8,25 +8,22 @@ from adaptix import Retort
 
 from dature.error_formatter import ErrorContext, handle_load_errors
 from dature.field_path import FieldPath
-from dature.loader_type import get_loader_type
+from dature.loader_resolver import resolve_loader_class
 from dature.metadata import LoadMetadata
 from dature.predicate import extract_field_path
-from dature.protocols import DataclassInstance
+from dature.protocols import DataclassInstance, LoaderProtocol
 from dature.skip_field_provider import FilterResult, filter_invalid_fields
-from dature.sources_loader.base import ILoader
-from dature.sources_loader.resolver import get_loader_class
 from dature.types import JSONValue
 
 logger = logging.getLogger("dature")
 
 
 def build_error_ctx(metadata: LoadMetadata, dataclass_name: str) -> ErrorContext:
-    loader_type = get_loader_type(metadata.loader, metadata.file_)
-    loader_class = get_loader_class(loader_type)
+    loader_class = resolve_loader_class(metadata.loader, metadata.file_)
     error_file_path = Path(metadata.file_) if metadata.file_ else None
     return ErrorContext(
         dataclass_name=dataclass_name,
-        loader_type=loader_type,
+        loader_type=loader_class.display_name,
         file_path=error_file_path,
         prefix=metadata.prefix,
         split_symbols=metadata.split_symbols,
@@ -50,7 +47,7 @@ def apply_skip_invalid(
     *,
     raw: JSONValue,
     skip_if_invalid: bool | tuple[FieldPath, ...] | None,
-    loader_instance: ILoader,
+    loader_instance: LoaderProtocol,
     dataclass_: type[DataclassInstance],
     log_prefix: str,
     probe_retort: Retort | None = None,
@@ -92,7 +89,7 @@ def merge_fields(
     return complete_kwargs
 
 
-def ensure_retort(loader_instance: ILoader, cls: type[DataclassInstance]) -> None:
+def ensure_retort(loader_instance: LoaderProtocol, cls: type[DataclassInstance]) -> None:
     """Creates a replacement response to __init__ so that Adaptix sees the original signature."""
     if cls not in loader_instance.retorts:
         loader_instance.retorts[cls] = loader_instance.create_retort()

@@ -18,9 +18,8 @@ from dature.load_report import (
 from dature.loading_context import build_error_ctx, ensure_retort, make_validating_post_init, merge_fields
 from dature.metadata import FieldMergeStrategy, MergeMetadata, MergeStrategy
 from dature.predicate import ResolvedFieldGroup, build_field_group_paths, build_field_merge_map
-from dature.protocols import DataclassInstance
+from dature.protocols import DataclassInstance, LoaderProtocol
 from dature.source_loading import load_sources, resolve_expand_env_vars
-from dature.sources_loader.base import ILoader
 from dature.sources_loader.resolver import resolve_loader
 from dature.types import JSONValue
 
@@ -160,14 +159,14 @@ def _merge_raw_dicts(
 class _MergedData[T: DataclassInstance]:
     result: T
     merged_raw: JSONValue
-    last_loader: ILoader
+    last_loader: LoaderProtocol
 
 
 def _load_and_merge[T: DataclassInstance](
     *,
     merge_meta: MergeMetadata,
     dataclass_: type[T],
-    loaders: tuple[ILoader, ...] | None = None,
+    loaders: tuple[LoaderProtocol, ...] | None = None,
     debug: bool = False,
 ) -> _MergedData[T]:
     loaded = load_sources(
@@ -319,8 +318,8 @@ class _MergePatchContext:
         *,
         merge_meta: MergeMetadata,
         cls: type[DataclassInstance],
-    ) -> tuple[ILoader, ...]:
-        loaders: list[ILoader] = []
+    ) -> tuple[LoaderProtocol, ...]:
+        loaders: list[LoaderProtocol] = []
         for source_meta in merge_meta.sources:
             resolved_expand = resolve_expand_env_vars(source_meta, merge_meta)
             loader_instance = resolve_loader(source_meta, expand_env_vars=resolved_expand)

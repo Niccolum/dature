@@ -8,7 +8,7 @@ from adaptix.provider import Provider
 
 from dature.env_expand import expand_env_vars
 from dature.path_finders.ini_ import TablePathFinder
-from dature.sources_loader.base import ILoader
+from dature.sources_loader.base import BaseLoader
 from dature.sources_loader.loaders import (
     bool_loader,
     bytearray_from_json_string,
@@ -21,7 +21,8 @@ from dature.sources_loader.loaders import (
 from dature.types import JSONValue
 
 
-class IniLoader(ILoader):
+class IniLoader(BaseLoader):
+    display_name = "ini"
     path_finder_class = TablePathFinder
 
     def _additional_loaders(self) -> list[Provider]:

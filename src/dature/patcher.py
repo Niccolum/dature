@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 from dature.error_formatter import enrich_skipped_errors, handle_load_errors
 from dature.errors import DatureConfigError
 from dature.load_report import FieldOrigin, LoadReport, SourceEntry, attach_load_report
-from dature.loader_type import get_loader_type
+from dature.loader_resolver import resolve_loader_class
 from dature.loading_context import (
     apply_skip_invalid,
     build_error_ctx,
@@ -16,8 +16,7 @@ from dature.loading_context import (
     merge_fields,
 )
 from dature.metadata import LoadMetadata
-from dature.protocols import DataclassInstance
-from dature.sources_loader.base import ILoader
+from dature.protocols import DataclassInstance, LoaderProtocol
 from dature.types import JSONValue
 
 if TYPE_CHECKING:
@@ -86,7 +85,7 @@ class _PatchContext:
     def __init__(
         self,
         *,
-        loader_instance: ILoader,
+        loader_instance: LoaderProtocol,
         file_path: Path,
         cls: type[DataclassInstance],
         metadata: LoadMetadata,
@@ -110,7 +109,8 @@ class _PatchContext:
         self.validating = False
         self.loading = False
 
-        self.loader_type = get_loader_type(metadata.loader, metadata.file_)
+        loader_class = resolve_loader_class(metadata.loader, metadata.file_)
+        self.loader_type = loader_class.display_name
         self.error_ctx = build_error_ctx(metadata, cls.__name__)
 
         # probe_retort создаётся заранее, чтобы adaptix увидел оригинальную сигнатуру
@@ -202,13 +202,14 @@ def _make_new_init(ctx: _PatchContext) -> Callable[..., None]:
 
 def load_as_function(
     *,
-    loader_instance: ILoader,
+    loader_instance: LoaderProtocol,
     file_path: Path,
     dataclass_: type[DataclassInstance],
     metadata: LoadMetadata,
     debug: bool,
 ) -> DataclassInstance:
-    loader_type = get_loader_type(metadata.loader, metadata.file_)
+    loader_class = resolve_loader_class(metadata.loader, metadata.file_)
+    display_name = loader_class.display_name
     error_ctx = build_error_ctx(metadata, dataclass_.__name__)
 
     raw_data = handle_load_errors(
@@ -233,14 +234,14 @@ def load_as_function(
     if debug:
         report = _build_single_source_report(
             dataclass_name=dataclass_.__name__,
-            loader_type=loader_type,
+            loader_type=display_name,
             file_path=metadata.file_,
             raw_data=raw_data,
         )
 
     _log_single_source_load(
         dataclass_name=dataclass_.__name__,
-        loader_type=loader_type,
+        loader_type=display_name,
         file_path=str(file_path),
         data=raw_data if isinstance(raw_data, dict) else {},
     )
@@ -280,7 +281,7 @@ def load_as_function(
 
 def make_decorator(
     *,
-    loader_instance: ILoader,
+    loader_instance: LoaderProtocol,
     file_path: Path,
     metadata: LoadMetadata,
     cache: bool = True,

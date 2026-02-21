@@ -1,9 +1,10 @@
-"""dature.load() with explicit loader="ini" and prefix for section selection."""
+"""dature.load() with explicit loader=IniLoader and prefix for section selection."""
 
 from dataclasses import dataclass
 from pathlib import Path
 
 from dature import LoadMetadata, load
+from dature.sources_loader.ini_ import IniLoader
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -17,7 +18,7 @@ class ServerConfig:
 
 
 config = load(
-    LoadMetadata(file_=str(SOURCES_DIR / "server.ini"), loader="ini", prefix="server"),
+    LoadMetadata(file_=str(SOURCES_DIR / "server.ini"), loader=IniLoader, prefix="server"),
     ServerConfig,
 )
 

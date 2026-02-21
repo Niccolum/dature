@@ -2,67 +2,35 @@
 
 from pathlib import Path
 
-import pytest
-
 from dature.metadata import LoadMetadata
 from dature.sources_loader.env_ import EnvFileLoader, EnvLoader
-from dature.sources_loader.ini_ import IniLoader
-from dature.sources_loader.json5_ import Json5Loader
 from dature.sources_loader.json_ import JsonLoader
-from dature.sources_loader.resolver import (
-    get_loader_class,
-    resolve_loader,
-)
-from dature.sources_loader.toml_ import TomlLoader
-from dature.sources_loader.yaml_ import Yaml11Loader, Yaml12Loader
-
-
-class TestGetLoaderClass:
-    @pytest.mark.parametrize(
-        ("loader_type", "expected_class"),
-        [
-            ("env", EnvLoader),
-            ("envfile", EnvFileLoader),
-            ("yaml", Yaml11Loader),
-            ("yaml1.1", Yaml11Loader),
-            ("yaml1.2", Yaml12Loader),
-            ("json", JsonLoader),
-            ("json5", Json5Loader),
-            ("toml", TomlLoader),
-            ("ini", IniLoader),
-        ],
-    )
-    def test_known_types(self, loader_type: str, expected_class: type):
-        assert get_loader_class(loader_type) is expected_class
-
-    def test_unknown_type_raises(self):
-        with pytest.raises(ValueError, match="Unknown loader type"):
-            get_loader_class("nonexistent")
+from dature.sources_loader.resolver import resolve_loader
 
 
 class TestResolveLoader:
-    def test_returns_correct_loader_type(self):
+    def test_returns_correct_loader_type(self) -> None:
         metadata = LoadMetadata(file_="config.json")
 
         loader = resolve_loader(metadata)
 
         assert isinstance(loader, JsonLoader)
 
-    def test_passes_prefix(self):
+    def test_passes_prefix(self) -> None:
         metadata = LoadMetadata(prefix="APP_")
 
         loader = resolve_loader(metadata)
 
         assert loader._prefix == "APP_"
 
-    def test_passes_name_style(self):
+    def test_passes_name_style(self) -> None:
         metadata = LoadMetadata(file_="config.json", name_style="lower_snake")
 
         loader = resolve_loader(metadata)
 
         assert loader._name_style == "lower_snake"
 
-    def test_passes_field_mapping(self):
+    def test_passes_field_mapping(self) -> None:
         mapping = {"key": "value"}
         metadata = LoadMetadata(file_="config.json", field_mapping=mapping)
 
@@ -70,14 +38,14 @@ class TestResolveLoader:
 
         assert loader._field_mapping == mapping
 
-    def test_default_metadata_returns_env_loader(self):
+    def test_default_metadata_returns_env_loader(self) -> None:
         metadata = LoadMetadata()
 
         loader = resolve_loader(metadata)
 
         assert isinstance(loader, EnvLoader)
 
-    def test_env_with_file_path(self, tmp_path: Path):
+    def test_env_with_file_path(self, tmp_path: Path) -> None:
         env_file = tmp_path / ".env"
         env_file.write_text("KEY=VALUE")
         metadata = LoadMetadata(file_=str(env_file))

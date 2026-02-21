@@ -1,4 +1,4 @@
-"""Tests for base loader functions (used only in ILoader defaults)."""
+"""Tests for base loader functions (used only in BaseLoader defaults)."""
 
 from datetime import timedelta
 from urllib.parse import urlparse

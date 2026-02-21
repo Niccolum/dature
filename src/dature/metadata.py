@@ -2,11 +2,11 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from dature.loader_type import LoaderType, get_loader_type
+from dature.loader_resolver import resolve_loader_class
 
 if TYPE_CHECKING:
     from dature.field_path import FieldPath
-    from dature.protocols import ValidatorProtocol
+    from dature.protocols import LoaderProtocol, ValidatorProtocol
     from dature.types import DotSeparatedPath, ExpandEnvVarsMode, FieldMapping, NameStyle
 
 
@@ -30,7 +30,7 @@ class FieldMergeStrategy(StrEnum):
 @dataclass(frozen=True, slots=True, kw_only=True)
 class LoadMetadata:
     file_: str | None = None
-    loader: "LoaderType | None" = None
+    loader: "type[LoaderProtocol] | None" = None
     prefix: "DotSeparatedPath | None" = None
     split_symbols: str = "__"
     name_style: "NameStyle | None" = None
@@ -41,10 +41,11 @@ class LoadMetadata:
     skip_if_invalid: "bool | tuple[FieldPath, ...] | None" = None
 
     def __repr__(self) -> str:
-        loader_type = get_loader_type(self.loader, self.file_)
+        loader_class = resolve_loader_class(self.loader, self.file_)
+        display = loader_class.display_name
         if self.file_ is not None:
-            return f"{loader_type} '{self.file_}'"
-        return loader_type
+            return f"{display} '{self.file_}'"
+        return display
 
 
 @dataclass(frozen=True, slots=True)

@@ -7,6 +7,7 @@ import pytest
 
 from dature import LoadMetadata, load
 from dature.errors import DatureConfigError
+from dature.sources_loader.yaml_ import Yaml11Loader, Yaml12Loader
 from dature.validators.number import Ge, Le
 from dature.validators.sequence import MinItems, UniqueItems
 from dature.validators.string import MaxLength, MinLength, RegexPattern
@@ -57,8 +58,8 @@ ALL_SOURCES = [
     ("errors.json", {}),
     ("errors.json5", {}),
     ("errors.yaml", {}),
-    ("errors.yaml", {"loader": "yaml1.1"}),
-    ("errors.yaml", {"loader": "yaml1.2"}),
+    ("errors.yaml", {"loader": Yaml11Loader}),
+    ("errors.yaml", {"loader": Yaml12Loader}),
     ("errors.toml", {}),
     ("errors.ini", {"prefix": "config"}),
     ("errors.env", {}),

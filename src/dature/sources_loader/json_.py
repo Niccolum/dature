@@ -7,7 +7,7 @@ from adaptix import loader
 from adaptix.provider import Provider
 
 from dature.path_finders.json_ import JsonPathFinder
-from dature.sources_loader.base import ILoader
+from dature.sources_loader.base import BaseLoader
 from dature.sources_loader.loaders import (
     bytearray_from_string,
     date_from_string,
@@ -17,7 +17,8 @@ from dature.sources_loader.loaders import (
 from dature.types import JSONValue
 
 
-class JsonLoader(ILoader):
+class JsonLoader(BaseLoader):
+    display_name = "json"
     path_finder_class = JsonPathFinder
 
     def _additional_loaders(self) -> list[Provider]:

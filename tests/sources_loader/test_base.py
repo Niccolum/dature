@@ -4,13 +4,15 @@ from pathlib import Path
 import pytest
 
 from dature.errors import EnvVarExpandError
-from dature.sources_loader.base import ILoader
+from dature.sources_loader.base import BaseLoader
 from dature.sources_loader.json_ import JsonLoader
 from dature.types import ExpandEnvVarsMode, JSONValue
 
 
-class MockLoader(ILoader):
+class MockLoader(BaseLoader):
     """Mock loader for testing base class functionality."""
+
+    display_name = "mock"
 
     def __init__(
         self,
@@ -27,8 +29,8 @@ class MockLoader(ILoader):
         return self._test_data
 
 
-class TestILoaderBase:
-    """Tests for ILoader base class."""
+class TestBaseLoader:
+    """Tests for BaseLoader base class."""
 
     def test_apply_prefix_simple(self):
         """Test applying simple prefix."""

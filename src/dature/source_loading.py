@@ -6,12 +6,11 @@ from dature.error_formatter import ErrorContext, handle_load_errors, read_file_c
 from dature.errors import DatureConfigError, SourceLoadError, SourceLocation
 from dature.field_path import FieldPath
 from dature.load_report import SourceEntry
-from dature.loader_type import get_loader_type
+from dature.loader_resolver import resolve_loader_class
 from dature.loading_context import apply_skip_invalid, build_error_ctx
 from dature.metadata import LoadMetadata, MergeMetadata
-from dature.protocols import DataclassInstance
+from dature.protocols import DataclassInstance, LoaderProtocol
 from dature.skip_field_provider import FilterResult
-from dature.sources_loader.base import ILoader
 from dature.sources_loader.resolver import resolve_loader
 from dature.types import ExpandEnvVarsMode, JSONValue
 
@@ -20,11 +19,11 @@ logger = logging.getLogger("dature")
 
 def resolve_loader_for_source(
     *,
-    loaders: tuple[ILoader, ...] | None,
+    loaders: tuple[LoaderProtocol, ...] | None,
     index: int,
     source_meta: LoadMetadata,
     expand_env_vars: ExpandEnvVarsMode | None = None,
-) -> ILoader:
+) -> LoaderProtocol:
     if loaders is not None:
         return loaders[index]
     return resolve_loader(source_meta, expand_env_vars=expand_env_vars)
@@ -56,7 +55,7 @@ def apply_merge_skip_invalid(
     raw: JSONValue,
     source_meta: LoadMetadata,
     merge_meta: MergeMetadata,
-    loader_instance: ILoader,
+    loader_instance: LoaderProtocol,
     dataclass_: type[DataclassInstance],
     source_index: int,
 ) -> FilterResult:
@@ -78,7 +77,7 @@ class LoadedSources:
     raw_dicts: list[JSONValue]
     source_ctxs: list[tuple[ErrorContext, str | None]]
     source_entries: list[SourceEntry]
-    last_loader: ILoader
+    last_loader: LoaderProtocol
     skipped_fields: dict[str, list[LoadMetadata]]
 
 
@@ -87,12 +86,12 @@ def load_sources(
     merge_meta: MergeMetadata,
     dataclass_name: str,
     dataclass_: type[DataclassInstance],
-    loaders: tuple[ILoader, ...] | None = None,
+    loaders: tuple[LoaderProtocol, ...] | None = None,
 ) -> LoadedSources:
     raw_dicts: list[JSONValue] = []
     source_ctxs: list[tuple[ErrorContext, str | None]] = []
     source_entries: list[SourceEntry] = []
-    last_loader: ILoader | None = None
+    last_loader: LoaderProtocol | None = None
     skipped_fields: dict[str, list[LoadMetadata]] = {}
 
     for i, source_meta in enumerate(merge_meta.sources):
@@ -106,7 +105,7 @@ def load_sources(
         file_path = Path(source_meta.file_) if source_meta.file_ else Path()
         error_ctx = build_error_ctx(source_meta, dataclass_name)
 
-        def _load_raw(li: ILoader = loader_instance, fp: Path = file_path) -> JSONValue:
+        def _load_raw(li: LoaderProtocol = loader_instance, fp: Path = file_path) -> JSONValue:
             return li.load_raw(fp)
 
         try:
@@ -126,8 +125,9 @@ def load_sources(
             continue
         except Exception as exc:
             if not should_skip_broken(source_meta, merge_meta):
+                loader_class = resolve_loader_class(source_meta.loader, source_meta.file_)
                 location = SourceLocation(
-                    source_type=get_loader_type(source_meta.loader, source_meta.file_),
+                    source_type=loader_class.display_name,
                     file_path=error_ctx.file_path,
                     line_range=None,
                     line_content=None,
@@ -161,13 +161,14 @@ def load_sources(
         raw = filter_result.cleaned_dict
         raw_dicts.append(raw)
 
-        loader_type = get_loader_type(source_meta.loader, source_meta.file_)
+        loader_class = resolve_loader_class(source_meta.loader, source_meta.file_)
+        display_name = loader_class.display_name
 
         logger.debug(
             "[%s] Source %d loaded: loader=%s, file=%s, keys=%s",
             dataclass_name,
             i,
-            loader_type,
+            display_name,
             source_meta.file_ or "<env>",
             sorted(raw.keys()) if isinstance(raw, dict) else "<non-dict>",
         )
@@ -182,7 +183,7 @@ def load_sources(
             SourceEntry(
                 index=i,
                 file_path=source_meta.file_,
-                loader_type=loader_type,
+                loader_type=display_name,
                 raw_data=raw,
             ),
         )
