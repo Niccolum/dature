@@ -1,12 +1,48 @@
 [project]
 name = "dature"
 version = "0.8.1"
-description = "Configuration loader with support for multiple formats (env, yaml, json, toml, ini)"
+description = "Type-safe configuration loader for Python dataclasses with support for YAML, JSON, TOML, INI, ENV and environment variables"
 readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
+authors = [
+    { name = "Niccolum", email = "lastsal@mail.ru" },
+]
+keywords = [
+    "configuration",
+    "config",
+    "dataclass",
+    "type-safe",
+    "yaml",
+    "json",
+    "toml",
+    "ini",
+    "env",
+    "settings",
+    "loader",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Libraries",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "adaptix>=3.0.0b11",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Niccolum/dature"
+Repository = "https://github.com/Niccolum/dature"
+Issues = "https://github.com/Niccolum/dature/issues"
 
 [project.optional-dependencies]
 yaml = ["ruamel.yaml>=0.18"]
