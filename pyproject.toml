@@ -1,6 +1,6 @@
 [project]
 name = "dature"
-version = "0.8.1"
+version = "0.8.2"
 description = "Type-safe configuration loader for Python dataclasses with support for YAML, JSON, TOML, INI, ENV and environment variables"
 readme = "README.md"
 license = "Apache-2.0"
@@ -25,7 +25,6 @@ keywords = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
