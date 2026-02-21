@@ -1,6 +1,9 @@
 import types
-from typing import Annotated, Literal, Self
+from typing import TYPE_CHECKING, Annotated, Literal, Self
 from urllib.parse import ParseResult
+
+if TYPE_CHECKING:
+    from dature.field_path import FieldPath
 
 type JSONValue = dict[str, JSONValue] | list[JSONValue] | str | int | float | bool | None
 
@@ -44,7 +47,10 @@ type NameStyle = Literal[
     "upper_kebab",
 ]
 
-type FieldMapping = dict[str, str]
+# Keys are FieldPath at runtime, but F[Type].field returns the field's static type (str, int, etc.)
+# due to the overload trick for IDE autocompletion, so we accept those types here too.
+type _FieldMappingKey = "FieldPath | str | int | float | bool | None"
+type FieldMapping = dict[_FieldMappingKey, str | tuple[str, ...]]
 
 type URL = ParseResult
 

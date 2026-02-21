@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from dature import LoadMetadata, load
+from dature.field_path import F
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -23,7 +24,11 @@ class DbConfig:
 config = load(
     LoadMetadata(
         file_=str(SOURCES_DIR / "mapped.yaml"),
-        field_mapping={"database_url": "db_url", "secret_key": "key", "pool_size": "pool"},
+        field_mapping={
+            F[DbConfig].database_url: "db_url",
+            F[DbConfig].secret_key: "key",
+            F[DbConfig].pool_size: "pool",
+        },
         expand_env_vars="default",
     ),
     DbConfig,

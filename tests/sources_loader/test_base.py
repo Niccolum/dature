@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from dature.errors import EnvVarExpandError
+from dature.field_path import F
 from dature.sources_loader.base import BaseLoader
 from dature.sources_loader.json_ import JsonLoader
 from dature.types import ExpandEnvVarsMode, JSONValue
@@ -265,9 +266,9 @@ class TestFieldMapping:
         json_file.write_text('{"fullName": "John Doe", "userAge": 42, "isActive": true}')
 
         field_mapping = {
-            "name": "fullName",
-            "age": "userAge",
-            "active": "isActive",
+            F[Config].name: "fullName",
+            F[Config].age: "userAge",
+            F[Config].active: "isActive",
         }
 
         loader = JsonLoader(field_mapping=field_mapping)
@@ -287,7 +288,7 @@ class TestFieldMapping:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"userName": "Alice", "age": 28, "city": "NYC"}')
 
-        field_mapping = {"name": "userName"}
+        field_mapping = {F[Config].name: "userName"}
 
         loader = JsonLoader(field_mapping=field_mapping)
         result = loader.load(json_file, Config)
@@ -306,7 +307,7 @@ class TestFieldMapping:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"userName": "Bob", "userAge": 35, "customKey": "special"}')
 
-        field_mapping = {"special_field": "customKey"}
+        field_mapping = {F[Config].special_field: "customKey"}
 
         loader = JsonLoader(name_style="lower_camel", field_mapping=field_mapping)
         result = loader.load(json_file, Config)
@@ -332,10 +333,10 @@ class TestFieldMapping:
         )
 
         field_mapping = {
-            "name": "fullName",
-            "address": "location",
-            "city": "cityName",
-            "street": "streetName",
+            F[User].name: "fullName",
+            F[User].address: "location",
+            F[Address].city: "cityName",
+            F[Address].street: "streetName",
         }
 
         loader = JsonLoader(field_mapping=field_mapping)
@@ -344,6 +345,85 @@ class TestFieldMapping:
         assert result.name == "Charlie"
         assert result.address.city == "LA"
         assert result.address.street == "Main St"
+
+    def test_tuple_aliases_first_match_wins(self, tmp_path: Path):
+        @dataclass
+        class Config:
+            name: str
+
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"fullName": "Alice"}')
+
+        field_mapping = {F[Config].name: ("fullName", "userName")}
+
+        loader = JsonLoader(field_mapping=field_mapping)
+        result = loader.load(json_file, Config)
+
+        assert result.name == "Alice"
+
+    def test_tuple_aliases_fallback_to_second(self, tmp_path: Path):
+        @dataclass
+        class Config:
+            name: str
+
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"userName": "Bob"}')
+
+        field_mapping = {F[Config].name: ("fullName", "userName")}
+
+        loader = JsonLoader(field_mapping=field_mapping)
+        result = loader.load(json_file, Config)
+
+        assert result.name == "Bob"
+
+    def test_nested_field_path_resolves_owner(self, tmp_path: Path):
+        @dataclass
+        class Address:
+            city: str
+
+        @dataclass
+        class User:
+            address: Address
+
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"address": {"cityName": "LA"}}')
+
+        field_mapping = {F[User].address.city: "cityName"}
+
+        loader = JsonLoader(field_mapping=field_mapping)
+        result = loader.load(json_file, User)
+
+        assert result.address.city == "LA"
+
+    def test_string_owner_field_mapping(self, tmp_path: Path):
+        @dataclass
+        class Config:
+            name: str
+
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"fullName": "Eve"}')
+
+        field_mapping = {F["Config"].name: "fullName"}
+
+        loader = JsonLoader(field_mapping=field_mapping)
+        result = loader.load(json_file, Config)
+
+        assert result.name == "Eve"
+
+    def test_canonical_name_takes_priority_over_alias(self, tmp_path: Path):
+        @dataclass
+        class Config:
+            name: str
+
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"name": "Direct", "fullName": "Alias"}')
+
+        field_mapping = {F[Config].name: "fullName"}
+
+        loader = JsonLoader(field_mapping=field_mapping)
+        result = loader.load(json_file, Config)
+
+        assert result.name == "Direct"
 
 
 class TestExpandEnvVars:

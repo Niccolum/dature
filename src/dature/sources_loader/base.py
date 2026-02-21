@@ -10,7 +10,9 @@ from adaptix import NameStyle as AdaptixNameStyle
 from adaptix import Retort, loader, name_mapping
 from adaptix.provider import Provider
 
+from dature.alias_provider import AliasProvider
 from dature.env_expand import expand_env_vars
+from dature.field_path import FieldPath
 from dature.fields import ByteSize, PaymentCardNumber, SecretStr
 from dature.path_finders.base import PathFinder
 from dature.protocols import DataclassInstance, LoaderProtocol, ValidatorProtocol
@@ -93,7 +95,15 @@ class BaseLoader(LoaderProtocol, abc.ABC):
             providers.append(name_mapping(name_style=adaptix_name_style))
 
         if self._field_mapping:
-            providers.append(name_mapping(map=self._field_mapping))
+            identity_map: dict[str, str] = {}
+            for field_path_key in self._field_mapping:
+                if not isinstance(field_path_key, FieldPath):
+                    continue
+                identity_map[field_path_key.parts[-1]] = field_path_key.parts[-1]
+            if identity_map:
+                providers.append(name_mapping(map=identity_map))
+
+            providers.append(AliasProvider(self._field_mapping))
 
         return providers
 

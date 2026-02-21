@@ -1,7 +1,9 @@
 """Tests for sources_loader/resolver.py."""
 
+from dataclasses import dataclass
 from pathlib import Path
 
+from dature.field_path import F
 from dature.metadata import LoadMetadata
 from dature.sources_loader.env_ import EnvFileLoader, EnvLoader
 from dature.sources_loader.json_ import JsonLoader
@@ -31,7 +33,11 @@ class TestResolveLoader:
         assert loader._name_style == "lower_snake"
 
     def test_passes_field_mapping(self) -> None:
-        mapping = {"key": "value"}
+        @dataclass
+        class Config:
+            key: str
+
+        mapping = {F[Config].key: "value"}
         metadata = LoadMetadata(file_="config.json", field_mapping=mapping)
 
         loader = resolve_loader(metadata)
