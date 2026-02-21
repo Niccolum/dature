@@ -45,3 +45,15 @@ class TestResolveLoaderClass:
 
     def test_uppercase_extension(self) -> None:
         assert resolve_loader_class(loader=None, file_="config.JSON") is JsonLoader
+
+    def test_env_loader_with_file_raises(self) -> None:
+        with pytest.raises(ValueError, match="EnvLoader reads from environment variables") as exc_info:
+            resolve_loader_class(loader=EnvLoader, file_="config.json")
+
+        assert str(exc_info.value) == (
+            "EnvLoader reads from environment variables and does not use files. "
+            "Remove file_ or use a file-based loader instead (e.g. EnvFileLoader)."
+        )
+
+    def test_env_file_loader_with_file_allowed(self) -> None:
+        assert resolve_loader_class(loader=EnvFileLoader, file_=".env.local") is EnvFileLoader

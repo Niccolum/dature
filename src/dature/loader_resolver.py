@@ -44,6 +44,12 @@ def resolve_loader_class(
     file_: str | None,
 ) -> "type[LoaderProtocol]":
     if loader is not None:
+        if file_ is not None and loader is EnvLoader:
+            msg = (
+                "EnvLoader reads from environment variables and does not use files. "
+                "Remove file_ or use a file-based loader instead (e.g. EnvFileLoader)."
+            )
+            raise ValueError(msg)
         return loader
 
     if file_ is None:
