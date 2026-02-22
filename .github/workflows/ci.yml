@@ -17,8 +17,8 @@ jobs:
         env:
           BRANCH: ${{ github.head_ref }}
         run: |
-          if [[ ! "$BRANCH" =~ ^(feat|fix|bug|chore|docs|refactor|test|ci)/ ]]; then
-            echo "::error::Branch name '$BRANCH' must start with one of: feat/, fix/, bug/, chore/, docs/, refactor/, test/, ci/"
+          if [[ ! "$BRANCH" =~ ^(feat|fix|bug|chore|docs|refactor|test|ci|dependabot)/ ]]; then
+            echo "::error::Branch name '$BRANCH' must start with one of: feat/, fix/, bug/, chore/, docs/, refactor/, test/, ci/, dependabot/"
             exit 1
           fi
 
