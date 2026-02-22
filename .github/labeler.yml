@@ -2,3 +2,13 @@ bug:
   - head-branch: ['^fix/.*', '^bug/.*']
 feature:
   - head-branch: ['^feat/.*', '^feature/.*']
+chore:
+  - head-branch: ['^chore/.*']
+documentation:
+  - head-branch: ['^docs/.*']
+refactor:
+  - head-branch: ['^refactor/.*']
+test:
+  - head-branch: ['^test/.*']
+ci:
+  - head-branch: ['^ci/.*']

@@ -9,6 +9,19 @@ on:
 permissions: {}
 
 jobs:
+  branch-name:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch name
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          if [[ ! "$BRANCH" =~ ^(feat|fix|bug|chore|docs|refactor|test|ci)/ ]]; then
+            echo "::error::Branch name '$BRANCH' must start with one of: feat/, fix/, bug/, chore/, docs/, refactor/, test/, ci/"
+            exit 1
+          fi
+
   lint:
     runs-on: ubuntu-latest
     steps:
