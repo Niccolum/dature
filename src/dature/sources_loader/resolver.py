@@ -21,6 +21,7 @@ def resolve_loader(
         "name_style": metadata.name_style,
         "field_mapping": metadata.field_mapping,
         "root_validators": metadata.root_validators,
+        "validators": metadata.validators,
         "expand_env_vars": resolved_expand,
     }
 

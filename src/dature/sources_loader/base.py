@@ -35,11 +35,13 @@ from dature.types import (
     DotSeparatedPath,
     ExpandEnvVarsMode,
     FieldMapping,
+    FieldValidators,
     JSONValue,
     NameStyle,
     TypeAnnotation,
 )
 from dature.validators.base import (
+    create_metadata_validator_providers,
     create_root_validator_providers,
     create_validator_providers,
     extract_validators_from_type,
@@ -61,12 +63,14 @@ class BaseLoader(LoaderProtocol, abc.ABC):
         name_style: NameStyle | None = None,
         field_mapping: FieldMapping | None = None,
         root_validators: tuple[ValidatorProtocol, ...] | None = None,
+        validators: FieldValidators | None = None,
         expand_env_vars: ExpandEnvVarsMode = "default",
     ) -> None:
         self._prefix = prefix
         self._name_style = name_style
         self._field_mapping = field_mapping
         self._root_validators = root_validators or ()
+        self._validators = validators or {}
         self._expand_env_vars_mode = expand_env_vars
         self.retorts: dict[type, Retort] = {}
 
@@ -220,11 +224,15 @@ class BaseLoader(LoaderProtocol, abc.ABC):
             dataclass_,
             self._root_validators,
         )
+        metadata_validator_providers = create_metadata_validator_providers(
+            self._validators,
+        )
         return Retort(
             strict_coercion=False,
             recipe=[
                 *self._base_recipe(),
                 *self._get_validator_providers(dataclass_),
+                *metadata_validator_providers,
                 *root_validator_providers,
             ],
         )

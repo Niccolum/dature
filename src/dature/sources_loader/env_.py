@@ -18,7 +18,7 @@ from dature.sources_loader.loaders import (
     optional_from_empty_string,
     time_from_string,
 )
-from dature.types import DotSeparatedPath, ExpandEnvVarsMode, FieldMapping, JSONValue, NameStyle
+from dature.types import DotSeparatedPath, ExpandEnvVarsMode, FieldMapping, FieldValidators, JSONValue, NameStyle
 
 
 def _set_nested(d: dict[Any, Any], keys: list[str], value: str) -> None:
@@ -30,7 +30,7 @@ def _set_nested(d: dict[Any, Any], keys: list[str], value: str) -> None:
 class EnvLoader(BaseLoader):
     display_name = "env"
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         prefix: DotSeparatedPath | None = None,
@@ -38,6 +38,7 @@ class EnvLoader(BaseLoader):
         name_style: NameStyle | None = None,
         field_mapping: FieldMapping | None = None,
         root_validators: tuple[ValidatorProtocol, ...] | None = None,
+        validators: FieldValidators | None = None,
         expand_env_vars: ExpandEnvVarsMode = "default",
     ) -> None:
         self._split_symbols = split_symbols
@@ -46,6 +47,7 @@ class EnvLoader(BaseLoader):
             name_style=name_style,
             field_mapping=field_mapping,
             root_validators=root_validators,
+            validators=validators,
             expand_env_vars=expand_env_vars,
         )
 

@@ -7,7 +7,7 @@ from dature.loader_resolver import resolve_loader_class
 if TYPE_CHECKING:
     from dature.field_path import FieldPath
     from dature.protocols import LoaderProtocol, ValidatorProtocol
-    from dature.types import DotSeparatedPath, ExpandEnvVarsMode, FieldMapping, NameStyle
+    from dature.types import DotSeparatedPath, ExpandEnvVarsMode, FieldMapping, FieldValidators, NameStyle
 
 
 class MergeStrategy(StrEnum):
@@ -36,6 +36,7 @@ class LoadMetadata:
     name_style: "NameStyle | None" = None
     field_mapping: "FieldMapping | None" = None
     root_validators: "tuple[ValidatorProtocol, ...] | None" = None
+    validators: "FieldValidators | None" = None
     expand_env_vars: "ExpandEnvVarsMode | None" = None
     skip_if_broken: bool | None = None
     skip_if_invalid: "bool | tuple[FieldPath, ...] | None" = None

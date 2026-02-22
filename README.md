@@ -76,6 +76,7 @@ class LoadMetadata:
     name_style: NameStyle | None = None
     field_mapping: dict[str, str] | None = None
     root_validators: tuple[ValidatorProtocol, ...] | None = None
+    validators: FieldValidators | None = None
     expand_env_vars: ExpandEnvVarsMode | None = None
     skip_if_broken: bool | None = None
     skip_if_invalid: bool | tuple[FieldPath, ...] | None = None
@@ -631,6 +632,64 @@ config = load(
     Config,
 )
 ```
+
+### Validators in LoadMetadata
+
+Field validators can also be specified in `LoadMetadata` using the `validators` parameter. This is useful when the same dataclass is loaded from different sources with different validation rules. These validators **complement** (not replace) any `Annotated` validators on the field:
+
+```python
+from dature import F, LoadMetadata, load
+from dature.validators.number import Gt, Lt
+from dature.validators.string import MinLength
+
+config = load(
+    LoadMetadata(
+        file_="config.json",
+        validators={
+            F[Config].name: MinLength(value=3),
+            F[Config].port: (Gt(value=0), Lt(value=65536)),
+        },
+    ),
+    Config,
+)
+```
+
+A single validator can be passed directly, without wrapping in a tuple. Multiple validators require a tuple.
+
+Nested fields are supported:
+
+```python
+config = load(
+    LoadMetadata(
+        file_="config.json",
+        validators={
+            F[Config].database.host: MinLength(value=1),
+            F[Config].database.port: Gt(value=0),
+        },
+    ),
+    Config,
+)
+```
+
+Combined with `Annotated` -- both are applied:
+
+```python
+@dataclass
+class Config:
+    port: Annotated[int, Ge(value=0)]  # from Annotated
+
+config = load(
+    LoadMetadata(
+        file_="config.json",
+        validators={
+            F[Config].port: Lt(value=65536),   # from LoadMetadata
+        },
+    ),
+    Config,
+)
+```
+
+`validators` can be used together with `root_validators` on the same `LoadMetadata`.
 
 ### Custom Validators
 

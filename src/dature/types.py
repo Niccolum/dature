@@ -4,6 +4,7 @@ from urllib.parse import ParseResult
 
 if TYPE_CHECKING:
     from dature.field_path import FieldPath
+    from dature.protocols import ValidatorProtocol
 
 type JSONValue = dict[str, JSONValue] | list[JSONValue] | str | int | float | bool | None
 
@@ -58,3 +59,6 @@ type Base64UrlBytes = bytes
 type Base64UrlStr = str
 
 type ExpandEnvVarsMode = Literal["disabled", "default", "empty", "strict"]
+
+type _ValidatorKey = "FieldPath | str | int | float | bool | None"
+type FieldValidators = dict[_ValidatorKey, "ValidatorProtocol | tuple[ValidatorProtocol, ...]"]
