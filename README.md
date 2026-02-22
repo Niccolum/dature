@@ -49,19 +49,21 @@ config = Config(port=9090)  # override specific fields
 
 | Format | Extension | Loader | Extra dependency |
 |--------|-----------|--------|------------------|
-| YAML 1.1 | `.yaml`, `.yml` | `yaml` | `ruamel.yaml` |
-| YAML 1.2 | `.yaml`, `.yml` | `yaml1.2` | `ruamel.yaml` |
-| JSON | `.json` | `json` | - |
-| JSON5 | `.json5` | `json5` | `json5` |
-| TOML | `.toml` | `toml` | - |
-| INI | `.ini`, `.cfg` | `ini` | - |
-| ENV file | `.env` | `envfile` | - |
-| Environment variables | - | `env` | - |
+| YAML 1.1 | `.yaml`, `.yml` | `Yaml11Loader` | `ruamel.yaml` |
+| YAML 1.2 | `.yaml`, `.yml` | `Yaml12Loader` | `ruamel.yaml` |
+| JSON | `.json` | `JsonLoader` | - |
+| JSON5 | `.json5` | `Json5Loader` | `json5` |
+| TOML | `.toml` | `TomlLoader` | - |
+| INI | `.ini`, `.cfg` | `IniLoader` | - |
+| ENV file | `.env` | `EnvFileLoader` | - |
+| Environment variables | - | `EnvLoader` | - |
 
 The format is auto-detected from the file extension. When `file_` is not specified, environment variables are used. You can also set the loader explicitly:
 
 ```python
-LoadMetadata(file_="config.txt", loader="json")
+from dature.sources_loader.json_ import JsonLoader
+
+LoadMetadata(file_="config.txt", loader=JsonLoader)
 ```
 
 ## LoadMetadata
@@ -70,11 +72,11 @@ LoadMetadata(file_="config.txt", loader="json")
 @dataclass(frozen=True, slots=True, kw_only=True)
 class LoadMetadata:
     file_: str | None = None
-    loader: LoaderType | None = None
-    prefix: str | None = None
+    loader: type[LoaderProtocol] | None = None
+    prefix: DotSeparatedPath | None = None
     split_symbols: str = "__"
     name_style: NameStyle | None = None
-    field_mapping: dict[str, str] | None = None
+    field_mapping: FieldMapping | None = None
     root_validators: tuple[ValidatorProtocol, ...] | None = None
     validators: FieldValidators | None = None
     expand_env_vars: ExpandEnvVarsMode | None = None
@@ -141,17 +143,40 @@ config = load(
 
 ### field_mapping
 
-Explicit field renaming. Takes priority over `name_style`:
+Explicit field renaming using `F` objects. Takes priority over `name_style`:
 
 ```python
+from dature import F
+
 config = load(
     LoadMetadata(
         file_="config.json",
-        field_mapping={"database_url": "db_url", "api_key": "apiKey"},
+        field_mapping={
+            F[Config].database_url: "db_url",
+            F[Config].api_key: "apiKey",
+        },
     ),
     Config,
 )
 ```
+
+A field can have multiple aliases -- the first matching key in the source wins:
+
+```python
+field_mapping={F[Config].name: ("fullName", "userName")}
+```
+
+Nested fields are supported via `F[Owner].field` syntax on inner dataclasses:
+
+```python
+field_mapping={
+    F[User].name: "fullName",
+    F[User].address: "location",
+    F[Address].city: "cityName",
+}
+```
+
+In decorator mode where the class is not yet defined, use a string: `F["Config"].name` (validation is skipped).
 
 ## Decorator Mode vs Function Mode
 
