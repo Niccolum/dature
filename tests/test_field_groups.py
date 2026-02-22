@@ -763,3 +763,77 @@ class TestFieldGroupMixedExpandAndFlat:
                 changed:   database.host (from source {o}), database.port (from source {o})
                 unchanged: timeout (from source {d})
             """)
+
+
+class TestFieldGroupSameFieldNameNested:
+    def test_all_changed_ok(self, tmp_path: Path):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text(
+            '{"user_name": "root-old", "inner": {"user_name": "nested-old"}}',
+        )
+
+        overrides = tmp_path / "overrides.json"
+        overrides.write_text(
+            '{"user_name": "root-new", "inner": {"user_name": "nested-new"}}',
+        )
+
+        @dataclass
+        class Inner:
+            user_name: str
+
+        @dataclass
+        class Config:
+            user_name: str
+            inner: Inner
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(defaults)),
+                    LoadMetadata(file_=str(overrides)),
+                ),
+                field_groups=(FieldGroup(F[Config].user_name, F[Config].inner.user_name),),
+            ),
+            Config,
+        )
+
+        assert result.user_name == "root-new"
+        assert result.inner.user_name == "nested-new"
+
+    def test_only_root_changed_raises(self, tmp_path: Path):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text(
+            '{"user_name": "root-old", "inner": {"user_name": "nested-old"}}',
+        )
+
+        overrides = tmp_path / "overrides.json"
+        overrides.write_text('{"user_name": "root-new"}')
+
+        defaults_meta = LoadMetadata(file_=str(defaults))
+        overrides_meta = LoadMetadata(file_=str(overrides))
+
+        @dataclass
+        class Inner:
+            user_name: str
+
+        @dataclass
+        class Config:
+            user_name: str
+            inner: Inner
+
+        with pytest.raises(FieldGroupError) as exc_info:
+            load(
+                MergeMetadata(
+                    sources=(defaults_meta, overrides_meta),
+                    field_groups=(FieldGroup(F[Config].user_name, F[Config].inner.user_name),),
+                ),
+                Config,
+            )
+
+        assert str(exc_info.value) == dedent(f"""\
+            Config field group errors (1)
+
+              Field group (user_name, inner.user_name) partially overridden in source 1
+                changed:   user_name (from source {overrides_meta!r})
+                unchanged: inner.user_name (from source {defaults_meta!r})
+            """)

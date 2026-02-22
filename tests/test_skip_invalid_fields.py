@@ -430,6 +430,96 @@ class TestSingleSourceSkipInvalidFields:
         assert warning_messages == ["[Config] Skipped invalid field 'port'"]
 
 
+class TestSkipInvalidSameFieldNameNested:
+    def test_skip_root_field_not_nested(self, tmp_path: Path):
+        source = tmp_path / "config.json"
+        source.write_text('{"port": "abc", "inner": {"port": 9090}}')
+
+        @dataclass
+        class Inner:
+            port: int
+
+        @dataclass
+        class Config:
+            port: int = 3000
+            inner: Inner = None  # type: ignore[assignment]
+
+        result = load(
+            LoadMetadata(
+                file_=str(source),
+                skip_if_invalid=(F[Config].port,),
+            ),
+            Config,
+        )
+
+        assert result.port == 3000
+        assert result.inner.port == 9090
+
+    def test_skip_nested_field_not_root(self, tmp_path: Path):
+        source1 = tmp_path / "s1.json"
+        source1.write_text('{"port": 8080, "inner": {"port": "abc"}}')
+
+        source2 = tmp_path / "s2.json"
+        source2.write_text('{"inner": {"port": 9090}}')
+
+        @dataclass
+        class Inner:
+            port: int
+
+        @dataclass
+        class Config:
+            port: int
+            inner: Inner
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(
+                        file_=str(source1),
+                        skip_if_invalid=(F[Config].inner.port,),
+                    ),
+                    LoadMetadata(file_=str(source2)),
+                ),
+            ),
+            Config,
+        )
+
+        assert result.port == 8080
+        assert result.inner.port == 9090
+
+    def test_skip_both_root_and_nested(self, tmp_path: Path):
+        source1 = tmp_path / "s1.json"
+        source1.write_text('{"port": "abc", "inner": {"port": "def"}}')
+
+        source2 = tmp_path / "s2.json"
+        source2.write_text('{"port": 8080, "inner": {"port": 9090}}')
+
+        @dataclass
+        class Inner:
+            port: int
+
+        @dataclass
+        class Config:
+            port: int
+            inner: Inner
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(
+                        file_=str(source1),
+                        skip_if_invalid=(F[Config].port, F[Config].inner.port),
+                    ),
+                    LoadMetadata(file_=str(source2)),
+                ),
+            ),
+            Config,
+        )
+
+        assert result.port == 8080
+        assert result.inner.port == 9090
+
+
 class TestFilterInvalidFields:
     def test_all_fields_valid(self):
         @dataclass

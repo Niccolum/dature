@@ -858,3 +858,71 @@ class TestFieldMergesErrors:
         )
 
         assert result.priority == 5
+
+
+class TestFieldMergesSameFieldNameNested:
+    def test_first_wins_root_last_wins_nested(self, tmp_path: Path):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text('{"user_name": "root-first", "inner": {"user_name": "nested-first"}}')
+
+        overrides = tmp_path / "overrides.json"
+        overrides.write_text('{"user_name": "root-second", "inner": {"user_name": "nested-second"}}')
+
+        @dataclass
+        class Inner:
+            user_name: str
+
+        @dataclass
+        class Config:
+            user_name: str
+            inner: Inner
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(defaults)),
+                    LoadMetadata(file_=str(overrides)),
+                ),
+                field_merges=(
+                    MergeRule(F[Config].user_name, FieldMergeStrategy.FIRST_WINS),
+                    MergeRule(F[Config].inner.user_name, FieldMergeStrategy.LAST_WINS),
+                ),
+            ),
+            Config,
+        )
+
+        assert result.user_name == "root-first"
+        assert result.inner.user_name == "nested-second"
+
+    def test_last_wins_root_first_wins_nested(self, tmp_path: Path):
+        defaults = tmp_path / "defaults.json"
+        defaults.write_text('{"user_name": "root-first", "inner": {"user_name": "nested-first"}}')
+
+        overrides = tmp_path / "overrides.json"
+        overrides.write_text('{"user_name": "root-second", "inner": {"user_name": "nested-second"}}')
+
+        @dataclass
+        class Inner:
+            user_name: str
+
+        @dataclass
+        class Config:
+            user_name: str
+            inner: Inner
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(defaults)),
+                    LoadMetadata(file_=str(overrides)),
+                ),
+                field_merges=(
+                    MergeRule(F[Config].user_name, FieldMergeStrategy.LAST_WINS),
+                    MergeRule(F[Config].inner.user_name, FieldMergeStrategy.FIRST_WINS),
+                ),
+            ),
+            Config,
+        )
+
+        assert result.user_name == "root-second"
+        assert result.inner.user_name == "nested-first"
