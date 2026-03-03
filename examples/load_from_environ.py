@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from dature import LoadMetadata, load
 
-os.environ["APP_HOST"] = "0.0.0.0"  # noqa: S104
+os.environ["APP_HOST"] = "0.0.0.0"
 os.environ["APP_PORT"] = "8080"
 os.environ["APP_DEBUG"] = "true"
 os.environ["APP_WORKERS"] = "4"
