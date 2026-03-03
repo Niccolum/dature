@@ -239,13 +239,39 @@ jobs:
             --title "v${{ needs.tag.outputs.version }}" \
             --generate-notes
 
-  trigger-rtd:
-    needs: [lint, test-result]
+  trigger-rtd-main:
+    needs: [tag]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger develop build (main → latest)
-        if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+      - name: Trigger latest build (main)
         run: |
           curl -X POST \
             -H "Authorization: Token ${{ secrets.RTD_API_TOKEN }}" \
             https://readthedocs.org/api/v3/projects/dature/versions/latest/builds/
+
+  trigger-rtd-pr:
+    needs: [lint, test-result]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Activate and build PR branch
+        env:
+          RTD_API_TOKEN: ${{ secrets.RTD_API_TOKEN }}
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Token $RTD_API_TOKEN" \
+            https://readthedocs.org/api/v3/projects/dature/sync-versions/
+
+          sleep 15
+
+          curl -X PATCH \
+            -H "Authorization: Token $RTD_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"active": true, "hidden": true}' \
+            "https://readthedocs.org/api/v3/projects/dature/versions/$BRANCH/"
+
+          curl -X POST \
+            -H "Authorization: Token $RTD_API_TOKEN" \
+            "https://readthedocs.org/api/v3/projects/dature/versions/$BRANCH/builds/"
