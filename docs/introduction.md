@@ -2,43 +2,35 @@
 
 dature offers two ways to load configuration: **function mode** and **decorator mode**.
 
-## Function Mode
+=== "Function mode"
 
-Call `load()` with a `LoadMetadata` descriptor and a dataclass type:
+    Call `load()` with a `LoadMetadata` descriptor and a dataclass type:
 
-=== "app.yaml"
-
-    ```yaml
+    ```yaml title="app.yaml"
     --8<-- "examples/docs/sources/app.yaml"
     ```
-
-=== "Python"
 
     ```python
     --8<-- "examples/docs/format_yaml.py"
     ```
 
-## Decorator Mode
+=== "Decorator mode"
 
-Use `@load()` as a decorator. The dataclass auto-loads on every instantiation:
+    Use `@load()` as a decorator. The dataclass auto-loads on every instantiation:
 
-=== "app.yaml"
-
-    ```yaml
+    ```yaml title="app.yaml"
     --8<-- "examples/docs/sources/app.yaml"
     ```
-
-=== "Python"
 
     ```python
     --8<-- "examples/docs/intro_decorator_file.py"
     ```
 
-Explicit arguments to `__init__` take priority over loaded values:
+    Explicit arguments to `__init__` take priority over loaded values:
 
-```python
-config = Config(port=9090)  # host from source, port overridden
-```
+    ```python
+    config = Config(port=9090)  # host from source, port overridden
+    ```
 
 ## All Formats
 
@@ -176,46 +168,116 @@ class LoadMetadata:
 
 ## Type Coercion
 
-String values from ENV and file formats are automatically converted:
+String values from ENV and file formats are automatically converted.
 
-| Source | Target | Example |
-|--------|--------|---------|
-| `"42"` | `int` | `42` |
-| `"3.14"` | `float` | `3.14` |
-| `"true"` | `bool` | `True` |
-| `"2024-01-15"` | `date` | `date(2024, 1, 15)` |
-| `"2024-01-15T10:30:00"` | `datetime` | `datetime(...)` |
-| `"10:30:00"` | `time` | `time(10, 30)` |
-| `"1 day, 2:30:00"` | `timedelta` | `timedelta(...)` |
-| `"1+2j"` | `complex` | `(1+2j)` |
-| `"192.168.1.1"` | `IPv4Address` | `IPv4Address(...)` |
-| `"[1, 2, 3]"` | `list[int]` | `[1, 2, 3]` |
+All supported types in one dataclass:
 
-Nested dataclasses, `Optional`, and `Union` types are also supported.
+```python
+--8<-- "examples/all_types_dataclass.py"
+```
+
+### Coercion by Source
+
+Different formats store values differently. YAML and TOML parse some types natively, while ENV and INI treat everything as strings:
+
+=== "YAML"
+
+    ```yaml
+    --8<-- "examples/sources/all_types_yaml12.yaml"
+    ```
+
+=== "JSON"
+
+    ```json
+    --8<-- "examples/sources/all_types.json"
+    ```
+
+=== "TOML"
+
+    ```toml
+    --8<-- "examples/sources/all_types_toml11.toml"
+    ```
+
+=== "INI"
+
+    ```ini
+    --8<-- "examples/sources/all_types.ini"
+    ```
+
+=== "ENV"
+
+    ```bash
+    --8<-- "examples/sources/all_types.env"
+    ```
 
 ## Error Messages
 
-dature provides human-readable error messages with source location:
+dature provides human-readable error messages with source location and context:
 
-```
-Config loading errors (2)
+=== "YAML"
 
-  [database.host]  Missing required field
-   └── FILE 'config.json', line 2-5
-       "database": {
-         "host": "localhost",
-         "port": 5432
-       }
+    ```
+    Config loading errors (1)
 
-  [port]  Expected int, got str
-   └── ENV 'APP_PORT'
-```
+      [port]  Bad string format
+       └── FILE 'config.yaml', line 2
+           port: "abc"
+    ```
 
-Docker secrets errors point to the secret file:
+=== "JSON"
 
-```
-Config loading errors (1)
+    ```
+    Config loading errors (1)
 
-  [password]  Missing required field
-   └── SECRET FILE '/run/secrets/password'
-```
+      [port]  Bad string format
+       └── FILE 'config.json', line 2
+           "port": "abc"
+    ```
+
+=== "TOML"
+
+    ```
+    Config loading errors (1)
+
+      [port]  Bad string format
+       └── FILE 'config.toml', line 2
+           port = "abc"
+    ```
+
+=== "INI"
+
+    ```
+    Config loading errors (1)
+
+      [port]  Bad string format
+       └── FILE 'config.ini', line 2
+           port = abc
+    ```
+
+=== "ENV file"
+
+    ```
+    Config loading errors (1)
+
+      [port]  Bad string format
+       └── ENV FILE '.env', line 1
+           PORT=abc
+    ```
+
+=== "ENV variables"
+
+    ```
+    Config loading errors (1)
+
+      [port]  Bad string format
+       └── ENV 'APP_PORT'
+    ```
+
+=== "Docker Secrets"
+
+    ```
+    Config loading errors (1)
+
+      [password]  Missing required field
+       └── SECRET FILE '/run/secrets/password'
+    ```

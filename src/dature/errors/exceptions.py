@@ -54,8 +54,8 @@ def _format_location(loc: SourceLocation) -> list[str]:
 
     if loc.source_type == "envfile":
         location_str = f"   └── ENV FILE '{loc.file_path}'"
-        if loc.env_var_name is not None:
-            location_str += f", var '{loc.env_var_name}'"
+        if loc.line_range is not None:
+            location_str += f", {loc.line_range!r}"
         lines.append(location_str)
         if loc.line_content is not None:
             lines.extend(_format_content_lines(loc.line_content))

@@ -384,7 +384,7 @@ class TestLineTruncation:
             Config loading errors (1)
 
               [timeout]  Bad string format
-               └── ENV FILE '.env', var 'APP_TIMEOUT'
+               └── ENV FILE '.env', line 2
                    {expected_content}
             """)
 

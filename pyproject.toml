@@ -80,6 +80,7 @@ ignore = [
     "DTZ001",  # datetime without tzinfo
     "PLR2004", # magic values in examples
     "SIM103",  # return condition directly
+    "S104",    # possible hardcoded password
 ]
 
 [tool.ruff.lint.pylint]

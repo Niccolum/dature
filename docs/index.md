@@ -85,17 +85,17 @@ Load config from YAML, JSON, TOML, INI, ENV files, environment variables and Doc
 
 ## Quick Start
 
-### Function mode
+=== "Function mode"
 
-```python
---8<-- "examples/docs/intro_function.py"
-```
+    ```python
+    --8<-- "examples/docs/intro_function.py"
+    ```
 
-### Decorator mode
+=== "Decorator mode"
 
-```python
---8<-- "examples/docs/intro_decorator.py"
-```
+    ```python
+    --8<-- "examples/docs/intro_decorator.py"
+    ```
 
 ## Supported Formats
 
