@@ -1,9 +1,8 @@
 import logging
 from collections.abc import Callable
 from dataclasses import asdict, fields, is_dataclass
-from enum import Flag
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast, get_type_hints
+from typing import TYPE_CHECKING, Any
 
 from dature.config import config
 from dature.errors.exceptions import DatureConfigError
@@ -12,6 +11,7 @@ from dature.load_report import FieldOrigin, LoadReport, SourceEntry, attach_load
 from dature.loading.context import (
     apply_skip_invalid,
     build_error_ctx,
+    coerce_flag_fields,
     ensure_retort,
     make_validating_post_init,
     merge_fields,
@@ -27,23 +27,6 @@ if TYPE_CHECKING:
     from adaptix import Retort
 
 logger = logging.getLogger("dature")
-
-
-def _coerce_flag_fields[T](data: JSONValue, dataclass_: type[T]) -> JSONValue:
-    if not isinstance(data, dict) or not is_dataclass(dataclass_):
-        return data
-
-    type_hints = get_type_hints(dataclass_)
-    coerced = dict(data)
-    for field in fields(cast("type[DataclassInstance]", dataclass_)):
-        hint = type_hints.get(field.name)
-        if hint is None:
-            continue
-        if isinstance(hint, type) and issubclass(hint, Flag):
-            value = coerced.get(field.name)
-            if isinstance(value, str):
-                coerced[field.name] = int(value)
-    return coerced
 
 
 def _resolve_single_mask_secrets(metadata: LoadMetadata) -> bool:
@@ -177,6 +160,7 @@ def _load_single_source(ctx: _PatchContext) -> DataclassInstance:
         probe_retort=ctx.probe_retort,
     )
     raw_data = filter_result.cleaned_dict
+    raw_data = coerce_flag_fields(raw_data, ctx.cls)
 
     skipped_fields: dict[str, list[LoadMetadata]] = {}
     for path in filter_result.skipped_paths:
@@ -300,7 +284,7 @@ def load_as_function(  # noqa: C901
 
     validating_retort = loader_instance.create_validating_retort(dataclass_)
     validation_loader = validating_retort.get_loader(dataclass_)
-    raw_data = _coerce_flag_fields(raw_data, dataclass_)
+    raw_data = coerce_flag_fields(raw_data, dataclass_)
 
     try:
         handle_load_errors(

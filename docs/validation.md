@@ -6,9 +6,17 @@ dature supports multiple validation approaches: `Annotated` type hints, root val
 
 Declare validators using `typing.Annotated`:
 
-```python
---8<-- "examples/docs/validation_annotated.py"
-```
+=== "Python"
+
+    ```python
+    --8<-- "examples/docs/validation_annotated.py"
+    ```
+
+=== "validated.json5"
+
+    ```json5
+    --8<-- "examples/docs/sources/validated.json5"
+    ```
 
 ### Available Validators
 
@@ -48,9 +56,17 @@ tags: Annotated[list[str], MinItems(value=1), MaxItems(value=10), UniqueItems()]
 
 Validate the entire object after loading:
 
-```python
---8<-- "examples/docs/validation_root.py"
-```
+=== "Python"
+
+    ```python
+    --8<-- "examples/docs/validation_root.py"
+    ```
+
+=== "app.yaml"
+
+    ```yaml
+    --8<-- "examples/docs/sources/app.yaml"
+    ```
 
 Root validators receive the fully constructed dataclass instance and return `True` if valid.
 
@@ -58,9 +74,17 @@ Root validators receive the fully constructed dataclass instance and return `Tru
 
 Field validators can be specified in `LoadMetadata` using the `validators` parameter. Useful when the same dataclass is loaded from different sources with different validation rules. These validators **complement** (not replace) any `Annotated` validators:
 
-```python
---8<-- "examples/docs/validation_metadata.py"
-```
+=== "Python"
+
+    ```python
+    --8<-- "examples/docs/validation_metadata.py"
+    ```
+
+=== "app.yaml"
+
+    ```yaml
+    --8<-- "examples/docs/sources/app.yaml"
+    ```
 
 A single validator can be passed directly. Multiple validators require a tuple:
 
@@ -84,9 +108,17 @@ validators={
 
 Create your own validators by implementing `get_validator_func()` and `get_error_message()`. The validator must be a frozen dataclass:
 
-```python
---8<-- "examples/docs/validation_custom.py"
-```
+=== "Python"
+
+    ```python
+    --8<-- "examples/docs/validation_custom.py"
+    ```
+
+=== "validated.json5"
+
+    ```json5
+    --8<-- "examples/docs/sources/validated.json5"
+    ```
 
 On validation failure:
 
@@ -104,22 +136,100 @@ Custom validators can be combined with built-in ones in `Annotated`.
 
 Standard dataclass `__post_init__` and `@property` work as expected — dature preserves them during loading:
 
-```python
---8<-- "examples/docs/validation_post_init.py"
-```
+=== "Python"
+
+    ```python
+    --8<-- "examples/docs/validation_post_init.py"
+    ```
+
+=== "app.yaml"
+
+    ```yaml
+    --8<-- "examples/docs/sources/app.yaml"
+    ```
 
 Both approaches work in function mode and decorator mode.
 
 ## Error Format
 
-Validation errors include source location and context:
+Validation errors include source location and context. The format varies by source type:
 
-```
-Config loading errors (1)
+=== "YAML"
 
-  [port]  Value must be >= 1
-   └── FILE 'config.json5', line 2
-       port: -1
-```
+    ```
+    Config loading errors (1)
+
+      [port]  Value must be >= 1
+       └── FILE 'config.yaml', line 1
+           port: -1
+    ```
+
+=== "JSON"
+
+    ```
+    Config loading errors (1)
+
+      [port]  Value must be >= 1
+       └── FILE 'config.json', line 1
+           {"port": -1}
+    ```
+
+=== "JSON5"
+
+    ```
+    Config loading errors (1)
+
+      [port]  Value must be >= 1
+       └── FILE 'config.json5', line 1
+           {port: -1}
+    ```
+
+=== "TOML"
+
+    ```
+    Config loading errors (1)
+
+      [port]  Value must be >= 1
+       └── FILE 'config.toml', line 1
+           port = -1
+    ```
+
+=== "ENV file"
+
+    ```
+    Config loading errors (1)
+
+      [port]  Value must be >= 1
+       └── ENV FILE '.env', line 1
+           PORT=-1
+    ```
+
+=== "ENV"
+
+    ```
+    Config loading errors (1)
+
+      [port]  Value must be >= 1
+       └── ENV 'APP_PORT'
+    ```
+
+=== "INI"
+
+    ```
+    Config loading errors (1)
+
+      [port]  Value must be >= 1
+       └── FILE 'config.ini', line 2
+           port = -1
+    ```
+
+=== "Docker Secrets"
+
+    ```
+    Config loading errors (1)
+
+      [port]  Value must be >= 1
+       └── SECRET FILE '/run/secrets/port'
+    ```
 
 All field errors are collected and reported together — dature doesn't stop at the first error.

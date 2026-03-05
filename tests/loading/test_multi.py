@@ -1,6 +1,7 @@
 """Tests for loading/multi.py — multi-source config loading."""
 
 from dataclasses import dataclass
+from enum import Flag
 from pathlib import Path
 from textwrap import dedent
 
@@ -681,3 +682,110 @@ class TestMergeWithYamlAndEnvFile:
 
         assert result.host == "localhost"
         assert result.port == 9090
+
+
+class _Permission(Flag):
+    READ = 1
+    WRITE = 2
+    EXECUTE = 4
+
+
+class TestCoerceFlagFieldsMergeMode:
+    def test_flag_from_env_file_merge(self, tmp_path: Path):
+        json_file = tmp_path / "defaults.json"
+        json_file.write_text('{"name": "app"}')
+
+        env_file = tmp_path / "overrides.env"
+        env_file.write_text("PERMS=3\n")
+
+        @dataclass
+        class Config:
+            name: str
+            perms: _Permission
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(json_file)),
+                    LoadMetadata(file_=str(env_file)),
+                ),
+            ),
+            Config,
+        )
+
+        assert result.perms == _Permission.READ | _Permission.WRITE
+
+    def test_flag_from_env_vars_merge(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+        json_file = tmp_path / "defaults.json"
+        json_file.write_text('{"name": "app"}')
+
+        monkeypatch.setenv("APP_PERMS", "5")
+
+        @dataclass
+        class Config:
+            name: str
+            perms: _Permission
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(json_file)),
+                    LoadMetadata(prefix="APP_"),
+                ),
+            ),
+            Config,
+        )
+
+        assert result.perms == _Permission.READ | _Permission.EXECUTE
+
+    def test_flag_from_json_merge_as_int(self, tmp_path: Path):
+        a = tmp_path / "a.json"
+        a.write_text('{"name": "app"}')
+
+        b = tmp_path / "b.json"
+        b.write_text('{"perms": 7}')
+
+        @dataclass
+        class Config:
+            name: str
+            perms: _Permission
+
+        result = load(
+            MergeMetadata(
+                sources=(
+                    LoadMetadata(file_=str(a)),
+                    LoadMetadata(file_=str(b)),
+                ),
+            ),
+            Config,
+        )
+
+        assert result.perms == _Permission.READ | _Permission.WRITE | _Permission.EXECUTE
+
+    def test_flag_decorator_merge_from_env_file(self, tmp_path: Path):
+        json_file = tmp_path / "defaults.json"
+        json_file.write_text('{"name": "app"}')
+
+        env_file = tmp_path / "overrides.env"
+        env_file.write_text("PERMS=6\n")
+
+        @dataclass
+        class Config:
+            name: str
+            perms: _Permission
+
+        meta = MergeMetadata(
+            sources=(
+                LoadMetadata(file_=str(json_file)),
+                LoadMetadata(file_=str(env_file)),
+            ),
+        )
+
+        @load(meta)
+        @dataclass
+        class MergedConfig:
+            name: str
+            perms: _Permission
+
+        config = MergedConfig()
+        assert config.perms == _Permission.WRITE | _Permission.EXECUTE

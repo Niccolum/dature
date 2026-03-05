@@ -15,7 +15,13 @@ from dature.load_report import (
     compute_field_origins,
     get_load_report,
 )
-from dature.loading.context import build_error_ctx, ensure_retort, make_validating_post_init, merge_fields
+from dature.loading.context import (
+    build_error_ctx,
+    coerce_flag_fields,
+    ensure_retort,
+    make_validating_post_init,
+    merge_fields,
+)
 from dature.loading.resolver import resolve_loader
 from dature.loading.source_loading import load_sources, resolve_expand_env_vars
 from dature.masking.detection import build_secret_paths
@@ -349,6 +355,7 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901
         )
 
     last_error_ctx = loaded.source_ctxs[-1][0]
+    merged = coerce_flag_fields(merged, dataclass_)
     try:
         result = handle_load_errors(
             func=lambda: loaded.last_loader.transform_to_dataclass(merged, dataclass_),
