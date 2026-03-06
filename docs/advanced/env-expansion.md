@@ -37,24 +37,43 @@ String values in all file formats support environment variable expansion:
 
 Set the mode on `LoadMetadata`:
 
-```python
-config = load(LoadMetadata(file_="config.yaml", expand_env_vars="strict"), Config)
-```
+=== "Python"
+
+    ```python
+    --8<-- "examples/docs/advanced_env_expansion_strict.py"
+    ```
+
+=== "env_expand.yaml"
+
+    ```yaml
+    --8<-- "examples/docs/sources/env_expand.yaml"
+    ```
 
 For merge mode, set on `MergeMetadata` as default for all sources:
 
-```python
-config = load(
-    MergeMetadata(
-        sources=(
-            LoadMetadata(file_="defaults.yaml"),
-            LoadMetadata(file_="overrides.yaml", expand_env_vars="disabled"),  # override per source
-        ),
-        expand_env_vars="strict",  # default for all sources
-    ),
-    Config,
-)
-```
+=== "Python"
+
+    ```python
+    --8<-- "examples/docs/advanced_env_expansion_merge.py"
+    ```
+
+=== "env_expand_mode_default.yaml"
+
+    ```yaml
+    --8<-- "examples/docs/sources/env_expand_mode_default.yaml"
+    ```
+
+=== "env_expand_mode_empty.yaml"
+
+    ```yaml
+    --8<-- "examples/docs/sources/env_expand_mode_empty.yaml"
+    ```
+
+=== "env_expand_mode_disabled.yaml"
+
+    ```yaml
+    --8<-- "examples/docs/sources/env_expand_mode_disabled.yaml"
+    ```
 
 In `"strict"` mode, all missing variables are collected and reported at once:
 
