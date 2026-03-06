@@ -16,6 +16,7 @@ class Config:
     password: str
     host: str
     card_number: PaymentCardNumber
+    metadata: str
 
 
 config = load(LoadMetadata(file_=str(SOURCES_DIR / "secrets.yaml")), Config)
@@ -23,6 +24,7 @@ config = load(LoadMetadata(file_=str(SOURCES_DIR / "secrets.yaml")), Config)
 print(f"api_key (masked): {config.api_key}")  # api_key (masked): **********
 print(f"api_key (real): {config.api_key.get_secret_value()}")  # api_key (real): sk-proj-abc123def456
 print(f"host: {config.host}")  # host: api.example.com
-print(f"password: {config.password}")  # password: my_secret_password
+print(f"password: {config.password}")  # password: **********
 print(f"card (masked): {config.card_number}")  # card (masked): ************1111
 print(f"card brand: {config.card_number.brand}")  # card brand: Visa
+print(f"metadata: {config.metadata}")  # metadata: aK9$mP2xL5vQ8wR3nJ7yB4zT6

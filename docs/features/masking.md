@@ -68,6 +68,20 @@ dature uses three methods to identify secrets:
     [Config] Loaded data: {'host': 'api.example.com', 'password': 'my**************rd', 'api_key': 'sk**********56'}
     ```
 
+=== "Heuristic"
+
+    With `dature[secure]`, values that look like random tokens are masked even if the field name is neutral:
+
+    ```python
+    --8<-- "examples/docs/masking_heuristic.py"
+    ```
+
+    Debug logs show masked data:
+
+    ```
+    [Config] Loaded data: {'host': 'api.example.com', 'password': 'my**************rd', 'api_key': 'sk**********56', 'card_number': '41**********11', 'metadata': 'aK********************T6'}
+    ```
+
 ## Mask Format
 
 - Strings longer than 4 characters: first 2 and last 2 characters visible, rest replaced with `*`
