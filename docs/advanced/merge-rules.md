@@ -1,20 +1,32 @@
 # Merge Rules
 
-Override the global merge strategy for individual fields. All available `FieldMergeStrategy` values:
+## How Merging Works
 
-| Strategy | Behavior |
-|----------|----------|
-| `FIRST_WINS` | Keep the value from the first source |
-| `LAST_WINS` | Keep the value from the last source |
-| `APPEND` | Concatenate lists: `base + override` |
-| `APPEND_UNIQUE` | Concatenate lists, removing duplicates |
-| `PREPEND` | Concatenate lists: `override + base` |
-| `PREPEND_UNIQUE` | Concatenate lists in reverse order, removing duplicates |
+```mermaid
+graph TD
+    A[Source 1: defaults.yaml] --> D[Load & Parse]
+    B[Source 2: overrides.yaml] --> E[Load & Parse]
+    C[Source 3: ENV vars] --> F[Load & Parse]
+    D --> G[Raw Dict 1]
+    E --> H[Raw Dict 2]
+    F --> I[Raw Dict 3]
+    G --> J{Merge Strategy}
+    H --> J
+    I --> J
+    J --> K[Merged Dict]
+    K --> L[Type Conversion]
+    L --> M[Validation]
+    M --> N[Dataclass Instance]
+```
+
+## Per-Field Merge Strategies
+
+Override the global strategy for individual fields using `field_merges`:
 
 === "Python"
 
     ```python
-    --8<-- "examples/docs/advanced_merge_rules.py"
+    --8<-- "examples/docs/merging_field_merges.py"
     ```
 
 === "defaults.yaml"
@@ -28,6 +40,21 @@ Override the global merge strategy for individual fields. All available `FieldMe
     ```yaml
     --8<-- "examples/docs/sources/overrides.yaml"
     ```
+
+All available `FieldMergeStrategy` values:
+
+| Strategy | Behavior |
+|----------|----------|
+| `FIRST_WINS` | Keep the value from the first source |
+| `LAST_WINS` | Keep the value from the last source |
+| `APPEND` | Concatenate lists: `base + override` |
+| `APPEND_UNIQUE` | Concatenate lists, removing duplicates |
+| `PREPEND` | Concatenate lists: `override + base` |
+| `PREPEND_UNIQUE` | Concatenate lists in reverse order, removing duplicates |
+
+Nested fields are supported: `F[Config].database.host`.
+
+Per-field strategies work with `RAISE_ON_CONFLICT` — fields with an explicit strategy are excluded from conflict detection.
 
 ## With RAISE_ON_CONFLICT
 
@@ -74,6 +101,40 @@ You can also pass a callable as the strategy:
     ```
 
 The callable receives a `list[JSONValue]` (one value per source) and returns the merged value.
+
+## Field Groups
+
+Ensure that related fields are always overridden together. If a source changes some fields in a group but not others, `FieldGroupError` is raised:
+
+=== "Python"
+
+    ```python
+    --8<-- "examples/docs/merging_field_groups.py"
+    ```
+
+=== "field_groups_defaults.yaml"
+
+    ```yaml
+    --8<-- "examples/docs/sources/field_groups_defaults.yaml"
+    ```
+
+=== "field_groups_overrides.yaml"
+
+    ```yaml
+    --8<-- "examples/docs/sources/field_groups_overrides.yaml"
+    ```
+
+If `overrides.yaml` changes `host` and `port` together, the group constraint is satisfied. If it changed only `host` but not `port`, loading would fail:
+
+```
+Config field group errors (1)
+
+  Field group (host, port) partially overridden in source 1
+    changed:   host (from source yaml 'overrides.yaml')
+    unchanged: port (from source yaml 'defaults.yaml')
+```
+
+For nested dataclass expansion and multiple groups, see [Field Groups](field-groups.md).
 
 ## Skipping Broken Sources
 

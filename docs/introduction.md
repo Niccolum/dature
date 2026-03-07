@@ -133,21 +133,7 @@ LoadMetadata(file_="config.yaml", loader=Yaml11Loader)
 ## LoadMetadata Reference
 
 ```python
-@dataclass(frozen=True, slots=True, kw_only=True)
-class LoadMetadata:
-    file_: str | None = None
-    loader: type[LoaderProtocol] | None = None
-    prefix: DotSeparatedPath | None = None
-    split_symbols: str = "__"
-    name_style: NameStyle | None = None
-    field_mapping: FieldMapping | None = None
-    root_validators: tuple[ValidatorProtocol, ...] | None = None
-    validators: FieldValidators | None = None
-    expand_env_vars: ExpandEnvVarsMode | None = None
-    skip_if_broken: bool | None = None
-    skip_if_invalid: bool | tuple[FieldPath, ...] | None = None
-    secret_field_names: tuple[str, ...] | None = None
-    mask_secrets: bool | None = None
+--8<-- "src/dature/metadata.py:load-metadata"
 ```
 
 | Parameter | Description |

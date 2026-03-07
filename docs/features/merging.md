@@ -88,92 +88,20 @@ Works as a decorator too:
 
 Nested dicts are merged recursively. Lists and scalars are replaced entirely according to the strategy.
 
-### How Merging Works
+## MergeMetadata Reference
 
-```mermaid
-graph TD
-    A[Source 1: defaults.yaml] --> D[Load & Parse]
-    B[Source 2: overrides.yaml] --> E[Load & Parse]
-    C[Source 3: ENV vars] --> F[Load & Parse]
-    D --> G[Raw Dict 1]
-    E --> H[Raw Dict 2]
-    F --> I[Raw Dict 3]
-    G --> J{Merge Strategy}
-    H --> J
-    I --> J
-    J --> K[Merged Dict]
-    K --> L[Type Conversion]
-    L --> M[Validation]
-    M --> N[Dataclass Instance]
+```python
+--8<-- "src/dature/metadata.py:merge-metadata"
 ```
 
-## Per-Field Merge Strategies
-
-Override the global strategy for individual fields using `field_merges`:
-
-=== "Python"
-
-    ```python
-    --8<-- "examples/docs/merging_field_merges.py"
-    ```
-
-=== "defaults.yaml"
-
-    ```yaml
-    --8<-- "examples/docs/sources/defaults.yaml"
-    ```
-
-=== "overrides.yaml"
-
-    ```yaml
-    --8<-- "examples/docs/sources/overrides.yaml"
-    ```
-
-| Strategy | Behavior |
-|----------|----------|
-| `FIRST_WINS` | Keep the value from the first source |
-| `LAST_WINS` | Keep the value from the last source |
-| `APPEND` | Concatenate lists: `base + override` |
-| `APPEND_UNIQUE` | Concatenate lists, removing duplicates |
-| `PREPEND` | Concatenate lists: `override + base` |
-| `PREPEND_UNIQUE` | Concatenate lists in reverse order, removing duplicates |
-
-Nested fields are supported: `F[Config].database.host`.
-
-Per-field strategies work with `RAISE_ON_CONFLICT` — fields with an explicit strategy are excluded from conflict detection.
-
-For more details, see [Advanced — Merge Rules](../advanced/merge-rules.md).
-
-## Field Groups
-
-Ensure that related fields are always overridden together. If a source changes some fields in a group but not others, `FieldGroupError` is raised:
-
-=== "Python"
-
-    ```python
-    --8<-- "examples/docs/merging_field_groups.py"
-    ```
-
-=== "field_groups_defaults.yaml"
-
-    ```yaml
-    --8<-- "examples/docs/sources/field_groups_defaults.yaml"
-    ```
-
-=== "field_groups_overrides.yaml"
-
-    ```yaml
-    --8<-- "examples/docs/sources/field_groups_overrides.yaml"
-    ```
-
-If `overrides.yaml` changes `host` and `port` together, the group constraint is satisfied. If it changed only `host` but not `port`, loading would fail:
-
-```
-Config field group errors (1)
-
-  Field group (host, port) partially overridden in source 1
-    changed:   host (from source yaml 'overrides.yaml')
-    unchanged: port (from source yaml 'defaults.yaml')
-```
-
-For nested dataclass expansion and multiple groups, see [Advanced — Field Groups](../advanced/field-groups.md).
+| Parameter | Description |
+|-----------|-------------|
+| `sources` | Tuple of `LoadMetadata` descriptors — one per source to merge |
+| `strategy` | Global merge strategy. Default: `LAST_WINS`. See [Merge Strategies](#merge-strategies) |
+| `field_merges` | Per-field merge strategy overrides. See [Per-Field Merge Strategies](../advanced/merge-rules.md#per-field-merge-strategies) |
+| `field_groups` | Enforce related fields are overridden together. See [Field Groups](../advanced/merge-rules.md#field-groups) |
+| `skip_broken_sources` | Skip sources that fail to load. See [Skipping Broken Sources](../advanced/merge-rules.md#skipping-broken-sources) |
+| `skip_invalid_fields` | Drop fields with invalid values. See [Skipping Invalid Fields](../advanced/merge-rules.md#skipping-invalid-fields) |
+| `expand_env_vars` | ENV variable expansion mode. See [ENV Expansion](../advanced/env-expansion.md) |
+| `secret_field_names` | Extra secret name patterns for masking. See [Masking](masking.md) |
+| `mask_secrets` | Enable/disable secret masking for all sources. See [Masking](masking.md) |
