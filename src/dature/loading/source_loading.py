@@ -33,6 +33,10 @@ def resolve_loader_for_source(
 
 def should_skip_broken(source_meta: LoadMetadata, merge_meta: MergeMetadata) -> bool:
     if source_meta.skip_if_broken is not None:
+        if source_meta.file_ is None:
+            logger.warning(
+                "skip_if_broken has no effect on environment variable sources — they cannot be broken",
+            )
         return source_meta.skip_if_broken
     return merge_meta.skip_broken_sources
 
@@ -89,12 +93,25 @@ def apply_merge_skip_invalid(
 
 
 @dataclass(frozen=True, slots=True)
+class SourceContext:
+    error_ctx: ErrorContext
+    file_content: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class SkippedFieldSource:
+    metadata: LoadMetadata
+    error_ctx: ErrorContext
+    file_content: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class LoadedSources:
     raw_dicts: list[JSONValue]
-    source_ctxs: list[tuple[ErrorContext, str | None]]
+    source_ctxs: list[SourceContext]
     source_entries: list[SourceEntry]
     last_loader: LoaderProtocol
-    skipped_fields: dict[str, list[LoadMetadata]]
+    skipped_fields: dict[str, list[SkippedFieldSource]]
 
 
 def load_sources(  # noqa: C901
@@ -106,10 +123,10 @@ def load_sources(  # noqa: C901
     secret_paths: frozenset[str] = frozenset(),
 ) -> LoadedSources:
     raw_dicts: list[JSONValue] = []
-    source_ctxs: list[tuple[ErrorContext, str | None]] = []
+    source_ctxs: list[SourceContext] = []
     source_entries: list[SourceEntry] = []
     last_loader: LoaderProtocol | None = None
-    skipped_fields: dict[str, list[LoadMetadata]] = {}
+    skipped_fields: dict[str, list[SkippedFieldSource]] = {}
 
     for i, source_meta in enumerate(merge_meta.sources):
         resolved_expand = resolve_expand_env_vars(source_meta, merge_meta)
@@ -163,6 +180,8 @@ def load_sources(  # noqa: C901
             )
             continue
 
+        file_content = read_file_content(error_ctx.file_path)
+
         filter_result = apply_merge_skip_invalid(
             raw=raw,
             source_meta=source_meta,
@@ -173,7 +192,9 @@ def load_sources(  # noqa: C901
         )
 
         for path in filter_result.skipped_paths:
-            skipped_fields.setdefault(path, []).append(source_meta)
+            skipped_fields.setdefault(path, []).append(
+                SkippedFieldSource(metadata=source_meta, error_ctx=error_ctx, file_content=file_content),
+            )
 
         raw = filter_result.cleaned_dict
         raw_dicts.append(raw)
@@ -209,8 +230,7 @@ def load_sources(  # noqa: C901
             ),
         )
 
-        file_content = read_file_content(error_ctx.file_path)
-        source_ctxs.append((error_ctx, file_content))
+        source_ctxs.append(SourceContext(error_ctx=error_ctx, file_content=file_content))
         last_loader = loader_instance
 
     if last_loader is None:

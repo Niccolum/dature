@@ -32,6 +32,7 @@ class FieldMergeStrategy(StrEnum):
     PREPEND_UNIQUE = "prepend_unique"
 
 
+# --8<-- [start:load-metadata]
 @dataclass(frozen=True, slots=True, kw_only=True)
 class LoadMetadata:
     file_: str | None = None
@@ -47,6 +48,7 @@ class LoadMetadata:
     skip_if_invalid: "bool | tuple[FieldPath, ...] | None" = None
     secret_field_names: tuple[str, ...] | None = None
     mask_secrets: bool | None = None
+    # --8<-- [end:load-metadata]
 
     def __repr__(self) -> str:
         loader_class = resolve_loader_class(self.loader, self.file_)
@@ -70,6 +72,7 @@ class FieldGroup:
         object.__setattr__(self, "fields", fields)
 
 
+# --8<-- [start:merge-metadata]
 @dataclass(frozen=True, slots=True, kw_only=True)
 class MergeMetadata:
     sources: tuple[LoadMetadata, ...]
@@ -81,3 +84,6 @@ class MergeMetadata:
     expand_env_vars: "ExpandEnvVarsMode" = "default"
     secret_field_names: tuple[str, ...] | None = None
     mask_secrets: bool | None = None
+
+
+# --8<-- [end:merge-metadata]

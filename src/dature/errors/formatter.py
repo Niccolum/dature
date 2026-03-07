@@ -26,7 +26,7 @@ from dature.errors.location import ErrorContext, read_file_content, resolve_sour
 from dature.masking.masking import mask_value
 
 if TYPE_CHECKING:
-    from dature.metadata import LoadMetadata
+    from dature.loading.source_loading import SkippedFieldSource
 
 
 def _describe_error(exc: BaseException, *, is_secret: bool = False) -> str:
@@ -113,8 +113,15 @@ def handle_load_errors[T](
     try:
         return func()
     except EnvVarExpandError as exc:
-        missing = [e for e in exc.exceptions if isinstance(e, MissingEnvVarError)]
-        raise EnvVarExpandError(missing, dataclass_name=ctx.dataclass_name) from exc
+        file_content = read_file_content(ctx.file_path)
+        enriched_env: list[MissingEnvVarError] = []
+        for e in exc.exceptions:
+            if not isinstance(e, MissingEnvVarError):
+                continue
+            location = resolve_source_location(e.field_path, ctx, file_content)
+            e.location = location
+            enriched_env.append(e)
+        raise EnvVarExpandError(enriched_env, dataclass_name=ctx.dataclass_name) from exc
     except (AggregateLoadError, LoadError) as exc:
         file_content = read_file_content(ctx.file_path)
         field_errors = extract_field_errors(exc, secret_paths=ctx.secret_paths)
@@ -126,7 +133,7 @@ def handle_load_errors[T](
                     field_path=fe.field_path,
                     message=fe.message,
                     input_value=fe.input_value,
-                    location=location,
+                    locations=[location],
                 ),
             )
         raise DatureConfigError(ctx.dataclass_name, enriched) from exc
@@ -134,7 +141,7 @@ def handle_load_errors[T](
 
 def enrich_skipped_errors(
     err: DatureConfigError,
-    skipped_fields: "dict[str, list[LoadMetadata]]",
+    skipped_fields: "dict[str, list[SkippedFieldSource]]",
 ) -> DatureConfigError:
     updated: list[DatureError] = []
     for exc in err.exceptions:
@@ -153,13 +160,14 @@ def enrich_skipped_errors(
             updated.append(exc)
             continue
 
-        source_reprs = ", ".join(repr(meta) for meta in sources)
+        source_reprs = ", ".join(repr(s.metadata) for s in sources)
+        locations = [resolve_source_location(exc.field_path, s.error_ctx, s.file_content) for s in sources]
         updated.append(
             FieldLoadError(
                 field_path=exc.field_path,
                 message=f"Missing required field (invalid in: {source_reprs})",
                 input_value=exc.input_value,
-                location=exc.location,
+                locations=locations,
             ),
         )
     return DatureConfigError(err.dataclass_name, updated)

@@ -1,12 +1,14 @@
 """Tests for loading/single.py."""
 
 from dataclasses import dataclass
+from enum import Flag
 from pathlib import Path
 
 import pytest
 
 from dature.loading.single import load_as_function, make_decorator
 from dature.metadata import LoadMetadata
+from dature.sources_loader.env_ import EnvFileLoader
 from dature.sources_loader.json_ import JsonLoader
 
 
@@ -287,3 +289,97 @@ class TestLoadAsFunction:
         )
 
         assert result.name == "nested"
+
+
+class _Permission(Flag):
+    READ = 1
+    WRITE = 2
+    EXECUTE = 4
+
+
+class TestCoerceFlagFieldsFunctionMode:
+    def test_flag_from_env_file(self, tmp_path: Path):
+        env_file = tmp_path / "config.env"
+        env_file.write_text("NAME=test\nPERMS=3\n")
+        metadata = LoadMetadata(file_=str(env_file), loader=EnvFileLoader)
+
+        @dataclass
+        class Config:
+            name: str
+            perms: _Permission
+
+        result = load_as_function(
+            loader_instance=EnvFileLoader(),
+            file_path=env_file,
+            dataclass_=Config,
+            metadata=metadata,
+            debug=False,
+        )
+
+        assert result.perms == _Permission.READ | _Permission.WRITE
+
+    def test_flag_from_json_as_int(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"name": "test", "perms": 3}')
+        metadata = LoadMetadata(file_=str(json_file))
+
+        @dataclass
+        class Config:
+            name: str
+            perms: _Permission
+
+        result = load_as_function(
+            loader_instance=JsonLoader(),
+            file_path=json_file,
+            dataclass_=Config,
+            metadata=metadata,
+            debug=False,
+        )
+
+        assert result.perms == _Permission.READ | _Permission.WRITE
+
+
+class TestCoerceFlagFieldsDecoratorMode:
+    def test_flag_from_env_file(self, tmp_path: Path):
+        env_file = tmp_path / "config.env"
+        env_file.write_text("NAME=test\nPERMS=5\n")
+        metadata = LoadMetadata(file_=str(env_file), loader=EnvFileLoader)
+
+        @dataclass
+        class Config:
+            name: str
+            perms: _Permission
+
+        decorator = make_decorator(
+            loader_instance=EnvFileLoader(),
+            file_path=env_file,
+            metadata=metadata,
+            cache=True,
+            debug=False,
+        )
+        decorator(Config)
+
+        config = Config()
+        assert config.perms == _Permission.READ | _Permission.EXECUTE
+
+    def test_flag_from_json_as_int(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text('{"name": "test", "perms": 7}')
+        metadata = LoadMetadata(file_=str(json_file))
+
+        @dataclass
+        class Config:
+            name: str
+            perms: _Permission
+
+        decorator = make_decorator(
+            loader_instance=JsonLoader(),
+            file_path=json_file,
+            metadata=metadata,
+            cache=True,
+            debug=False,
+        )
+        decorator(Config)
+
+        config = Config()
+        assert config.perms == _Permission.READ | _Permission.WRITE | _Permission.EXECUTE
