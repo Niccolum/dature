@@ -60,6 +60,9 @@ class PaymentCardNumber:
 
         self._number = cleaned
 
+    def get_raw_number(self) -> str:
+        return self._number
+
     @staticmethod
     def _luhn_check(number: str) -> bool:
         total = 0

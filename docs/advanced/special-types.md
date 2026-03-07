@@ -2,20 +2,20 @@
 
 ## SecretStr
 
-See [Masking — Examples](../features/masking.md#examples).
+Wraps a string value so it is never exposed in `str()`, `repr()`, or logs:
+
+```python
+--8<-- "examples/docs/advanced_special_secret_str.py"
+```
+
+Works with `mask_secrets=True` — fields of type `SecretStr` are always detected regardless of field name.
 
 ## ByteSize
 
-Parses human-readable sizes:
+Parses human-readable sizes into bytes. Supports comparison operators.
 
 ```python
-from dature.fields.byte_size import ByteSize
-
-@dataclass
-class Config:
-    max_upload: ByteSize
-
-# config.yaml: { max_upload: "1.5 GB" }
+--8<-- "examples/docs/advanced_special_byte_size.py"
 ```
 
 Supported units: B, KB, MB, GB, TB, PB, KiB, MiB, GiB, TiB, PiB.
@@ -25,56 +25,21 @@ Supported units: B, KB, MB, GB, TB, PB, KiB, MiB, GiB, TiB, PiB.
 Validates using the Luhn algorithm and detects the brand:
 
 ```python
-from dature.fields.payment_card import PaymentCardNumber
-
-@dataclass
-class Config:
-    card: PaymentCardNumber
-
-config = load(meta, Config)
-print(config.card.brand)   # Visa
-print(config.card.masked)  # ************1111
+--8<-- "examples/docs/advanced_special_payment_card.py"
 ```
 
 ## URL
 
-Parsed into `urllib.parse.ParseResult`:
+Type alias for `urllib.parse.ParseResult`:
 
 ```python
-from dature.types import URL
-
-@dataclass
-class Config:
-    api_url: URL
-
-config = load(meta, Config)
-print(config.api_url.scheme)  # https
-print(config.api_url.netloc)  # api.example.com
+--8<-- "examples/docs/advanced_special_url.py"
 ```
 
 ## Base64UrlBytes / Base64UrlStr
 
-Decoded from Base64 string in the config:
+Type aliases decoded from Base64 string in the config. `Base64UrlStr` decodes to `str`, `Base64UrlBytes` decodes to `bytes`:
 
 ```python
-from dature.types import Base64UrlBytes, Base64UrlStr
-
-@dataclass
-class Config:
-    token: Base64UrlStr      # decoded to str
-    data: Base64UrlBytes     # decoded to bytes
+--8<-- "examples/docs/advanced_special_base64.py"
 ```
-
-Full example:
-
-=== "Python"
-
-    ```python
-    --8<-- "examples/docs/advanced_special_types.py"
-    ```
-
-=== "special_types.yaml"
-
-    ```yaml
-    --8<-- "examples/docs/sources/special_types.yaml"
-    ```
