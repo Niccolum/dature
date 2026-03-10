@@ -1,6 +1,7 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from dature.loading.resolver import resolve_loader_class
 from dature.types import FILE_LIKE_TYPES
@@ -18,6 +19,16 @@ if TYPE_CHECKING:
         FilePath,
         NameStyle,
     )
+
+
+# --8<-- [start:type-loader]
+@dataclass(frozen=True, slots=True)
+class TypeLoader:
+    type_: type
+    func: Callable[..., Any]
+
+
+# --8<-- [end:type-loader]
 
 
 # --8<-- [start:merge-strategy]
@@ -59,6 +70,7 @@ class LoadMetadata:
     skip_if_invalid: "bool | tuple[FieldPath, ...] | None" = None
     secret_field_names: tuple[str, ...] | None = None
     mask_secrets: bool | None = None
+    type_loaders: "tuple[TypeLoader, ...] | None" = None
     # --8<-- [end:load-metadata]
 
     def __repr__(self) -> str:
@@ -105,6 +117,7 @@ class MergeMetadata:
     expand_env_vars: "ExpandEnvVarsMode" = "default"
     secret_field_names: tuple[str, ...] | None = None
     mask_secrets: bool | None = None
+    type_loaders: "tuple[TypeLoader, ...] | None" = None
 
 
 # --8<-- [end:merge-metadata]

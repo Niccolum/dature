@@ -8,7 +8,7 @@ from dature.sources_loader.json_ import JsonLoader
 from dature.types import FILE_LIKE_TYPES, ExpandEnvVarsMode
 
 if TYPE_CHECKING:
-    from dature.metadata import LoadMetadata
+    from dature.metadata import LoadMetadata, TypeLoader
     from dature.protocols import LoaderProtocol
     from dature.types import FileLike, FilePath
 
@@ -107,6 +107,7 @@ def resolve_loader(
     metadata: "LoadMetadata",
     *,
     expand_env_vars: ExpandEnvVarsMode | None = None,
+    type_loaders: "tuple[TypeLoader, ...]" = (),
 ) -> "LoaderProtocol":
     loader_class = resolve_loader_class(metadata.loader, metadata.file_)
 
@@ -119,6 +120,7 @@ def resolve_loader(
         "root_validators": metadata.root_validators,
         "validators": metadata.validators,
         "expand_env_vars": resolved_expand,
+        "type_loaders": type_loaders,
     }
 
     if issubclass(loader_class, (EnvLoader, DockerSecretsLoader)):

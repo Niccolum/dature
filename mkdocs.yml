@@ -43,6 +43,7 @@ nav:
   - Getting Started:
     - Home: index.md
     - Introduction: introduction.md
+    - Supported Types: supported_types.md
   - Features:
     - Naming: features/naming.md
     - Validation: features/validation.md
@@ -56,6 +57,7 @@ nav:
     - Debug & Reports: advanced/debug.md
     - Caching: advanced/caching.md
     - Configure: advanced/configure.md
+    - Custom Types & Loaders: advanced/custom_types.md
   - Reference:
     - API Reference: api-reference.md
     - Changelog: changelog.md
@@ -73,6 +75,7 @@ plugins:
       sections:
         Getting Started:
           - introduction.md
+          - supported_types.md
         Features:
           - features/naming.md
           - features/validation.md
@@ -86,6 +89,7 @@ plugins:
           - advanced/debug.md
           - advanced/caching.md
           - advanced/configure.md
+          - advanced/custom_types.md
         Reference:
           - api-reference.md
           - changelog.md

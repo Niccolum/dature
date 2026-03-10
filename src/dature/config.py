@@ -1,8 +1,11 @@
 from dataclasses import dataclass
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from dature.validators.number import Ge
 from dature.validators.string import MaxLength, MinLength
+
+if TYPE_CHECKING:
+    from dature.metadata import TypeLoader
 
 
 # --8<-- [start:masking-config]
@@ -69,6 +72,7 @@ def _load_config() -> DatureConfig:
 class _ConfigProxy:
     _instance: DatureConfig | None = None
     _loading: bool = False
+    _type_loaders: "tuple[TypeLoader, ...]" = ()
 
     @staticmethod
     def ensure_loaded() -> DatureConfig:
@@ -87,6 +91,10 @@ class _ConfigProxy:
     def set_instance(value: DatureConfig | None) -> None:
         _ConfigProxy._instance = value
 
+    @staticmethod
+    def set_type_loaders(value: "tuple[TypeLoader, ...]") -> None:
+        _ConfigProxy._type_loaders = value
+
     @property
     def masking(self) -> MaskingConfig:
         return self.ensure_loaded().masking
@@ -99,6 +107,10 @@ class _ConfigProxy:
     def loading(self) -> LoadingConfig:
         return self.ensure_loaded().loading
 
+    @property
+    def type_loaders(self) -> "tuple[TypeLoader, ...]":
+        return _ConfigProxy._type_loaders
+
 
 config: _ConfigProxy = _ConfigProxy()
 
@@ -109,6 +121,7 @@ def configure(
     masking: MaskingConfig | None = None,
     error_display: ErrorDisplayConfig | None = None,
     loading: LoadingConfig | None = None,
+    type_loaders: "tuple[TypeLoader, ...] | None" = None,
 ) -> None:
     # --8<-- [end:configure]
     current = config.ensure_loaded()
@@ -125,3 +138,5 @@ def configure(
             loading=loading,
         ),
     )
+    if type_loaders is not None:
+        config.set_type_loaders(type_loaders)

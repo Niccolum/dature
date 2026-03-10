@@ -2,7 +2,7 @@ import io
 import os
 from collections.abc import Iterable
 from datetime import date, datetime, time
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from adaptix import loader
 from adaptix.provider import Provider
@@ -31,6 +31,9 @@ from dature.types import (
     NameStyle,
 )
 
+if TYPE_CHECKING:
+    from dature.metadata import TypeLoader
+
 
 def _set_nested(d: dict[str, JSONValue], keys: list[str], value: str) -> None:
     for key in keys[:-1]:
@@ -51,6 +54,7 @@ class EnvLoader(BaseLoader):
         root_validators: tuple[ValidatorProtocol, ...] | None = None,
         validators: FieldValidators | None = None,
         expand_env_vars: ExpandEnvVarsMode = "default",
+        type_loaders: "tuple[TypeLoader, ...]" = (),
     ) -> None:
         self._split_symbols = split_symbols
         super().__init__(
@@ -60,6 +64,7 @@ class EnvLoader(BaseLoader):
             root_validators=root_validators,
             validators=validators,
             expand_env_vars=expand_env_vars,
+            type_loaders=type_loaders,
         )
 
     def _additional_loaders(self) -> list[Provider]:

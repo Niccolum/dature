@@ -51,14 +51,16 @@ def load(
         metadata = MergeMetadata(sources=metadata)
 
     if isinstance(metadata, MergeMetadata):
+        merge_type_loaders = (metadata.type_loaders or ()) + config.type_loaders
         if dataclass_ is not None:
-            return merge_load_as_function(metadata, dataclass_, debug=debug)
-        return merge_make_decorator(metadata, cache=cache, debug=debug)
+            return merge_load_as_function(metadata, dataclass_, debug=debug, type_loaders=merge_type_loaders)
+        return merge_make_decorator(metadata, cache=cache, debug=debug, type_loaders=merge_type_loaders)
 
     if metadata is None:
         metadata = LoadMetadata()
 
-    loader_instance = resolve_loader(metadata)
+    type_loaders = (metadata.type_loaders or ()) + config.type_loaders
+    loader_instance = resolve_loader(metadata, type_loaders=type_loaders)
 
     file_or_path: FileOrStream
     if isinstance(metadata.file_, FILE_LIKE_TYPES):

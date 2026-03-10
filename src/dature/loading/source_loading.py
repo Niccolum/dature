@@ -11,7 +11,7 @@ from dature.load_report import SourceEntry
 from dature.loading.context import apply_skip_invalid, build_error_ctx
 from dature.loading.resolver import resolve_loader, resolve_loader_class
 from dature.masking.masking import mask_json_value
-from dature.metadata import LoadMetadata, MergeMetadata
+from dature.metadata import LoadMetadata, MergeMetadata, TypeLoader
 from dature.protocols import DataclassInstance, LoaderProtocol
 from dature.skip_field_provider import FilterResult
 from dature.types import FILE_LIKE_TYPES, ExpandEnvVarsMode, FileOrStream, JSONValue
@@ -25,10 +25,11 @@ def resolve_loader_for_source(
     index: int,
     source_meta: LoadMetadata,
     expand_env_vars: ExpandEnvVarsMode | None = None,
+    type_loaders: "tuple[TypeLoader, ...]" = (),
 ) -> LoaderProtocol:
     if loaders is not None:
         return loaders[index]
-    return resolve_loader(source_meta, expand_env_vars=expand_env_vars)
+    return resolve_loader(source_meta, expand_env_vars=expand_env_vars, type_loaders=type_loaders)
 
 
 def should_skip_broken(source_meta: LoadMetadata, merge_meta: MergeMetadata) -> bool:
@@ -121,6 +122,7 @@ def load_sources(  # noqa: C901, PLR0912, PLR0915
     dataclass_: type[DataclassInstance],
     loaders: tuple[LoaderProtocol, ...] | None = None,
     secret_paths: frozenset[str] = frozenset(),
+    type_loaders: "tuple[TypeLoader, ...]" = (),
 ) -> LoadedSources:
     raw_dicts: list[JSONValue] = []
     source_ctxs: list[SourceContext] = []
@@ -130,11 +132,13 @@ def load_sources(  # noqa: C901, PLR0912, PLR0915
 
     for i, source_meta in enumerate(merge_meta.sources):
         resolved_expand = resolve_expand_env_vars(source_meta, merge_meta)
+        source_type_loaders = (source_meta.type_loaders or ()) + type_loaders
         loader_instance = resolve_loader_for_source(
             loaders=loaders,
             index=i,
             source_meta=source_meta,
             expand_env_vars=resolved_expand,
+            type_loaders=source_type_loaders,
         )
         file_or_path: FileOrStream
         if isinstance(source_meta.file_, FILE_LIKE_TYPES):

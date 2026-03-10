@@ -34,7 +34,7 @@ from dature.masking.masking import (
 from dature.merging.deep_merge import deep_merge, deep_merge_last_wins, raise_on_conflict
 from dature.merging.field_group import FieldGroupContext, validate_field_groups
 from dature.merging.predicate import ResolvedFieldGroup, build_field_group_paths, build_field_merge_map
-from dature.metadata import FieldMergeStrategy, MergeMetadata, MergeStrategy
+from dature.metadata import FieldMergeStrategy, MergeMetadata, MergeStrategy, TypeLoader
 from dature.protocols import DataclassInstance, LoaderProtocol
 from dature.types import FieldMergeCallable, JSONValue
 
@@ -271,6 +271,7 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901
     dataclass_: type[T],
     loaders: tuple[LoaderProtocol, ...] | None = None,
     debug: bool = False,
+    type_loaders: tuple[TypeLoader, ...] = (),
 ) -> _MergedData[T]:
     secret_paths: frozenset[str] = frozenset()
     if _resolve_merge_mask_secrets(merge_meta):
@@ -283,6 +284,7 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901
         dataclass_=dataclass_,
         loaders=loaders,
         secret_paths=secret_paths,
+        type_loaders=type_loaders,
     )
 
     merge_maps = build_field_merge_map(merge_meta.field_merges, dataclass_)
@@ -379,11 +381,13 @@ def merge_load_as_function[T: DataclassInstance](
     dataclass_: type[T],
     *,
     debug: bool,
+    type_loaders: tuple[TypeLoader, ...] = (),
 ) -> T:
     data = _load_and_merge(
         merge_meta=merge_meta,
         dataclass_=dataclass_,
         debug=debug,
+        type_loaders=type_loaders,
     )
 
     validating_retort = data.last_loader.create_validating_retort(dataclass_)
@@ -418,13 +422,15 @@ class _MergePatchContext:
         cls: type[DataclassInstance],
         cache: bool,
         debug: bool,
+        type_loaders: tuple[TypeLoader, ...] = (),
     ) -> None:
-        self.loaders = self._prepare_loaders(merge_meta=merge_meta, cls=cls)
+        self.loaders = self._prepare_loaders(merge_meta=merge_meta, cls=cls, type_loaders=type_loaders)
 
         self.merge_meta = merge_meta
         self.cls = cls
         self.cache = cache
         self.debug = debug
+        self.type_loaders = type_loaders
         self.cached_data: DataclassInstance | None = None
         self.field_list = fields(cls)
         self.original_init = cls.__init__
@@ -449,11 +455,17 @@ class _MergePatchContext:
         *,
         merge_meta: MergeMetadata,
         cls: type[DataclassInstance],
+        type_loaders: tuple[TypeLoader, ...] = (),
     ) -> tuple[LoaderProtocol, ...]:
         loaders: list[LoaderProtocol] = []
         for source_meta in merge_meta.sources:
             resolved_expand = resolve_expand_env_vars(source_meta, merge_meta)
-            loader_instance = resolve_loader(source_meta, expand_env_vars=resolved_expand)
+            source_type_loaders = (source_meta.type_loaders or ()) + type_loaders
+            loader_instance = resolve_loader(
+                source_meta,
+                expand_env_vars=resolved_expand,
+                type_loaders=source_type_loaders,
+            )
             ensure_retort(loader_instance, cls)
             loaders.append(loader_instance)
         return tuple(loaders)
@@ -475,6 +487,7 @@ def _make_merge_new_init(ctx: _MergePatchContext) -> Callable[..., None]:
                     dataclass_=ctx.cls,
                     loaders=ctx.loaders,
                     debug=ctx.debug,
+                    type_loaders=ctx.type_loaders,
                 ).result
             finally:
                 ctx.loading = False
@@ -500,6 +513,7 @@ def merge_make_decorator(
     *,
     cache: bool,
     debug: bool,
+    type_loaders: tuple[TypeLoader, ...] = (),
 ) -> Callable[[type[DataclassInstance]], type[DataclassInstance]]:
     def decorator(cls: type[DataclassInstance]) -> type[DataclassInstance]:
         if not is_dataclass(cls):
@@ -511,6 +525,7 @@ def merge_make_decorator(
             cls=cls,
             cache=cache,
             debug=debug,
+            type_loaders=type_loaders,
         )
         cls.__init__ = _make_merge_new_init(ctx)  # type: ignore[method-assign]
         cls.__post_init__ = make_validating_post_init(ctx)  # type: ignore[attr-defined]

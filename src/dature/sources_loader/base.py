@@ -3,7 +3,7 @@ import json
 import logging
 from dataclasses import fields, is_dataclass
 from datetime import timedelta
-from typing import Annotated, ClassVar, TypeVar, cast, get_args, get_origin, get_type_hints
+from typing import TYPE_CHECKING, Annotated, ClassVar, TypeVar, cast, get_args, get_origin, get_type_hints
 
 from adaptix import NameStyle as AdaptixNameStyle
 from adaptix import Retort, loader, name_mapping
@@ -49,6 +49,9 @@ from dature.validators.base import (
     extract_validators_from_type,
 )
 
+if TYPE_CHECKING:
+    from dature.metadata import TypeLoader
+
 T = TypeVar("T")
 
 logger = logging.getLogger("dature")
@@ -58,7 +61,7 @@ class BaseLoader(LoaderProtocol, abc.ABC):
     display_name: ClassVar[str]
     path_finder_class: type[PathFinder] | None = None
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         prefix: DotSeparatedPath | None = None,
@@ -67,6 +70,7 @@ class BaseLoader(LoaderProtocol, abc.ABC):
         root_validators: tuple[ValidatorProtocol, ...] | None = None,
         validators: FieldValidators | None = None,
         expand_env_vars: ExpandEnvVarsMode = "default",
+        type_loaders: "tuple[TypeLoader, ...]" = (),
     ) -> None:
         self._prefix = prefix
         self._name_style = name_style
@@ -74,6 +78,7 @@ class BaseLoader(LoaderProtocol, abc.ABC):
         self._root_validators = root_validators or ()
         self._validators = validators or {}
         self._expand_env_vars_mode = expand_env_vars
+        self._type_loaders = type_loaders
         self.retorts: dict[type, Retort] = {}
 
     def _additional_loaders(self) -> list[Provider]:
@@ -192,6 +197,7 @@ class BaseLoader(LoaderProtocol, abc.ABC):
         return result
 
     def _base_recipe(self) -> list[Provider]:
+        user_loaders: list[Provider] = [loader(tl.type_, tl.func) for tl in self._type_loaders]
         default_loaders: list[Provider] = [
             loader(bytes, bytes_from_string),
             loader(complex, complex_from_string),
@@ -204,6 +210,7 @@ class BaseLoader(LoaderProtocol, abc.ABC):
             loader(ByteSize, byte_size_from_string),
         ]
         return [
+            *user_loaders,
             *default_loaders,
             *self._additional_loaders(),
             *self._get_name_mapping_provider(),

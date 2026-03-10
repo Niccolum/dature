@@ -40,6 +40,10 @@ Customize defaults for the entire application — programmatically or via enviro
 --8<-- "src/dature/config.py:loading-config"
 ```
 
+### type_loaders
+
+Register global custom type loaders that apply to all `load()` calls. See [Custom Types & Loaders](custom_types.md#per-source-vs-global).
+
 ## Environment Variables
 
 dature auto-loads its own config from `DATURE_*` environment variables on first use. Nested fields use `__` as delimiter:
