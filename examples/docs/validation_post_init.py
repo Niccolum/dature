@@ -1,4 +1,4 @@
-"""__post_init__ validation — cross-field checks via standard dataclass."""
+"""__post_init__ validation — error example."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,8 +24,7 @@ class Config:
         return f"{self.host}:{self.port}"
 
 
-config = load(LoadMetadata(file_=SOURCES_DIR / "app.yaml"), Config)
-
-print(f"host: {config.host}")  # host: localhost
-print(f"port: {config.port}")  # port: 8080
-print(f"address: {config.address}")  # address: localhost:8080
+try:
+    load(LoadMetadata(file_=SOURCES_DIR / "app_post_init_invalid.yaml"), Config)
+except ValueError as exc:
+    assert str(exc) == "port must be between 1 and 65535, got 99999"

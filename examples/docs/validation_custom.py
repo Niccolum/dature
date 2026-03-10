@@ -1,11 +1,13 @@
-"""Custom validator — frozen dataclass with get_validator_func/get_error_message."""
+"""Custom validator — error example."""
 
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from textwrap import dedent
 from typing import Annotated
 
 from dature import LoadMetadata, load
+from dature.errors.exceptions import DatureConfigError
 from dature.validators.number import Ge
 
 SOURCES_DIR = Path(__file__).parent / "sources"
@@ -34,10 +36,17 @@ class ServiceConfig:
     workers: Annotated[int, Ge(value=1), Divisible(value=2)]
 
 
-config = load(
-    LoadMetadata(file_=SOURCES_DIR / "validated.json5"),
-    ServiceConfig,
-)
+try:
+    load(
+        LoadMetadata(file_=SOURCES_DIR / "validated_custom_invalid.json5"),
+        ServiceConfig,
+    )
+except DatureConfigError as exc:
+    source = str(SOURCES_DIR / "validated_custom_invalid.json5")
+    assert str(exc) == dedent(f"""\
+        ServiceConfig loading errors (1)
 
-print(f"workers: {config.workers}")  # workers: 4
-print(f"workers divisible by 2: {config.workers % 2 == 0}")  # workers divisible by 2: True
+          [workers]  Value must be divisible by 2
+           └── FILE '{source}', line 5
+               workers: 3,
+        """)

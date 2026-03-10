@@ -1,10 +1,12 @@
-"""Annotated validators — Ge, Le, MinLength, MaxLength, MinItems, UniqueItems."""
+"""Annotated validators — error example."""
 
 from dataclasses import dataclass
 from pathlib import Path
+from textwrap import dedent
 from typing import Annotated
 
 from dature import LoadMetadata, load
+from dature.errors.exceptions import DatureConfigError
 from dature.validators.number import Ge, Le
 from dature.validators.sequence import MinItems, UniqueItems
 from dature.validators.string import MaxLength, MinLength
@@ -20,12 +22,29 @@ class ServiceConfig:
     workers: Annotated[int, Ge(value=1)]
 
 
-config = load(
-    LoadMetadata(file_=SOURCES_DIR / "validated.json5"),
-    ServiceConfig,
-)
+try:
+    load(
+        LoadMetadata(file_=SOURCES_DIR / "validated_invalid.json5"),
+        ServiceConfig,
+    )
+except DatureConfigError as exc:
+    source = str(SOURCES_DIR / "validated_invalid.json5")
+    assert str(exc) == dedent(f"""\
+        ServiceConfig loading errors (4)
 
-print(f"port: {config.port}")  # port: 8080
-print(f"name: {config.name}")  # name: my-service
-print(f"tags: {config.tags}")  # tags: ['web', 'api', 'production']
-print(f"workers: {config.workers}")  # workers: 4
+          [port]  Value must be greater than or equal to 1
+           └── FILE '{source}', line 3
+               port: 0,
+
+          [name]  Value must have at least 3 characters
+           └── FILE '{source}', line 4
+               name: "ab",
+
+          [tags]  Value must contain unique items
+           └── FILE '{source}', line 5
+               tags: ["web", "web"],
+
+          [workers]  Value must be greater than or equal to 1
+           └── FILE '{source}', line 6
+               workers: 0,
+        """)

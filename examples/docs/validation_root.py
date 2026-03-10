@@ -1,9 +1,11 @@
-"""Root validator — validate the entire object after loading."""
+"""Root validator — error example."""
 
 from dataclasses import dataclass
 from pathlib import Path
+from textwrap import dedent
 
 from dature import LoadMetadata, load
+from dature.errors.exceptions import DatureConfigError
 from dature.validators.root import RootValidator
 
 SOURCES_DIR = Path(__file__).parent / "sources"
@@ -22,19 +24,24 @@ def check_debug_not_on_production(obj: Config) -> bool:
     return True
 
 
-config = load(
-    LoadMetadata(
-        file_=SOURCES_DIR / "app.yaml",
-        root_validators=(
-            RootValidator(
-                func=check_debug_not_on_production,
-                error_message="debug=True is not allowed on non-localhost hosts",
+try:
+    load(
+        LoadMetadata(
+            file_=SOURCES_DIR / "app_root_invalid.yaml",
+            root_validators=(
+                RootValidator(
+                    func=check_debug_not_on_production,
+                    error_message="debug=True is not allowed on non-localhost hosts",
+                ),
             ),
         ),
-    ),
-    Config,
-)
+        Config,
+    )
+except DatureConfigError as exc:
+    source = str(SOURCES_DIR / "app_root_invalid.yaml")
+    assert str(exc) == dedent(f"""\
+        Config loading errors (1)
 
-print(f"host: {config.host}")  # host: localhost
-print(f"port: {config.port}")  # port: 8080
-print(f"debug: {config.debug}")  # debug: False
+          [<root>]  debug=True is not allowed on non-localhost hosts
+           └── FILE '{source}'
+        """)
