@@ -40,18 +40,16 @@ dature uses three methods to identify secrets:
 
 ## Examples
 
-=== "masking_secrets.yaml"
-
-    ```yaml
-    --8<-- "examples/docs/features/masking/sources/masking_secrets.yaml"
-    ```
-
 === "By type (SecretStr, PaymentCardNumber)"
 
     `SecretStr` masks the value in `str()` and `repr()`:
 
     ```python
     --8<-- "examples/docs/features/masking/masking_secret_str.py"
+    ```
+
+    ```yaml title="masking_secret_str.yaml"
+    --8<-- "examples/docs/features/masking/sources/masking_secret_str.yaml"
     ```
 
 === "By name"
@@ -62,10 +60,8 @@ dature uses three methods to identify secrets:
     --8<-- "examples/docs/features/masking/masking_by_name.py"
     ```
 
-    Debug logs show masked data:
-
-    ```
-    [Config] Loaded data: {'host': 'api.example.com', 'password': 'my*****rd', 'api_key': 'sk*****56'}
+    ```yaml title="masking_by_name.yaml"
+    --8<-- "examples/docs/features/masking/sources/masking_by_name.yaml"
     ```
 
 === "Heuristic"
@@ -76,10 +72,8 @@ dature uses three methods to identify secrets:
     --8<-- "examples/docs/features/masking/masking_heuristic.py"
     ```
 
-    Debug logs show masked data:
-
-    ```
-    [Config] Loaded data: {'host': 'api.example.com', 'password': 'my*****rd', 'api_key': 'sk*****56', 'card_number': '41*****11', 'metadata': 'aK*****T6'}
+    ```yaml title="masking_heuristic.yaml"
+    --8<-- "examples/docs/features/masking/sources/masking_heuristic.yaml"
     ```
 
 ## Mask Format

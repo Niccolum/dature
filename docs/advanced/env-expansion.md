@@ -43,10 +43,10 @@ Set the mode on `LoadMetadata`:
     --8<-- "examples/docs/advanced/env_expansion/advanced_env_expansion_strict.py"
     ```
 
-=== "advanced_env_expansion.yaml"
+=== "advanced_env_expansion_strict.yaml"
 
     ```yaml
-    --8<-- "examples/docs/advanced/env_expansion/sources/advanced_env_expansion.yaml"
+    --8<-- "examples/docs/advanced/env_expansion/sources/advanced_env_expansion_strict.yaml"
     ```
 
 For merge mode, set on `MergeMetadata` as default for all sources:

@@ -14,8 +14,6 @@ SHARED_DIR = Path(__file__).parents[2] / "shared"
 class Config:
     host: str
     port: int
-    debug: bool
-    workers: int
     tags: list[str]
 
 
@@ -39,8 +37,6 @@ except DatureConfigError:
     assert report.merged_data == {
         "host": "localhost",
         "port": "not_a_number",
-        "debug": False,
-        "workers": 1,
         "tags": ["default"],
     }
 
@@ -52,8 +48,6 @@ except DatureConfigError:
     assert report.sources[0].raw_data == {
         "host": "production.example.com",
         "port": 8080,
-        "debug": True,
-        "workers": 4,
         "tags": ["web", "api"],
     }
 
@@ -63,12 +57,10 @@ except DatureConfigError:
     assert report.sources[1].raw_data == {
         "host": "localhost",
         "port": "not_a_number",
-        "debug": False,
-        "workers": 1,
         "tags": ["default"],
     }
 
-    assert len(report.field_origins) == 5
+    assert len(report.field_origins) == 3
     for origin in report.field_origins:
         assert origin.source_index == 1
         assert "advanced_debug_error_defaults" in str(origin.source_file)

@@ -13,18 +13,13 @@ SOURCES_DIR = Path(__file__).parent / "sources"
 @dataclass
 class Config:
     api_key: SecretStr
-    password: str
-    host: str
     card_number: PaymentCardNumber
-    metadata: str
 
 
-config = load(LoadMetadata(file_=SOURCES_DIR / "masking_secrets.yaml"), Config)
+config = load(LoadMetadata(file_=SOURCES_DIR / "masking_secret_str.yaml"), Config)
 
 assert str(config.api_key) == "**********"
 assert config.api_key.get_secret_value() == "sk-proj-abc123def456"
-assert config.host == "api.example.com"
-assert str(config.password) == "**********"
 assert str(config.card_number) == "************1111"
 assert config.card_number.brand == "Visa"
-assert config.metadata == "aK9$mP2xL5vQ8wR3nJ7yB4zT6"
+assert config.card_number.get_raw_number() == "4111111111111111"

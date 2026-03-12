@@ -35,5 +35,5 @@ config = load(
 )
 
 assert config.database_url == "postgresql://admin:s3cret@localhost:5432/mydb"
-assert config.secret_key == "super-secret-key-123"
+assert config.secret_key == "my-secret-key-42"
 assert config.pool_size == 10

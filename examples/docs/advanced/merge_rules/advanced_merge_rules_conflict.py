@@ -12,8 +12,6 @@ SHARED_DIR = Path(__file__).parents[2] / "shared"
 class Config:
     host: str
     port: int
-    debug: bool
-    workers: int
     tags: list[str]
 
 
@@ -27,8 +25,6 @@ config = load(
         field_merges=(
             MergeRule(F[Config].host, FieldMergeStrategy.LAST_WINS),
             MergeRule(F[Config].port, FieldMergeStrategy.LAST_WINS),
-            MergeRule(F[Config].debug, FieldMergeStrategy.LAST_WINS),
-            MergeRule(F[Config].workers, FieldMergeStrategy.LAST_WINS),
             MergeRule(F[Config].tags, FieldMergeStrategy.APPEND_UNIQUE),
         ),
     ),
@@ -37,6 +33,4 @@ config = load(
 
 assert config.host == "production.example.com"
 assert config.port == 8080
-assert config.debug is True
-assert config.workers == 4
 assert config.tags == ["default", "web", "api"]

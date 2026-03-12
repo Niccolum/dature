@@ -12,7 +12,6 @@ SOURCES_DIR = Path(__file__).parent / "sources"
 class Config:
     host: str
     port: int = 3000
-    debug: bool = False
 
 
 config = load(
@@ -22,4 +21,3 @@ config = load(
 
 assert config.host == "localhost"
 assert config.port == 3000
-assert config.debug is False

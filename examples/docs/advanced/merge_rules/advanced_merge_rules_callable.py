@@ -13,8 +13,6 @@ SHARED_DIR = Path(__file__).parents[2] / "shared"
 class Config:
     host: str
     port: int
-    debug: bool
-    workers: int
     tags: list[str]
 
 
@@ -36,6 +34,4 @@ config = load(
 
 assert config.host == "production.example.com"
 assert config.port == 8080
-assert config.debug is True
-assert config.workers == 4
 assert config.tags == ["api", "default", "web"]

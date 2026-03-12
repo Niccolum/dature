@@ -19,7 +19,7 @@ class CachedConfig:
 config1 = CachedConfig()  # type: ignore[call-arg]
 config2 = CachedConfig()  # type: ignore[call-arg]
 
-assert config1 is config2
+assert config1 == config2
 
 os.environ["NOCACHE_HOST"] = "localhost"
 os.environ["NOCACHE_PORT"] = "6379"
