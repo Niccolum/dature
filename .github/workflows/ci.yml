@@ -217,8 +217,11 @@ jobs:
     if: needs.tag.outputs.tagged == 'true'
     permissions:
       contents: write
+      models: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7.3.1
@@ -231,13 +234,69 @@ jobs:
       - name: Build package
         run: uv build
 
+      - name: Generate release notes with AI
+        id: release-notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.tag.outputs.version }}
+        run: |
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "v$VERSION" | head -n 1)
+
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log --pretty=format:'- %s (%h)' HEAD)
+            DIFF_STAT=$(git diff --stat HEAD)
+          else
+            COMMITS=$(git log --pretty=format:'- %s (%h)' "$PREV_TAG"..HEAD)
+            DIFF_STAT=$(git diff --stat "$PREV_TAG"..HEAD)
+          fi
+
+          PROMPT=$(cat <<'PROMPT_END'
+          You are a release notes writer for an open-source Python library called "dature" — a type-safe configuration loader for dataclasses.
+
+          Write concise, user-facing release notes in markdown. Group changes into sections if appropriate: Features, Fixes, Improvements, Docs, Internal. Skip sections with no changes. Do not include commit hashes. Use past tense. Keep it short — one line per change.
+
+          Start with a one-sentence summary of the release, then list changes.
+          PROMPT_END
+          )
+
+          BODY=$(jq -n \
+            --arg prompt "$PROMPT" \
+            --arg commits "$COMMITS" \
+            --arg diff "$DIFF_STAT" \
+            '{
+              "model": "openai/gpt-4o-mini",
+              "messages": [
+                {"role": "system", "content": $prompt},
+                {"role": "user", "content": ("Commits since last release:\n\n" + $commits + "\n\nChanged files:\n\n" + $diff)}
+              ],
+              "temperature": 0.3
+            }')
+
+          RESPONSE=$(curl -s "https://models.github.ai/inference/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -d "$BODY")
+
+          NOTES=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+
+          if [ -z "$NOTES" ]; then
+            echo "AI generation failed, falling back to git log"
+            NOTES="## What's Changed"$'\n\n'"$COMMITS"
+          fi
+
+          {
+            echo "notes<<NOTES_EOF"
+            echo "$NOTES"
+            echo "NOTES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "v${{ needs.tag.outputs.version }}" dist/* \
             --title "v${{ needs.tag.outputs.version }}" \
-            --generate-notes
+            --notes "${{ steps.release-notes.outputs.notes }}"
 
   trigger-rtd-main:
     needs: [tag]
