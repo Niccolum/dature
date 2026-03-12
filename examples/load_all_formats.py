@@ -26,7 +26,9 @@ FORMATS = {
     ),
 }
 
-for name, meta in FORMATS.items():
+for meta in FORMATS.values():
     config = load(meta, AllPythonTypesCompact)
-    print(f"[{name}] string_value={config.string_value}, integer_value={config.integer_value}")  # hello world, 42
-    print(f"[{name}] string_value={config.string_value}, integer_value={config.integer_value}")  # hello world, 42
+    assert config.string_value == "hello world"
+    assert config.integer_value == 42
+    assert config.integer_value == 42
+    assert config.integer_value == 42

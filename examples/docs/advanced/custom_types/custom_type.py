@@ -34,5 +34,4 @@ config = load(
     AppConfig,
 )
 
-print(config)
-# AppConfig(name='my-app', color=Rgb(r=255, g=128, b=0))
+assert config == AppConfig(name="my-app", color=Rgb(r=255, g=128, b=0))

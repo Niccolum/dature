@@ -33,9 +33,9 @@ config = load(
     Config,
 )
 
-print(f"default_set_url: {config.default_set_url}")  # default_set_url: https://api.example.com/api
-print(f"default_unset_url: {config.default_unset_url}")  # default_unset_url: $UNSET_VAR/api
-print(f"empty_set_url: {config.empty_set_url}")  # empty_set_url: https://api.example.com/api
-print(f"empty_unset_url: {config.empty_unset_url}")  # empty_unset_url: /api
-print(f"disabled_set_url: {config.disabled_set_url}")  # disabled_set_url: $KNOWN_HOST/api
-print(f"disabled_unset_url: {config.disabled_unset_url}")  # disabled_unset_url: $UNSET_VAR/api
+assert config.default_set_url == "https://api.example.com/api"
+assert config.default_unset_url == "$UNSET_VAR/api"
+assert config.empty_set_url == "https://api.example.com/api"
+assert config.empty_unset_url == "/api"
+assert config.disabled_set_url == "$KNOWN_HOST/api"
+assert config.disabled_unset_url == "$UNSET_VAR/api"

@@ -27,6 +27,6 @@ config = load(
     DbConfig,
 )
 
-print(f"database_url: {config.database_url}")  # database_url: postgresql://localhost:5432/mydb
-print(f"secret_key: {config.secret_key}")  # secret_key: my-secret-key
-print(f"pool_size: {config.pool_size}")  # pool_size: 10
+assert config.database_url == "postgresql://localhost:5432/mydb"
+assert config.secret_key == "my-secret-key"
+assert config.pool_size == 10

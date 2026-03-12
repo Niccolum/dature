@@ -20,6 +20,6 @@ class AppConfig:
 
 config = AppConfig()  # type: ignore[call-arg]
 
-print(f"host: {config.host}")  # host: 0.0.0.0
-print(f"port: {config.port}")  # port: 8080
-print(f"debug: {config.debug}")  # debug: True
+assert config.host == "0.0.0.0"
+assert config.port == 8080
+assert config.debug is True

@@ -18,12 +18,12 @@ class Config:
 text_stream = StringIO('{"host": "localhost", "port": 8080, "debug": true}')
 config = load(LoadMetadata(file_=text_stream, loader=JsonLoader), Config)
 
-print(f"host: {config.host}")  # host: localhost
-print(f"port: {config.port}")  # port: 8080
+assert config.host == "localhost"
+assert config.port == 8080
 
 # From BytesIO
 binary_stream = BytesIO(b'{"host": "0.0.0.0", "port": 3000}')
 config = load(LoadMetadata(file_=binary_stream, loader=JsonLoader), Config)
 
-print(f"host: {config.host}")  # host: 0.0.0.0
-print(f"port: {config.port}")  # port: 3000
+assert config.host == "0.0.0.0"
+assert config.port == 3000

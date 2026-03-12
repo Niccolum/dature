@@ -30,5 +30,4 @@ class AppConfig:
 configure(type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),))
 
 config = load(LoadMetadata(file_=SOURCES_DIR / "custom_type_common.yaml"), AppConfig)
-print(config)
-# AppConfig(name='my-app', color=Rgb(r=255, g=128, b=0))
+assert config == AppConfig(name="my-app", color=Rgb(r=255, g=128, b=0))

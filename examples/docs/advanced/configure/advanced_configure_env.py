@@ -23,18 +23,18 @@ class Config:
 # 1. DATURE_LOADING__DEBUG=true — debug is on, report attached
 config = load(LoadMetadata(file_=SHARED_DIR / "common_app.yaml"), Config)
 report = get_load_report(config)
-print(f"has report: {report is not None}")  # has report: True
+assert report is not None
 
 # 2. Override env with configure() — debug is off
 configure(loading=LoadingConfig(debug=False))
 
 config = load(LoadMetadata(file_=SHARED_DIR / "common_app.yaml"), Config)
 report = get_load_report(config)
-print(f"has report: {report is not None}")  # has report: False
+assert report is None
 
 # 3. Reset to env defaults — debug is on again
 configure(loading=LoadingConfig(debug=True))
 
 config = load(LoadMetadata(file_=SHARED_DIR / "common_app.yaml"), Config)
 report = get_load_report(config)
-print(f"has report: {report is not None}")  # has report: True
+assert report is not None

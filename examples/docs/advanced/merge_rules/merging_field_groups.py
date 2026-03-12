@@ -28,7 +28,7 @@ config = load(
     Config,
 )
 
-print(f"host: {config.host}")  # host: production.example.com
-print(f"port: {config.port}")  # port: 8080
-print(f"user: {config.user}")  # user: admin
-print(f"password: {config.password}")  # password: secret
+assert config.host == "production.example.com"
+assert config.port == 8080
+assert config.user == "admin"
+assert config.password == "secret"

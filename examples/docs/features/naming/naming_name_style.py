@@ -21,7 +21,7 @@ config = load(
     ApiConfig,
 )
 
-print(f"user_name: {config.user_name}")  # user_name: admin
-print(f"max_retries: {config.max_retries}")  # max_retries: 3
-print(f"is_active: {config.is_active}")  # is_active: True
-print(f"base_url: {config.base_url}")  # base_url: https://api.example.com
+assert config.user_name == "admin"
+assert config.max_retries == 3
+assert config.is_active is True
+assert config.base_url == "https://api.example.com"

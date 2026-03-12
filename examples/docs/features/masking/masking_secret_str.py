@@ -21,10 +21,10 @@ class Config:
 
 config = load(LoadMetadata(file_=SOURCES_DIR / "masking_secrets.yaml"), Config)
 
-print(f"api_key (masked): {config.api_key}")  # api_key (masked): **********
-print(f"api_key (real): {config.api_key.get_secret_value()}")  # api_key (real): sk-proj-abc123def456
-print(f"host: {config.host}")  # host: api.example.com
-print(f"password: {config.password}")  # password: **********
-print(f"card (masked): {config.card_number}")  # card (masked): ************1111
-print(f"card brand: {config.card_number.brand}")  # card brand: Visa
-print(f"metadata: {config.metadata}")  # metadata: aK9$mP2xL5vQ8wR3nJ7yB4zT6
+assert str(config.api_key) == "**********"
+assert config.api_key.get_secret_value() == "sk-proj-abc123def456"
+assert config.host == "api.example.com"
+assert str(config.password) == "**********"
+assert str(config.card_number) == "************1111"
+assert config.card_number.brand == "Visa"
+assert config.metadata == "aK9$mP2xL5vQ8wR3nJ7yB4zT6"

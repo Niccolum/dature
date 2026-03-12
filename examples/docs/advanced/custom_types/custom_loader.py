@@ -39,5 +39,4 @@ config = load(
     Config,
 )
 
-print(config)
-# Config(host='localhost', port=9090, debug=True)
+assert config == Config(host="localhost", port=9090, debug=True)

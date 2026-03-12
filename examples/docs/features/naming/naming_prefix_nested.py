@@ -16,5 +16,5 @@ class Database:
 
 db = load(LoadMetadata(file_=SOURCES_DIR / "naming_prefix_nested.yaml", prefix="app.database"), Database)
 
-print(f"host: {db.host}")  # host: localhost
-print(f"port: {db.port}")  # port: 5432
+assert db.host == "localhost"
+assert db.port == 5432

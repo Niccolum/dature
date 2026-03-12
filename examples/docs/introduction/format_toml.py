@@ -17,6 +17,6 @@ class Config:
 
 config = load(LoadMetadata(file_=SOURCES_DIR / "intro_app.toml"), Config)
 
-print(f"host: {config.host}")  # host: localhost
-print(f"port: {config.port}")  # port: 8080
-print(f"debug: {config.debug}")  # debug: False
+assert config.host == "localhost"
+assert config.port == 8080
+assert config.debug is False

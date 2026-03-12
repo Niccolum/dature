@@ -25,6 +25,6 @@ class Config:
 
 
 config = Config()  # type: ignore[call-arg]
-print(f"host: {config.host}")  # host: env_localhost
-print(f"port: {config.port}")  # port: 3000
-print(f"debug: {config.debug}")  # debug: False
+assert config.host == "env_localhost"
+assert config.port == 3000
+assert config.debug is False

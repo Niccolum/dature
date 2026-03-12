@@ -20,6 +20,6 @@ config = load(
     Config,
 )
 
-print(f"host: {config.host}")  # host: localhost
-print(f"port: {config.port}")  # port: 3000
-print(f"debug: {config.debug}")  # debug: False
+assert config.host == "localhost"
+assert config.port == 3000
+assert config.debug is False

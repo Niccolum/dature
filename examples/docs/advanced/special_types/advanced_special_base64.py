@@ -19,7 +19,7 @@ config = Config(
     data=urlsafe_b64decode(encoded),
 )
 
-print(config.token)  # hello world
-print(type(config.token))  # <class 'str'>
-print(config.data)  # b'hello world'
-print(type(config.data))  # <class 'bytes'>
+assert config.token == "hello world"
+assert type(config.token) is str
+assert config.data == b"hello world"
+assert type(config.data) is bytes

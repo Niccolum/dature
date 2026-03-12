@@ -28,6 +28,6 @@ config = load(
     Config,
 )
 
-print(f"host: {config.host}")  # host: production.example.com
-print(f"port: {config.port}")  # port: 3000
-print(f"timeout: {config.timeout}")  # timeout: 30
+assert config.host == "production.example.com"
+assert config.port == 3000
+assert config.timeout == 30

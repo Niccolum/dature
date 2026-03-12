@@ -34,8 +34,8 @@ config = load(
     Config,
 )
 
-print(f"host: {config.host}")  # host: production.example.com
-print(f"port: {config.port}")  # port: 8080
-print(f"debug: {config.debug}")  # debug: True
-print(f"workers: {config.workers}")  # workers: 4
-print(f"tags: {config.tags}")  # tags: ['api', 'default', 'web']
+assert config.host == "production.example.com"
+assert config.port == 8080
+assert config.debug is True
+assert config.workers == 4
+assert config.tags == ["api", "default", "web"]

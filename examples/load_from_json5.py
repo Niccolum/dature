@@ -25,7 +25,7 @@ config = load(
     ServiceConfig,
 )
 
-print(f"port: {config.port}")  # port: 8080
-print(f"name: {config.name}")  # name: my-service
-print(f"tags: {config.tags}")  # tags: ['web', 'api', 'production']
-print(f"workers: {config.workers}")  # workers: 4
+assert config.port == 8080
+assert config.name == "my-service"
+assert config.tags == ["web", "api", "production"]
+assert config.workers == 4

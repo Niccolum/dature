@@ -29,15 +29,32 @@ config = load(
 )
 
 report = get_load_report(config)
-if report is not None:
-    for origin in report.field_origins:
-        print(
-            f"{origin.key} = {origin.value!r}  <-- source {origin.source_index} ({origin.source_file})",
-        )
+assert report is not None
 
-# Output:
-# debug = True  <-- source 1 (.../overrides.yaml)
-# host = 'production.example.com'  <-- source 1 (.../overrides.yaml)
-# port = 8080  <-- source 1 (.../overrides.yaml)
-# tags = ['web', 'api']  <-- source 1 (.../overrides.yaml)
-# workers = 4  <-- source 1 (.../overrides.yaml)
+origins = report.field_origins
+assert len(origins) == 5
+
+assert origins[0].key == "debug"
+assert origins[0].value is True
+assert origins[0].source_index == 1
+assert origins[0].source_file == str(SHARED_DIR / "common_overrides.yaml")
+
+assert origins[1].key == "host"
+assert origins[1].value == "production.example.com"
+assert origins[1].source_index == 1
+assert origins[1].source_file == str(SHARED_DIR / "common_overrides.yaml")
+
+assert origins[2].key == "port"
+assert origins[2].value == 8080
+assert origins[2].source_index == 1
+assert origins[2].source_file == str(SHARED_DIR / "common_overrides.yaml")
+
+assert origins[3].key == "tags"
+assert origins[3].value == ["web", "api"]
+assert origins[3].source_index == 1
+assert origins[3].source_file == str(SHARED_DIR / "common_overrides.yaml")
+
+assert origins[4].key == "workers"
+assert origins[4].value == 4
+assert origins[4].source_index == 1
+assert origins[4].source_file == str(SHARED_DIR / "common_overrides.yaml")

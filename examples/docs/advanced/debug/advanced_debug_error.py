@@ -32,32 +32,43 @@ try:
     )
 except DatureConfigError:
     report = get_load_report(Config)
-    if report is not None:
-        print(f"dataclass_name: {report.dataclass_name}")
-        print(f"strategy: {report.strategy}")
-        print(f"merged_data: {report.merged_data}")
-        print()
-        for src in report.sources:
-            print(f"source {src.index}: loader={src.loader_type}, file={src.file_path}")
-            print(f"  raw_data: {src.raw_data}")
-        print()
-        for origin in report.field_origins:
-            print(
-                f"{origin.key} = {origin.value!r}  <-- source {origin.source_index} ({origin.source_file})",
-            )
+    assert report is not None
 
-# Output:
-# dataclass_name: Config
-# strategy: last_wins
-# merged_data: {'host': 'localhost', 'port': 'not_a_number', 'debug': False, 'workers': 1, 'tags': ['default']}
-#
-# source 0: loader=yaml1.2, file=.../overrides.yaml
-#   raw_data: {'host': 'production.example.com', 'port': 8080, 'debug': True, 'workers': 4, 'tags': ['web', 'api']}
-# source 1: loader=yaml1.2, file=.../invalid_defaults.yaml
-#   raw_data: {'host': 'localhost', 'port': 'not_a_number', 'debug': False, 'workers': 1, 'tags': ['default']}
-#
-# debug = False  <-- source 1 (.../invalid_defaults.yaml)
-# host = 'localhost'  <-- source 1 (.../invalid_defaults.yaml)
-# port = 'not_a_number'  <-- source 1 (.../invalid_defaults.yaml)
-# tags = ['default']  <-- source 1 (.../invalid_defaults.yaml)
-# workers = 1  <-- source 1 (.../invalid_defaults.yaml)
+    assert report.dataclass_name == "Config"
+    assert report.strategy == "last_wins"
+    assert report.merged_data == {
+        "host": "localhost",
+        "port": "not_a_number",
+        "debug": False,
+        "workers": 1,
+        "tags": ["default"],
+    }
+
+    assert len(report.sources) == 2
+
+    assert report.sources[0].index == 0
+    assert report.sources[0].loader_type == "yaml1.2"
+    assert "overrides" in str(report.sources[0].file_path)
+    assert report.sources[0].raw_data == {
+        "host": "production.example.com",
+        "port": 8080,
+        "debug": True,
+        "workers": 4,
+        "tags": ["web", "api"],
+    }
+
+    assert report.sources[1].index == 1
+    assert report.sources[1].loader_type == "yaml1.2"
+    assert "advanced_debug_error_defaults" in str(report.sources[1].file_path)
+    assert report.sources[1].raw_data == {
+        "host": "localhost",
+        "port": "not_a_number",
+        "debug": False,
+        "workers": 1,
+        "tags": ["default"],
+    }
+
+    assert len(report.field_origins) == 5
+    for origin in report.field_origins:
+        assert origin.source_index == 1
+        assert "advanced_debug_error_defaults" in str(origin.source_file)

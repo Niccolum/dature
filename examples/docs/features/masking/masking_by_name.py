@@ -23,8 +23,8 @@ config = load(
     debug=True,
 )
 
-print(f"host: {config.host}")  # host: api.example.com
-print(f"password: {config.password}")  # password: **********
-print(f"api_key: {config.api_key}")  # api_key: **********
-print(f"card_number: {config.card_number}")  # card_number: 4111111111111111
-print(f"metadata: {config.metadata}")  # metadata: aK9$mP2xL5vQ8wR3nJ7yB4zT6
+assert config.host == "api.example.com"
+assert config.password == "**********"
+assert config.api_key == "**********"
+assert config.card_number == "4111111111111111"
+assert config.metadata == "aK9$mP2xL5vQ8wR3nJ7yB4zT6"

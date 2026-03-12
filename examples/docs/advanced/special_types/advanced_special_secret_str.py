@@ -14,7 +14,7 @@ class Config:
 
 config = Config(db_password=secret)
 
-print(config.db_password)  # **********
-print(repr(config.db_password))  # SecretStr('**********')
-print(config.db_password.get_secret_value())  # my-database-password
-print(len(config.db_password))  # 20
+assert str(config.db_password) == "**********"
+assert repr(config.db_password) == "SecretStr('**********')"
+assert config.db_password.get_secret_value() == "my-database-password"
+assert len(config.db_password) == 20
