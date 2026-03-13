@@ -24,6 +24,7 @@ jobs:
           fi
 
   lint:
+    if: "!(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -51,6 +52,7 @@ jobs:
         run: uv run mypy src
 
   get-adaptix-versions:
+    if: "!(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))"
     runs-on: ubuntu-latest
     outputs:
       versions: ${{ steps.filter.outputs.versions }}
@@ -108,6 +110,7 @@ jobs:
               f.write(f"versions={json.dumps(final_versions)}\n")
 
   test:
+    if: "!(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))"
     needs: [get-adaptix-versions]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -135,7 +138,7 @@ jobs:
         run: uv run pytest -v
 
   test-result:
-    if: always()
+    if: "always() && !(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))"
     needs: [test]
     runs-on: ubuntu-latest
     steps:
@@ -182,7 +185,14 @@ jobs:
   pypi-publish:
     needs: [tag]
     runs-on: ubuntu-latest
-    if: needs.tag.outputs.tagged == 'true'
+    if: >-
+      always()
+      && !failure()
+      && !cancelled()
+      && (
+        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+        || needs.tag.outputs.tagged == 'true'
+      )
     environment:
       name: pypi
       url: https://pypi.org/p/dature
@@ -214,11 +224,27 @@ jobs:
   github-release:
     needs: [tag]
     runs-on: ubuntu-latest
-    if: needs.tag.outputs.tagged == 'true'
+    if: >-
+      always()
+      && !failure()
+      && !cancelled()
+      && (
+        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+        || needs.tag.outputs.tagged == 'true'
+      )
     permissions:
       contents: write
-      models: read
     steps:
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ needs.tag.outputs.version }}" ]; then
+            echo "value=${{ needs.tag.outputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+            echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
@@ -234,80 +260,106 @@ jobs:
       - name: Build package
         run: uv build
 
-      - name: Generate release notes with AI
+      - name: Extract release notes from CHANGELOG
         id: release-notes
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ needs.tag.outputs.version }}
+        shell: python
         run: |
-          PREV_TAG=$(git tag --sort=-v:refname | grep -v "v$VERSION" | head -n 1)
+          import os, re
 
-          if [ -z "$PREV_TAG" ]; then
-            COMMITS=$(git log --pretty=format:'- %s (%h)' HEAD)
-            DIFF_STAT=$(git diff --stat HEAD)
-          else
-            COMMITS=$(git log --pretty=format:'- %s (%h)' "$PREV_TAG"..HEAD)
-            DIFF_STAT=$(git diff --stat "$PREV_TAG"..HEAD)
-          fi
+          with open("CHANGELOG.md") as f:
+              content = f.read()
 
-          PROMPT=$(cat <<'PROMPT_END'
-          You are a release notes writer for an open-source Python library called "dature" — a type-safe configuration loader for dataclasses.
+          # Extract everything between "## Unreleased" and the next "## " heading
+          match = re.search(
+              r"^## Unreleased\n(.*?)(?=^## |\Z)",
+              content,
+              re.MULTILINE | re.DOTALL,
+          )
+          notes = ""
+          if match:
+              lines = match.group(1).strip().splitlines()
+              # Remove PR markers and blank lines
+              lines = [l for l in lines if not l.startswith("<!-- PR #")]
+              notes = "\n".join(lines).strip()
 
-          Write concise, user-facing release notes in markdown. Group changes into sections if appropriate: Features, Fixes, Improvements, Docs, Internal. Skip sections with no changes. Do not include commit hashes. Use past tense. Keep it short — one line per change.
+          if not notes:
+              notes = "No changes documented."
 
-          Start with a one-sentence summary of the release, then list changes.
-          PROMPT_END
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"notes<<NOTES_EOF\n{notes}\nNOTES_EOF\n")
+
+      - name: Update CHANGELOG for release
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          GH_TOKEN: ${{ secrets.PAT }}
+        shell: python
+        run: |
+          import os, re
+
+          version = os.environ["VERSION"]
+
+          with open("CHANGELOG.md") as f:
+              content = f.read()
+
+          # Remove PR markers
+          content = re.sub(r"<!-- PR #\d+ -->\n?", "", content)
+
+          # Replace "## Unreleased" with "## Unreleased\n\n## vX.Y.Z"
+          content = content.replace(
+              "## Unreleased",
+              f"## Unreleased\n\n## v{version}",
+              1,
           )
 
-          BODY=$(jq -n \
-            --arg prompt "$PROMPT" \
-            --arg commits "$COMMITS" \
-            --arg diff "$DIFF_STAT" \
-            '{
-              "model": "openai/gpt-4o-mini",
-              "messages": [
-                {"role": "system", "content": $prompt},
-                {"role": "user", "content": ("Commits since last release:\n\n" + $commits + "\n\nChanged files:\n\n" + $diff)}
-              ],
-              "temperature": 0.3
-            }')
+          with open("CHANGELOG.md", "w") as f:
+              f.write(content)
 
-          RESPONSE=$(curl -s "https://models.github.ai/inference/chat/completions" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -d "$BODY")
-
-          NOTES=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
-
-          if [ -z "$NOTES" ]; then
-            echo "AI generation failed, falling back to git log"
-            NOTES="## What's Changed"$'\n\n'"$COMMITS"
-          fi
-
-          {
-            echo "notes<<NOTES_EOF"
-            echo "$NOTES"
-            echo "NOTES_EOF"
-          } >> "$GITHUB_OUTPUT"
+      - name: Push CHANGELOG update
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+          GH_TOKEN: ${{ secrets.PAT }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git diff --cached --quiet && exit 0
+          git commit -m "changelog: release v$VERSION"
+          git push
 
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "v${{ needs.tag.outputs.version }}" dist/* \
-            --title "v${{ needs.tag.outputs.version }}" \
+          gh release create "v${{ steps.version.outputs.value }}" dist/* \
+            --title "v${{ steps.version.outputs.value }}" \
             --notes "${{ steps.release-notes.outputs.notes }}"
 
-  trigger-rtd-main:
+  trigger-rtd:
     needs: [tag]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      always()
+      && !failure()
+      && !cancelled()
+      && (
+        github.ref == 'refs/heads/main'
+        || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+      )
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger latest build (main)
+      - name: Determine RTD version
+        id: rtd
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "version=stable" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=latest" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger RTD build
         run: |
           curl -X POST \
             -H "Authorization: Token ${{ secrets.RTD_API_TOKEN }}" \
-            https://readthedocs.org/api/v3/projects/dature/versions/latest/builds/
+            "https://readthedocs.org/api/v3/projects/dature/versions/${{ steps.rtd.outputs.version }}/builds/"
 
   trigger-rtd-pr:
     needs: [lint, test-result]

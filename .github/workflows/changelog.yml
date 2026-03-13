@@ -1,0 +1,148 @@
+name: Changelog
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize]
+
+permissions: {}
+
+jobs:
+  update-changelog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      models: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Check if last commit is from bot
+        id: check
+        run: |
+          LAST_AUTHOR=$(git log -1 --format='%an')
+          if [ "$LAST_AUTHOR" = "github-actions[bot]" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Get PR info
+        if: steps.check.outputs.skip == 'false'
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          FILES=$(gh pr diff "$PR_NUMBER" --name-only)
+          COMMITS=$(gh pr view "$PR_NUMBER" --json commits --jq '.commits[].messageHeadline' | head -20)
+
+          {
+            echo "files<<FILES_EOF"
+            echo "$FILES"
+            echo "FILES_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "commits<<COMMITS_EOF"
+            echo "$COMMITS"
+            echo "COMMITS_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog entry with AI
+        if: steps.check.outputs.skip == 'false'
+        id: ai
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_FILES: ${{ steps.pr.outputs.files }}
+          PR_COMMITS: ${{ steps.pr.outputs.commits }}
+        run: |
+          PROMPT=$(cat <<'PROMPT_END'
+          You are a changelog writer for "dature" — a type-safe configuration loader for Python dataclasses.
+
+          Write a concise changelog entry (1-3 bullet points) based on the PR title, commits, and changed files.
+          Format: each line starts with "- " followed by a short description in past tense.
+          Do not include PR numbers, commit hashes, or author names.
+          Only output the bullet points, nothing else.
+          PROMPT_END
+          )
+
+          BODY=$(jq -n \
+            --arg prompt "$PROMPT" \
+            --arg title "$PR_TITLE" \
+            --arg commits "$PR_COMMITS" \
+            --arg files "$PR_FILES" \
+            '{
+              "model": "openai/gpt-4o-mini",
+              "messages": [
+                {"role": "system", "content": $prompt},
+                {"role": "user", "content": ("PR title: " + $title + "\n\nCommits:\n" + $commits + "\n\nChanged files:\n" + $files)}
+              ],
+              "temperature": 0.3
+            }')
+
+          RESPONSE=$(curl -s "https://models.github.ai/inference/chat/completions" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -d "$BODY")
+
+          ENTRY=$(echo "$RESPONSE" | jq -r '.choices[0].message.content // empty')
+
+          if [ -z "$ENTRY" ]; then
+            echo "AI generation failed, falling back to PR title"
+            ENTRY="- $PR_TITLE"
+          fi
+
+          {
+            echo "entry<<ENTRY_EOF"
+            echo "$ENTRY"
+            echo "ENTRY_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update CHANGELOG.md
+        if: steps.check.outputs.skip == 'false'
+        env:
+          ENTRY: ${{ steps.ai.outputs.entry }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: python
+        run: |
+          import os
+
+          pr_number = os.environ["PR_NUMBER"]
+          entry = os.environ["ENTRY"]
+          marker = f"<!-- PR #{pr_number} -->"
+
+          with open("CHANGELOG.md") as f:
+              content = f.read()
+
+          # Remove previous entry for this PR (between markers)
+          while marker in content:
+              start = content.index(marker)
+              end = content.index(marker, start + len(marker)) + len(marker)
+              # Remove the block including trailing newline
+              content = content[:start] + content[end:].lstrip("\n")
+
+          # Insert new entry after "## Unreleased"
+          heading = "## Unreleased"
+          insertion = f"{marker}\n{entry}\n{marker}"
+          content = content.replace(heading, f"{heading}\n\n{insertion}", 1)
+
+          with open("CHANGELOG.md", "w") as f:
+              f.write(content)
+
+      - name: Commit and push
+        if: steps.check.outputs.skip == 'false'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git diff --cached --quiet && exit 0
+          git commit -m "changelog: update for PR #$PR_NUMBER"
+          git push
