@@ -11,7 +11,7 @@ from dature.types import URL, Base64UrlBytes, Base64UrlStr
 _TIMEDELTA_RE = re.compile(
     r"^(?:(?P<weeks>-?\d+)\s+weeks?(?:,\s*|\s+|$))?"
     r"(?:(?P<days>-?\d+)\s+days?(?:,\s*|\s+|$))?"
-    r"(?P<sign>-)?(?:(?P<hours>\d+):(?P<minutes>\d{2})(?::(?P<seconds>\d{2})(?:\.(?P<microseconds>\d+))?)?)?$",
+    r"(?:(?P<sign>-)?(?P<hours>\d+):(?P<minutes>\d{2})(?::(?P<seconds>\d{2})(?:\.(?P<microseconds>\d+))?)?)?$",
 )
 
 
