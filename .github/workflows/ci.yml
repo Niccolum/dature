@@ -331,10 +331,11 @@ jobs:
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_NOTES: ${{ steps.release-notes.outputs.notes }}
         run: |
           gh release create "v${{ steps.version.outputs.value }}" dist/* \
             --title "v${{ steps.version.outputs.value }}" \
-            --notes "${{ steps.release-notes.outputs.notes }}"
+            --notes "$RELEASE_NOTES"
 
   trigger-rtd:
     needs: [tag]

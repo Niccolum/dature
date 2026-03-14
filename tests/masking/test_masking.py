@@ -6,7 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
-from dature import LoadMetadata, MergeMetadata, get_load_report, load
+from dature import LoadMetadata, MergeMetadata, configure, get_load_report, load
+from dature.config import MaskingConfig
 from dature.errors.exceptions import DatureConfigError
 from dature.fields.secret_str import SecretStr
 from dature.load_report import FieldOrigin, SourceEntry
@@ -368,4 +369,70 @@ class TestSecretMaskingIntegration:
           [connection_id]  Invalid variant: '{random_token}'
            └── FILE '{json_file}', line 1
                {content}
+        """)
+
+    @pytest.mark.usefixtures("_reset_config")
+    @pytest.mark.parametrize(
+        ("mask_secrets", "expected_password"),
+        [
+            (True, _MASKED_SECRET),
+            (False, _SECRET_VALUE),
+        ],
+    )
+    def test_function_mode_report_respects_global_mask_secrets(
+        self,
+        tmp_path: Path,
+        mask_secrets: bool,
+        expected_password: str,
+    ):
+        json_file = tmp_path / "config.json"
+        json_file.write_text(f'{{"password": "{_SECRET_VALUE}", "host": "{_PUBLIC_VALUE}"}}')
+
+        @dataclass
+        class Cfg:
+            password: str
+            host: str
+
+        configure(masking=MaskingConfig(mask_secrets=mask_secrets))
+        result = load(LoadMetadata(file_=json_file), Cfg, debug=True)
+
+        report = get_load_report(result)
+        assert report is not None
+
+        assert report.merged_data == {"password": expected_password, "host": _PUBLIC_VALUE}
+        assert report.sources[0].raw_data == {"password": expected_password, "host": _PUBLIC_VALUE}
+
+    @pytest.mark.usefixtures("_reset_config")
+    @pytest.mark.parametrize(
+        ("mask_secrets", "expected_password"),
+        [
+            (True, _MASKED_SECRET),
+            (False, _SECRET_VALUE),
+        ],
+    )
+    def test_function_mode_error_respects_global_mask_secrets(
+        self,
+        tmp_path: Path,
+        mask_secrets: bool,
+        expected_password: str,
+    ):
+        json_file = tmp_path / "config.json"
+        json_file.write_text(f'{{"password": "{_SECRET_VALUE}", "port": "not_a_number"}}')
+
+        @dataclass
+        class Cfg:
+            password: str
+            port: int
+
+        configure(masking=MaskingConfig(mask_secrets=mask_secrets))
+
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(LoadMetadata(file_=json_file), Cfg)
+
+        assert str(exc_info.value) == dedent(f"""\
+        Cfg loading errors (1)
+
+          [port]  Bad string format
+           └── FILE '{json_file}', line 1
+               {{"password": "{expected_password}", "port": "not_a_number"}}
         """)

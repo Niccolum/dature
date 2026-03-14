@@ -252,11 +252,10 @@ def load_as_function(  # noqa: C901, PLR0912
     display_name = loader_class.display_name
 
     secret_paths: frozenset[str] = frozenset()
-    if metadata.mask_secrets is None or metadata.mask_secrets:
+    mask_secrets = _resolve_single_mask_secrets(metadata)
+    if mask_secrets:
         extra_patterns = metadata.secret_field_names or ()
         secret_paths = build_secret_paths(dataclass_, extra_patterns=extra_patterns)
-
-    mask_secrets = metadata.mask_secrets is None or metadata.mask_secrets
     error_ctx = build_error_ctx(metadata, dataclass_.__name__, secret_paths=secret_paths, mask_secrets=mask_secrets)
 
     raw_data = handle_load_errors(

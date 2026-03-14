@@ -169,6 +169,7 @@ class TestEnvLoader:
             "APP_TIME_VALUE": "10:30:00",
             "APP_TIMEDELTA_VALUE_WITH_DAY": "1 day, 2:30:00",
             "APP_TIMEDELTA_VALUE_WITHOUT_DAY": "2:30:00",
+            "APP_TIMEDELTA_VALUE_WITHOUT_SECONDS": "2:30",
             # Lists
             "APP_LIST_STRINGS": '["item1","item2","item3"]',
             "APP_LIST_INTEGERS": "[1,2,3,4,5]",
