@@ -9,8 +9,9 @@ from dature.fields.secret_str import SecretStr
 from dature.types import URL, Base64UrlBytes, Base64UrlStr
 
 _TIMEDELTA_RE = re.compile(
-    r"^(?:(?P<days>-?\d+)\s+days?(?:,\s*|\s+|$))?"
-    r"(?:(?P<hours>\d+):(?P<minutes>\d{2})(?::(?P<seconds>\d{2})(?:\.(?P<microseconds>\d+))?)?)?$",
+    r"^(?:(?P<weeks>-?\d+)\s+weeks?(?:,\s*|\s+|$))?"
+    r"(?:(?P<days>-?\d+)\s+days?(?:,\s*|\s+|$))?"
+    r"(?P<sign>-)?(?:(?P<hours>\d+):(?P<minutes>\d{2})(?::(?P<seconds>\d{2})(?:\.(?P<microseconds>\d+))?)?)?$",
 )
 
 
@@ -34,12 +35,15 @@ def timedelta_from_string(value: str) -> timedelta:
     if groups["microseconds"] is not None:
         microseconds = int(groups["microseconds"].ljust(6, "0"))
 
+    sign = -1 if groups["sign"] is not None else 1
+
     return timedelta(
+        weeks=int(groups["weeks"] or 0),
         days=int(groups["days"] or 0),
-        hours=int(groups["hours"] or 0),
-        minutes=int(groups["minutes"] or 0),
-        seconds=int(groups["seconds"] or 0),
-        microseconds=microseconds,
+        hours=sign * int(groups["hours"] or 0),
+        minutes=sign * int(groups["minutes"] or 0),
+        seconds=sign * int(groups["seconds"] or 0),
+        microseconds=sign * microseconds,
     )
 
 

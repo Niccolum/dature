@@ -44,4 +44,20 @@ Different formats store values differently. YAML, JSON and TOML parse some types
     --8<-- "examples/sources/all_types.env"
     ```
 
+### `timedelta` Formats
+
+`timedelta` values are parsed from strings. Supported formats:
+
+| Format | Example |
+|---|---|
+| `hh:mm` | `2:30` |
+| `hh:mm:ss` | `2:30:00` |
+| `hh:mm:ss.microseconds` | `2:03:04.500000` |
+| `N day[s][,] hh:mm[:ss[.microseconds]]` | `1 day, 2:30:00` |
+| `N week[s][,] [N day[s][,]] [hh:mm[:ss[.microseconds]]]` | `2 weeks, 3 days 1:02:03` |
+| `N day[s]` | `3 days` |
+| `N week[s]` | `2 weeks` |
+
+All time components and days/weeks support negative values: `-2:30`, `-1 day, 23:59:59`, `-2 weeks`.
+
 For custom types and file format loaders, see [Custom Types & Loaders](advanced/custom_types.md).
