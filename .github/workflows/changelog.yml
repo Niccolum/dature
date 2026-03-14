@@ -54,6 +54,30 @@ jobs:
             echo "COMMITS_EOF"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Extract existing changelog entry
+        if: steps.check.outputs.skip == 'false'
+        id: existing
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: python
+        run: |
+          import os
+
+          pr_number = os.environ["PR_NUMBER"]
+          marker = f"<!-- PR #{pr_number} -->"
+
+          with open("CHANGELOG.md") as f:
+              content = f.read()
+
+          existing = ""
+          if content.count(marker) >= 2:
+              start = content.index(marker) + len(marker)
+              end = content.index(marker, start)
+              existing = content[start:end].strip()
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"entry<<EXISTING_EOF\n{existing}\nEXISTING_EOF\n")
+
       - name: Generate changelog entry with AI
         if: steps.check.outputs.skip == 'false'
         id: ai
@@ -62,14 +86,22 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_FILES: ${{ steps.pr.outputs.files }}
           PR_COMMITS: ${{ steps.pr.outputs.commits }}
+          EXISTING_ENTRY: ${{ steps.existing.outputs.entry }}
         run: |
           PROMPT=$(cat <<'PROMPT_END'
           You are a changelog writer for "dature" — a type-safe configuration loader for Python dataclasses.
 
-          Write a concise changelog entry (1-3 bullet points) based on the PR title, commits, and changed files.
+          You will receive the PR context AND an existing changelog entry (if any).
+          Your job:
+          1. PRESERVE all existing bullet points — do not remove any.
+          2. You may rephrase existing entries for clarity or consistency, but keep the same meaning.
+          3. Add new bullet points for changes not yet covered by existing entries.
+          4. Remove duplicate or redundant entries (keep the better-worded one).
+          5. Group entries under markdown headings (### Features, ### Improvements, ### Fixes, ### Docs) if there are 4+ entries.
+
           Format: each line starts with "- " followed by a short description in past tense.
           Do not include PR numbers, commit hashes, or author names.
-          Only output the bullet points, nothing else.
+          Only output the changelog entry, nothing else.
           PROMPT_END
           )
 
@@ -78,11 +110,12 @@ jobs:
             --arg title "$PR_TITLE" \
             --arg commits "$PR_COMMITS" \
             --arg files "$PR_FILES" \
+            --arg existing "$EXISTING_ENTRY" \
             '{
               "model": "openai/gpt-4o-mini",
               "messages": [
                 {"role": "system", "content": $prompt},
-                {"role": "user", "content": ("PR title: " + $title + "\n\nCommits:\n" + $commits + "\n\nChanged files:\n" + $files)}
+                {"role": "user", "content": ("PR title: " + $title + "\n\nCommits:\n" + $commits + "\n\nChanged files:\n" + $files + "\n\nExisting changelog entry:\n" + $existing)}
               ],
               "temperature": 0.3
             }')
