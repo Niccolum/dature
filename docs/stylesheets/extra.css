@@ -61,6 +61,13 @@
   display: none;
 }
 
+/* Hide site name in mobile header */
+@media screen and (max-width: 76.1875em) {
+  .md-header__title {
+    display: none;
+  }
+}
+
 .md-typeset table:not([class]) th {
   min-width: 6rem;
 }
