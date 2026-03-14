@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+<!-- PR #36 -->
+### Improvements
+- Fixed the changelog generation process to ensure accurate updates.
+- Updated documentation to include support for `timedelta` as a valid type.
+
+### Docs
+- Corrected documentation tags for clarity and consistency.
+<!-- PR #36 -->
+
 <!-- PR #31 -->
 ### Features
 - Added logging functionality to `dature`.
