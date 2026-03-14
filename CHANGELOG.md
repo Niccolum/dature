@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-<!-- PR #36 -->
+## 0.12.1
+
 ### Improvements
 - Enhanced the changelog generation process to ensure accurate updates.
 - Updated documentation to include support for `timedelta` as a valid type.
@@ -10,9 +11,7 @@
 
 ### Docs
 - Corrected documentation tags for clarity and consistency.
-<!-- PR #36 -->
 
-<!-- PR #31 -->
 ### Features
 - Added logging functionality to `dature`.
 - Added Docker Secrets loader.
@@ -53,5 +52,4 @@
 - Added CODEOWNERS and SECURITY.md.
 - Added comprehensive examples for all features.
 - Slimmed down `README.md` in favor of documentation site.
-<!-- PR #31 -->
 
