@@ -4,9 +4,9 @@
 
 <!-- PR #36 -->
 ### Improvements
-- Fixed the changelog generation process to ensure accurate updates.
+- Enhanced the changelog generation process to ensure accurate updates.
 - Updated documentation to include support for `timedelta` as a valid type.
-- Resolved security issues to enhance overall safety.
+- Resolved security issues to improve overall safety.
 
 ### Docs
 - Corrected documentation tags for clarity and consistency.
