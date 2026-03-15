@@ -3,7 +3,6 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ["v*.*.*"]
   pull_request:
     branches: [main]
 
@@ -24,7 +23,6 @@ jobs:
           fi
 
   lint:
-    if: "!(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -52,7 +50,6 @@ jobs:
         run: uv run mypy src
 
   get-adaptix-versions:
-    if: "!(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))"
     runs-on: ubuntu-latest
     outputs:
       versions: ${{ steps.filter.outputs.versions }}
@@ -110,7 +107,6 @@ jobs:
               f.write(f"versions={json.dumps(final_versions)}\n")
 
   test:
-    if: "!(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))"
     needs: [get-adaptix-versions]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -138,7 +134,7 @@ jobs:
         run: uv run pytest -v
 
   test-result:
-    if: "always() && !(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))"
+    if: always()
     needs: [test]
     runs-on: ubuntu-latest
     steps:
@@ -186,13 +182,9 @@ jobs:
     needs: [tag]
     runs-on: ubuntu-latest
     if: >-
-      always()
-      && !failure()
+      !failure()
       && !cancelled()
-      && (
-        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
-        || needs.tag.outputs.tagged == 'true'
-      )
+      && needs.tag.outputs.tagged == 'true'
     environment:
       name: pypi
       url: https://pypi.org/p/dature
@@ -225,27 +217,15 @@ jobs:
     needs: [tag]
     runs-on: ubuntu-latest
     if: >-
-      always()
-      && !failure()
+      !failure()
       && !cancelled()
-      && (
-        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
-        || needs.tag.outputs.tagged == 'true'
-      )
+      && needs.tag.outputs.tagged == 'true'
     permissions:
       contents: write
     steps:
       - name: Determine version
         id: version
-        env:
-          TAG_VERSION: ${{ needs.tag.outputs.version }}
-        run: |
-          if [ -n "$TAG_VERSION" ]; then
-            echo "value=$TAG_VERSION" >> "$GITHUB_OUTPUT"
-          else
-            VERSION="${GITHUB_REF_NAME#v}"
-            echo "value=$VERSION" >> "$GITHUB_OUTPUT"
-          fi
+        run: echo "value=${{ needs.tag.outputs.version }}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -300,8 +280,7 @@ jobs:
   trigger-rtd-latest:
     needs: [tag]
     if: >-
-      always()
-      && !failure()
+      !failure()
       && !cancelled()
       && github.event_name == 'push'
       && github.ref == 'refs/heads/main'
@@ -316,30 +295,15 @@ jobs:
   trigger-rtd-tag:
     needs: [tag]
     if: >-
-      always()
-      && !failure()
+      !failure()
       && !cancelled()
-      && (
-        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
-        || needs.tag.outputs.tagged == 'true'
-      )
+      && needs.tag.outputs.tagged == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Determine tag
-        id: tag-name
-        env:
-          TAG_VERSION: ${{ needs.tag.outputs.version }}
-        run: |
-          if [ -n "$TAG_VERSION" ]; then
-            echo "value=v$TAG_VERSION" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Sync versions and activate tag
         env:
           RTD_API_TOKEN: ${{ secrets.RTD_API_TOKEN }}
-          TAG: ${{ steps.tag-name.outputs.value }}
+          TAG: v${{ needs.tag.outputs.version }}
         run: |
           curl -X POST \
             -H "Authorization: Token $RTD_API_TOKEN" \
