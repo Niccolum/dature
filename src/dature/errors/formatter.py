@@ -162,7 +162,7 @@ def handle_load_errors[T](
                     locations=[location],
                 ),
             )
-        raise DatureConfigError(ctx.dataclass_name, enriched) from exc
+        raise DatureConfigError(ctx.dataclass_name, enriched) from None
 
 
 def enrich_skipped_errors(
