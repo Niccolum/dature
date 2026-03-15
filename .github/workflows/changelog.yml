@@ -12,6 +12,7 @@ jobs:
     if: >-
       github.event.pull_request.user.login != 'github-actions[bot]'
       && github.event.pull_request.user.login != 'dependabot[bot]'
+      && !startsWith(github.head_ref, 'chore/bump-version-to-')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -240,16 +241,35 @@ jobs:
           else:
               end = len(content)
 
-          entries = content[after_heading:end].strip()
+          raw = content[after_heading:end].strip()
 
           # Remove PR markers
-          entries = re.sub(r"<!-- PR #\d+ -->\n?", "", entries).strip()
+          raw = re.sub(r"<!-- PR #\d+ -->\n?", "", raw).strip()
 
-          if not entries:
+          if not raw:
               print("No entries to move, skipping")
               with open(os.environ["GITHUB_OUTPUT"], "a") as f:
                   f.write("skip=true\n")
               raise SystemExit(0)
+
+          # Merge duplicate ### sections
+          sections: dict[str, list[str]] = {}
+          current_heading = ""
+          for line in raw.splitlines():
+              if line.startswith("### "):
+                  current_heading = line
+                  if current_heading not in sections:
+                      sections[current_heading] = []
+              elif line.strip():
+                  sections.setdefault(current_heading, []).append(line)
+
+          parts: list[str] = []
+          for heading, lines in sections.items():
+              if heading:
+                  parts.append(heading)
+              parts.extend(lines)
+              parts.append("")
+          entries = "\n".join(parts).strip()
 
           # Rebuild: Unreleased (empty) + new version section + rest
           new_content = (
