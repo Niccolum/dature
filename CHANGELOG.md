@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+<!-- PR #41 -->
+### Improvements
+- Refactored the strict retort functionality for enhanced performance.
+- Added a fallback mechanism for Read the Docs (RTD) to improve documentation accessibility.
+
+### Fixes
+- Resolved issues in various source loader files to ensure better compatibility and functionality.
+<!-- PR #41 -->
+
 ## 0.12.2
 
 ### Improvements
