@@ -107,3 +107,5 @@ For per-field strategy overrides, see [Per-Field Merge Strategies](../advanced/m
 | `expand_env_vars` | ENV variable expansion mode. See [ENV Expansion](../advanced/env-expansion.md) |
 | `secret_field_names` | Extra secret name patterns for masking. See [Masking](masking.md) |
 | `mask_secrets` | Enable/disable secret masking for all sources. See [Masking](masking.md) |
+| `nested_resolve_strategy` | Default priority when both JSON and flat keys exist: `"flat"` (default) or `"json"`. Applies to all sources. See [Nested Resolve](../advanced/nested-resolve.md) |
+| `nested_resolve` | Default per-field strategy overrides for all sources. See [Nested Resolve](../advanced/nested-resolve.md#per-field-strategy) |

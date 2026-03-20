@@ -474,10 +474,22 @@ class _MergePatchContext:
         for source_meta in merge_meta.sources:
             resolved_expand = resolve_expand_env_vars(source_meta, merge_meta)
             source_type_loaders = (source_meta.type_loaders or ()) + type_loaders
+            resolved_strategy = (
+                source_meta.nested_resolve_strategy
+                or merge_meta.nested_resolve_strategy
+                or config.loading.nested_resolve_strategy
+            )
+            resolve_kwargs: dict[str, Any] = {
+                "expand_env_vars": resolved_expand,
+                "type_loaders": source_type_loaders,
+                "nested_resolve_strategy": resolved_strategy,
+            }
+            resolved_resolve = source_meta.nested_resolve or merge_meta.nested_resolve
+            if resolved_resolve is not None:
+                resolve_kwargs["nested_resolve"] = resolved_resolve
             loader_instance = resolve_loader(
                 source_meta,
-                expand_env_vars=resolved_expand,
-                type_loaders=source_type_loaders,
+                **resolve_kwargs,
             )
             ensure_retort(loader_instance, cls)
             loaders.append(loader_instance)

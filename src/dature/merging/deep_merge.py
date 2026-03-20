@@ -204,8 +204,8 @@ def raise_on_conflict(
         locations: list[SourceLocation] = []
         for source_idx, _ in sources:
             source_ctx = source_ctxs[source_idx]
-            loc = resolve_source_location(field_path, source_ctx.error_ctx, source_ctx.file_content)
-            locations.append(loc)
+            locs = resolve_source_location(field_path, source_ctx.error_ctx, source_ctx.file_content)
+            locations.extend(locs)
         conflict_errors.append(
             MergeConflictFieldError(
                 field_path=field_path,

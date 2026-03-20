@@ -14,7 +14,7 @@ from dature.masking.masking import mask_json_value
 from dature.metadata import LoadMetadata, MergeMetadata, TypeLoader
 from dature.protocols import DataclassInstance, LoaderProtocol
 from dature.skip_field_provider import FilterResult
-from dature.types import FILE_LIKE_TYPES, ExpandEnvVarsMode, FileOrStream, JSONValue
+from dature.types import FILE_LIKE_TYPES, ExpandEnvVarsMode, FileOrStream, JSONValue, LoadRawResult
 
 logger = logging.getLogger("dature")
 
@@ -153,11 +153,11 @@ def load_sources(  # noqa: C901, PLR0912, PLR0913, PLR0915
         def _load_raw(
             li: LoaderProtocol = loader_instance,
             fp: FileOrStream = file_or_path,
-        ) -> JSONValue:
+        ) -> LoadRawResult:
             return li.load_raw(fp)
 
         try:
-            raw = handle_load_errors(
+            load_result = handle_load_errors(
                 func=_load_raw,
                 ctx=error_ctx,
             )
@@ -177,7 +177,7 @@ def load_sources(  # noqa: C901, PLR0912, PLR0913, PLR0915
             if not should_skip_broken(source_meta, merge_meta):
                 loader_class = resolve_loader_class(source_meta.loader, source_meta.file_)
                 location = SourceLocation(
-                    source_type=loader_class.display_name,
+                    display_label=loader_class.display_label,
                     file_path=error_ctx.file_path,
                     line_range=None,
                     line_content=None,
@@ -197,6 +197,16 @@ def load_sources(  # noqa: C901, PLR0912, PLR0913, PLR0915
                 else ("<stream>" if source_meta.file_ is not None else "<env>"),
             )
             continue
+
+        raw = load_result.data
+        if load_result.nested_conflicts:
+            error_ctx = build_error_ctx(
+                source_meta,
+                dataclass_name,
+                secret_paths=secret_paths,
+                mask_secrets=mask_secrets,
+                nested_conflicts=load_result.nested_conflicts,
+            )
 
         file_content = read_file_content(error_ctx.file_path)
 
