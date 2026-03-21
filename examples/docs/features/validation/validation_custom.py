@@ -45,5 +45,8 @@ except DatureConfigError as exc:
     assert str(exc) == "ServiceConfig loading errors (1)"
     assert len(exc.exceptions) == 1
     assert str(exc.exceptions[0]) == (
-        f"  [workers]  Value must be divisible by 2\n   └── FILE '{source}', line 5\n       workers: 3,"
+        f"  [workers]  Value must be divisible by 2\n"
+        f"   ├── workers: 3,\n"
+        f"   ├            ^\n"
+        f"   └── FILE '{source}', line 5"
     )

@@ -3,6 +3,7 @@
 from datetime import date, datetime, time
 
 import pytest
+from adaptix.load_error import TypeLoadError
 
 from dature.sources_loader.loaders.common import (
     bool_loader,
@@ -12,6 +13,7 @@ from dature.sources_loader.loaders.common import (
     date_passthrough,
     datetime_from_string,
     datetime_passthrough,
+    float_passthrough,
     int_from_string,
     none_from_empty_string,
     optional_from_empty_string,
@@ -149,11 +151,36 @@ def test_int_from_string(input_value, expected):
 
 @pytest.mark.parametrize(
     "input_value",
-    [True, False],
+    [True, False, 3.14, 999.999, 0.0, -1.5],
 )
-def test_int_from_string_rejects_bool(input_value):
-    with pytest.raises(TypeError, match="Expected int, got bool"):
+def test_int_from_string_rejects_invalid(input_value):
+    with pytest.raises(TypeLoadError):
         int_from_string(input_value)
+
+
+# === Float passthrough ===
+
+
+@pytest.mark.parametrize(
+    ("input_value", "expected"),
+    [
+        (3.14, 3.14),
+        (0.0, 0.0),
+        (-1.5, -1.5),
+        (float("inf"), float("inf")),
+    ],
+)
+def test_float_passthrough(input_value, expected):
+    assert float_passthrough(input_value) == expected
+
+
+@pytest.mark.parametrize(
+    "input_value",
+    [True, False, 42, 0, -1],
+)
+def test_float_passthrough_rejects_invalid(input_value):
+    with pytest.raises(TypeLoadError):
+        float_passthrough(input_value)
 
 
 # === JSON string converters ===

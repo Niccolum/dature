@@ -10,13 +10,7 @@ from dature.config import MaskingConfig
 from dature.errors.exceptions import DatureConfigError
 from dature.fields.secret_str import SecretStr
 from dature.load_report import FieldOrigin, SourceEntry
-from dature.masking.masking import (
-    mask_env_line,
-    mask_field_origins,
-    mask_json_value,
-    mask_source_entries,
-    mask_value,
-)
+from dature.masking.masking import mask_env_line, mask_field_origins, mask_json_value, mask_source_entries, mask_value
 
 
 class TestMaskValue:
@@ -343,8 +337,9 @@ class TestSecretMaskingIntegration:
         assert str(exc_info.value) == "Cfg loading errors (1)"
         assert str(exc_info.value.exceptions[0]) == (
             "  [connection_id]  Invalid variant: 'aK*****T6'\n"
-            f"   └── FILE '{json_file}', line 1\n"
-            f'       {{"connection_id": "aK*****T6", "host": "production"}}'
+            f'   ├── {{"connection_id": "aK*****T6", "host": "production"}}\n'
+            f"   ├                      ^^^^^^^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
     def test_error_message_heuristic_no_mask_without_detector(self, tmp_path: Path):
@@ -363,7 +358,10 @@ class TestSecretMaskingIntegration:
 
         assert str(exc_info.value) == "Cfg loading errors (1)"
         assert str(exc_info.value.exceptions[0]) == (
-            f"  [connection_id]  Invalid variant: '{random_token}'\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [connection_id]  Invalid variant: '{random_token}'\n"
+            f"   ├── {content}\n"
+            f"   ├                      ^^^^^^^^^^^^^^^^^^^^^^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
     @pytest.mark.usefixtures("_reset_config")

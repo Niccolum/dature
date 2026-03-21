@@ -95,7 +95,10 @@ class TestMetadataValidatorsFailure:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [name]  Value must have at least 3 characters\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [name]  Value must have at least 3 characters\n"
+            f"   ├── {content}\n"
+            f"   ├             ^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
     def test_tuple_validator_fails(self, tmp_path: Path):
@@ -121,7 +124,10 @@ class TestMetadataValidatorsFailure:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [port]  Value must be greater than 0\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [port]  Value must be greater than 0\n"
+            f"   ├── {content}\n"
+            f"   ├            ^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
 
@@ -180,8 +186,9 @@ class TestMetadataValidatorsNested:
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
             "  [database.host]  Value must have at least 1 characters\n"
-            f"   └── FILE '{json_file}', line 1\n"
-            f"       {content}"
+            f"   ├── {content}\n"
+            f"   ├   \n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
 
@@ -230,7 +237,10 @@ class TestMetadataValidatorsComplement:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [name]  Value must have at least 5 characters\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [name]  Value must have at least 5 characters\n"
+            f"   ├── {content}\n"
+            f"   ├             ^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
     def test_metadata_validator_fails_with_annotated_present(self, tmp_path: Path):
@@ -256,7 +266,10 @@ class TestMetadataValidatorsComplement:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [name]  Value must have at most 10 characters\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [name]  Value must have at most 10 characters\n"
+            f"   ├── {content}\n"
+            f"   ├             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
     def test_both_annotated_and_metadata_on_same_field_pass(self, tmp_path: Path):
@@ -300,7 +313,10 @@ class TestMetadataValidatorsComplement:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [name]  Value must have at least 5 characters\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [name]  Value must have at least 5 characters\n"
+            f"   ├── {content}\n"
+            f"   ├             ^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
     def test_same_validator_type_in_annotated_and_metadata(self, tmp_path: Path):
@@ -345,8 +361,9 @@ class TestMetadataValidatorsComplement:
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
             "  [port]  Value must be greater than or equal to 1024\n"
-            f"   └── FILE '{json_file}', line 1\n"
-            f"       {content}"
+            f"   ├── {content}\n"
+            f"   ├            ^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
     def test_metadata_fails_while_annotated_passes(self, tmp_path: Path):
@@ -372,7 +389,10 @@ class TestMetadataValidatorsComplement:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [port]  Value must be less than 65536\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [port]  Value must be less than 65536\n"
+            f"   ├── {content}\n"
+            f"   ├            ^^^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
 

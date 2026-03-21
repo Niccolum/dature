@@ -2,6 +2,8 @@ import json
 import math
 from datetime import date, datetime, time
 
+from adaptix.load_error import TypeLoadError
+
 # Expected number of time parts in HH:MM:SS format
 TIME_PARTS_WITH_SECONDS = 3
 
@@ -42,8 +44,7 @@ def bytearray_from_string(value: str) -> bytearray:
 def none_from_empty_string(value: str) -> None:
     if value == "":
         return
-    msg = f"Cannot convert {value!r} to None"
-    raise TypeError(msg)
+    raise TypeLoadError(type(None), value)
 
 
 def optional_from_empty_string(value: str) -> str | None:
@@ -58,8 +59,7 @@ def _bool_from_string(value: str) -> bool:
         return True
     if lower in ("false", "0", "no", "off", ""):
         return False
-    msg = f"Cannot convert {value!r} to bool"
-    raise TypeError(msg)
+    raise TypeLoadError(bool, value)
 
 
 def bool_loader(value: str | bool) -> bool:
@@ -75,8 +75,7 @@ def bytearray_from_json_string(value: str) -> bytearray:
     if value.startswith("["):
         items = json.loads(value)
         if not isinstance(items, list):
-            msg = f"Expected list in JSON, got {type(items)}"
-            raise TypeError(msg)
+            raise TypeLoadError(bytearray, value)
         return bytearray(items)
 
     return bytearray(value.encode("utf-8"))
@@ -89,12 +88,17 @@ def str_from_scalar(value: str | float | bool) -> str:
 
 
 def int_from_string(value: str | int) -> int:
-    if isinstance(value, bool):
-        msg = f"Expected int, got {type(value).__name__}: {value!r}"
-        raise TypeError(msg)
+    if isinstance(value, (bool, float)):
+        raise TypeLoadError(int, value)
     if isinstance(value, int):
         return value
     return int(value)
+
+
+def float_passthrough(value: float) -> float:
+    if isinstance(value, (bool, int)):
+        raise TypeLoadError(float, value)
+    return value
 
 
 def float_from_string(value: str | float) -> float:

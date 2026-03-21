@@ -71,7 +71,10 @@ class TestCustomFieldValidator:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [count]  Value must be divisible by 5\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [count]  Value must be divisible by 5\n"
+            f"   ├── {content}\n"
+            f"   ├             ^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
     def test_custom_error_message(self, tmp_path: Path):
@@ -92,7 +95,10 @@ class TestCustomFieldValidator:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [count]  Must be a multiple of 3\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [count]  Must be a multiple of 3\n"
+            f"   ├── {content}\n"
+            f"   ├             ^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
 
@@ -128,7 +134,10 @@ class TestCustomStringValidator:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [url]  Value must start with 'https://'\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [url]  Value must start with 'https://'\n"
+            f"   ├── {content}\n"
+            f"   ├            ^^^^^^^^^^^^^^^^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
 
@@ -162,7 +171,10 @@ class TestCustomValidatorWithDecorator:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [port]  Value must be divisible by 10\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [port]  Value must be divisible by 10\n"
+            f"   ├── {content}\n"
+            f"   ├            ^^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
     def test_direct_instantiation_validates(self, tmp_path: Path):
@@ -221,8 +233,14 @@ class TestMultipleCustomValidators:
         assert len(e.exceptions) == 2
         assert str(e) == "Config loading errors (2)"
         assert str(e.exceptions[0]) == (
-            f"  [count]  Value must be divisible by 5\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [count]  Value must be divisible by 5\n"
+            f"   ├── {content}\n"
+            f"   ├             ^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
         assert str(e.exceptions[1]) == (
-            f"  [url]  Value must start with 'https://'\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [url]  Value must start with 'https://'\n"
+            f"   ├── {content}\n"
+            f"   ├                        ^^^^^^^^^^^^^^^^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )

@@ -8,10 +8,7 @@ import pytest
 from dature import LoadMetadata, load
 from dature.errors.exceptions import DatureConfigError, FieldLoadError
 from dature.sources_loader.json_ import JsonLoader
-from examples.all_types_dataclass import (
-    EXPECTED_ALL_TYPES,
-    AllPythonTypesCompact,
-)
+from examples.all_types_dataclass import EXPECTED_ALL_TYPES, AllPythonTypesCompact
 from tests.sources_loader.checker import assert_all_types_equal
 
 
@@ -133,9 +130,10 @@ class TestJsonLoader:
         assert isinstance(first, FieldLoadError)
         assert first.field_path == ["count"]
         assert str(first) == (
-            "  [count]  Expected int, got bool: True\n"
-            f"   └── FILE '{json_file}', line 1\n"
-            f"       {json_file.read_text()}"
+            f"  [count]  Expected int, got bool\n"
+            f"   ├── {json_file.read_text()}\n"
+            f"   ├             ^^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
     def test_int_in_bool_field_raises_error(self, tmp_path: Path):
@@ -155,5 +153,8 @@ class TestJsonLoader:
         assert isinstance(first, FieldLoadError)
         assert first.field_path == ["flag"]
         assert str(first) == (
-            f"  [flag]  Expected bool, got int\n   └── FILE '{json_file}', line 1\n       {json_file.read_text()}"
+            f"  [flag]  Expected bool, got int\n"
+            f"   ├── {json_file.read_text()}\n"
+            f"   ├            ^\n"
+            f"   └── FILE '{json_file}', line 1"
         )

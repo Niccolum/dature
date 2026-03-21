@@ -49,13 +49,22 @@ class TestMultipleFields:
         assert len(e.exceptions) == 3
         assert str(e) == "Config loading errors (3)"
         assert str(e.exceptions[0]) == (
-            f"  [name]  Value must have at least 3 characters\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [name]  Value must have at least 3 characters\n"
+            f"   ├── {content}\n"
+            f"   ├             ^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
         assert str(e.exceptions[1]) == (
-            f"  [age]  Value must be less than or equal to 150\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [age]  Value must be less than or equal to 150\n"
+            f"   ├── {content}\n"
+            f"   ├                         ^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
         assert str(e.exceptions[2]) == (
-            f"  [tags]  Value must have at least 1 items\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [tags]  Value must have at least 1 items\n"
+            f"   ├── {content}\n"
+            f"   ├                                      ^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
 
@@ -110,20 +119,28 @@ class TestNestedDataclass:
         assert len(e.exceptions) == 4
         assert str(e) == "User loading errors (4)"
         assert str(e.exceptions[0]) == (
-            f"  [name]  Value must have at least 3 characters\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [name]  Value must have at least 3 characters\n"
+            f"   ├── {content}\n"
+            f"   ├             ^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
         assert str(e.exceptions[1]) == (
-            f"  [age]  Value must be greater than or equal to 18\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [age]  Value must be greater than or equal to 18\n"
+            f"   ├── {content}\n"
+            f"   ├                         ^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
         assert str(e.exceptions[2]) == (
             "  [address.city]  Value must have at least 2 characters\n"
-            f"   └── FILE '{json_file}', line 1\n"
-            f"       {content}"
+            f"   ├── {content}\n"
+            f"   ├                                                  ^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
         assert str(e.exceptions[3]) == (
             "  [address.zip_code]  Value must match pattern '^\\d{5}$'\n"
-            f"   └── FILE '{json_file}', line 1\n"
-            f"       {content}"
+            f"   ├── {content}\n"
+            f"   ├                                                                   ^^^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
 
@@ -146,7 +163,7 @@ class TestCustomErrorMessage:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [age]  Age must be 18 or older\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [age]  Age must be 18 or older\n   ├── {content}\n   ├           ^^\n   └── FILE '{json_file}', line 1"
         )
 
 
@@ -184,7 +201,10 @@ class TestDictListDict:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [groups]  Value must have at least 1 items\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [groups]  Value must have at least 1 items\n"
+            f"   ├── {content}\n"
+            f"   ├              ^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
     def test_nested_dataclass_in_dict_list_success(self, tmp_path: Path):
@@ -232,11 +252,13 @@ class TestDictListDict:
         assert str(e) == "Config loading errors (2)"
         assert str(e.exceptions[0]) == (
             "  [teams.backend.0.name]  Value must have at least 2 characters\n"
-            f"   └── FILE '{json_file}', line 1\n"
-            f"       {content}"
+            f"   ├── {content}\n"
+            f"   ├                                    ^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
         assert str(e.exceptions[1]) == (
             "  [teams.backend.0.role]  Value must have at least 3 characters\n"
-            f"   └── FILE '{json_file}', line 1\n"
-            f"       {content}"
+            f"   ├── {content}\n"
+            f"   ├                                                 ^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )

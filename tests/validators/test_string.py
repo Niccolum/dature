@@ -41,7 +41,10 @@ class TestMinLength:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [name]  Value must have at least 5 characters\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [name]  Value must have at least 5 characters\n"
+            f"   ├── {content}\n"
+            f"   ├             ^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
 
@@ -77,7 +80,10 @@ class TestMaxLength:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [name]  Value must have at most 5 characters\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [name]  Value must have at most 5 characters\n"
+            f"   ├── {content}\n"
+            f"   ├             ^^^^^^^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
 
@@ -114,8 +120,9 @@ class TestRegexPattern:
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
             "  [email]  Value must match pattern '^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$'\n"
-            f"   └── FILE '{json_file}', line 1\n"
-            f"       {content}"
+            f"   ├── {content}\n"
+            f"   ├              ^^^^^^^^^^^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
 
@@ -151,5 +158,8 @@ class TestCombined:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [username]  Value must have at most 20 characters\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [username]  Value must have at most 20 characters\n"
+            f"   ├── {content}\n"
+            f"   ├                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
+            f"   └── FILE '{json_file}', line 1"
         )

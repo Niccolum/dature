@@ -10,7 +10,7 @@ from adaptix import NameStyle as AdaptixNameStyle
 from adaptix import Retort, loader, name_mapping
 from adaptix.provider import Provider
 
-from dature.errors.exceptions import SourceLocation
+from dature.errors.exceptions import LineRange, SourceLocation
 from dature.expansion.alias_provider import AliasProvider, resolve_nested_owner
 from dature.expansion.env_expand import expand_env_vars
 from dature.field_path import FieldPath
@@ -31,7 +31,7 @@ from dature.sources_loader.loaders.base import (
     timedelta_from_string,
     url_from_string,
 )
-from dature.sources_loader.loaders.common import int_from_string
+from dature.sources_loader.loaders.common import float_passthrough, int_from_string
 from dature.types import (
     URL,
     Base64UrlBytes,
@@ -206,6 +206,7 @@ class BaseLoader(LoaderProtocol, abc.ABC):
         user_loaders: list[Provider] = [loader(tl.type_, tl.func) for tl in self._type_loaders]
         default_loaders: list[Provider] = [
             loader(int, int_from_string),
+            loader(float, float_passthrough),
             loader(bytes, bytes_from_string),
             loader(complex, complex_from_string),
             loader(timedelta, timedelta_from_string),
@@ -218,8 +219,8 @@ class BaseLoader(LoaderProtocol, abc.ABC):
         ]
         return [
             *user_loaders,
-            *default_loaders,
             *self._additional_loaders(),
+            *default_loaders,
             *self._get_name_mapping_provider(),
         ]
 
@@ -310,6 +311,8 @@ class BaseLoader(LoaderProtocol, abc.ABC):
         finder = cls.path_finder_class(file_content)
         line_range = finder.find_line_range(search_path)
         if line_range is None:
+            line_range = _find_parent_line_range(finder, search_path)
+        if line_range is None:
             return [_empty_file_location(cls.display_label, file_path)]
 
         lines = file_content.splitlines()
@@ -328,6 +331,16 @@ class BaseLoader(LoaderProtocol, abc.ABC):
                 env_var_name=None,
             ),
         ]
+
+
+def _find_parent_line_range(finder: PathFinder, search_path: list[str]) -> LineRange | None:
+    path = search_path[:-1]
+    while path:
+        line_range = finder.find_line_range(path)
+        if line_range is not None:
+            return line_range
+        path = path[:-1]
+    return None
 
 
 def _build_search_path(field_path: list[str], prefix: str | None) -> list[str]:

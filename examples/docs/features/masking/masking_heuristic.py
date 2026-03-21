@@ -27,8 +27,9 @@ except DatureConfigError as exc:
     assert len(exc.exceptions) == 1
     assert str(exc.exceptions[0]) == (
         "  [connection_id]  Invalid variant: 'aK*****T6'\n"
-        f"   └── FILE '{source}', line 1\n"
-        '       connection_id: "aK*****T6"'
+        '   ├── connection_id: "aK*****T6"\n'
+        "   ├                   ^^^^^^^^^\n"
+        f"   └── FILE '{source}', line 1"
     )
 else:
     raise AssertionError("Expected DatureConfigError")

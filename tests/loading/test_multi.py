@@ -978,7 +978,10 @@ class TestFirstFound:
         assert len(err.exceptions) == 1
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
-            f"  [port]  Value must be greater than or equal to 1\n   └── FILE '{first}', line 2\n       port: 0"
+            f"  [port]  Value must be greater than or equal to 1\n"
+            f"   ├── port: 0\n"
+            f"   ├         ^\n"
+            f"   └── FILE '{first}', line 2"
         )
 
     def test_validation_error_references_correct_source_decorator(self, tmp_path: Path):
@@ -1010,5 +1013,8 @@ class TestFirstFound:
         assert len(err.exceptions) == 1
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
-            f"  [port]  Value must be greater than or equal to 1\n   └── FILE '{first}', line 2\n       port: 0"
+            f"  [port]  Value must be greater than or equal to 1\n"
+            f"   ├── port: 0\n"
+            f"   ├         ^\n"
+            f"   └── FILE '{first}', line 2"
         )

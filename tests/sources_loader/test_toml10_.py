@@ -8,10 +8,7 @@ import pytest
 from dature import LoadMetadata, load
 from dature.errors.exceptions import DatureConfigError, FieldLoadError
 from dature.sources_loader.toml_ import Toml10Loader
-from examples.all_types_dataclass import (
-    EXPECTED_ALL_TYPES,
-    AllPythonTypesCompact,
-)
+from examples.all_types_dataclass import EXPECTED_ALL_TYPES, AllPythonTypesCompact
 from tests.sources_loader.checker import assert_all_types_equal
 
 
@@ -133,7 +130,10 @@ class TestToml10Loader:
         assert isinstance(first, FieldLoadError)
         assert first.field_path == ["count"]
         assert str(first) == (
-            f"  [count]  Expected int, got bool: True\n   └── FILE '{toml_file}', line 1\n       count = true"
+            f"  [count]  Expected int, got bool\n"
+            f"   ├── count = true\n"
+            f"   ├           ^^^^\n"
+            f"   └── FILE '{toml_file}', line 1"
         )
 
     def test_int_in_bool_field_raises_error(self, tmp_path: Path):
@@ -152,4 +152,9 @@ class TestToml10Loader:
         first = err.exceptions[0]
         assert isinstance(first, FieldLoadError)
         assert first.field_path == ["flag"]
-        assert str(first) == (f"  [flag]  Expected bool, got int\n   └── FILE '{toml_file}', line 1\n       flag = 1")
+        assert str(first) == (
+            f"  [flag]  Expected bool, got int\n"
+            f"   ├── flag = 1\n"
+            f"   ├          ^\n"
+            f"   └── FILE '{toml_file}', line 1"
+        )  # fmt: skip

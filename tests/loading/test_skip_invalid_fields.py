@@ -288,7 +288,10 @@ class TestMergeSkipInvalidFields:
         assert len(err.exceptions) == 2
         assert str(err) == "Config loading errors (2)"
         assert str(err.exceptions[0]) == (
-            f'  [host]  Expected str, got int\n   └── FILE \'{source1}\', line 1\n       {{"host": 123, "port": "abc"}}'
+            f"  [host]  Expected str, got int\n"
+            f'   ├── {{"host": 123, "port": "abc"}}\n'
+            f"   ├            ^^^\n"
+            f"   └── FILE '{source1}', line 1"
         )
         assert str(err.exceptions[1]) == (
             f"  [port]  Missing required field (invalid in: json '{source1}')\n"

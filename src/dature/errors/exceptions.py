@@ -35,35 +35,74 @@ def _truncate_line(line: str) -> str:
     return line
 
 
-def _format_content_lines(content: list[str]) -> list[str]:
+def _format_content_lines(content: list[str], *, prefix: str = "       ") -> list[str]:
     max_visible = config.error_display.max_visible_lines
     if len(content) > max_visible:
         visible = content[: max_visible - 1]
-        lines = [f"       {_truncate_line(line)}" for line in visible]
-        lines.append("       ...")
+        lines = [f"{prefix}{_truncate_line(line)}" for line in visible]
+        lines.append(f"{prefix}...")
         return lines
 
-    return [f"       {_truncate_line(line)}" for line in content]
+    return [f"{prefix}{_truncate_line(line)}" for line in content]
 
 
-def _format_location(loc: SourceLocation, *, connector: str = "└──") -> list[str]:
-    lines: list[str] = []
+def _find_value_position(line: str, *, input_value: str | float | bool | None) -> int | None:
+    if input_value is None:
+        return None
+    for candidate in (str(input_value), str(input_value).lower()):
+        pos = line.find(candidate)
+        if pos != -1:
+            return pos
+    return None
+
+
+def _format_location(
+    loc: SourceLocation,
+    *,
+    connector: str = "└──",
+    input_value: str | float | bool | None = None,
+    is_last: bool = True,
+) -> list[str]:
     suffix = f" ({loc.annotation})" if loc.annotation is not None else ""
 
     if loc.env_var_name is not None and loc.file_path is None:
         main = f"   {connector} {loc.display_label} '{loc.env_var_name}'"
         if loc.env_var_value is not None:
             main += f" = '{loc.env_var_value}'"
-        lines.append(main + suffix)
-    elif loc.file_path is not None:
-        main = f"   {connector} {loc.display_label} '{loc.file_path}'"
-        if loc.line_range is not None:
-            main += f", {loc.line_range!r}"
-        lines.append(main + suffix)
-        if loc.line_content is not None:
-            lines.extend(_format_content_lines(loc.line_content))
+        return [main + suffix]
 
-    return lines
+    if loc.file_path is None:
+        return []
+
+    if loc.line_content is not None and input_value is not None and len(loc.line_content) == 1:
+        pos = _find_value_position(loc.line_content[0], input_value=input_value)
+        if pos is not None:
+            value_len = len(str(input_value))
+            return [
+                *_format_content_lines(loc.line_content, prefix="   ├── "),
+                f"   ├   {' ' * pos}{'^' * value_len}",
+                *_format_file_line(loc, connector="└──" if is_last else "├──", suffix=suffix),
+            ]
+
+    file_connector = "├──" if not is_last else connector
+    if loc.line_content is not None:
+        return [
+            *_format_file_line(loc, connector=file_connector, suffix=suffix),
+            *_format_content_lines(loc.line_content),
+        ]
+
+    return _format_file_line(loc, connector="└──" if is_last else "├──", suffix=suffix)
+
+
+def _format_file_line(loc: SourceLocation, *, connector: str, suffix: str = "") -> list[str]:
+    file_main = f"   {connector} {loc.display_label} '{loc.file_path}'"
+    if loc.line_range is not None:
+        file_main += f", {loc.line_range!r}"
+    return [file_main + suffix]
+
+
+def _format_path(field_path: list[str]) -> str:
+    return ".".join(field_path) or "<root>"
 
 
 class DatureError(Exception):
@@ -86,13 +125,18 @@ class FieldLoadError(DatureError):
         super().__init__(self._format())
 
     def _format(self) -> str:
-        path_str = ".".join(self.field_path)
-        if not path_str:
-            path_str = "<root>"
-        lines = [f"  [{path_str}]  {self.message}"]
+        lines = [f"  [{_format_path(self.field_path)}]  {self.message}"]
         for i, loc in enumerate(self.locations):
-            connector = "└──" if i == len(self.locations) - 1 else "├──"
-            lines.extend(_format_location(loc, connector=connector))
+            is_last = i == len(self.locations) - 1
+            connector = "└──" if is_last else "├──"
+            lines.extend(
+                _format_location(
+                    loc,
+                    connector=connector,
+                    input_value=self.input_value,
+                    is_last=is_last,
+                ),
+            )
         return "\n".join(lines)
 
 
@@ -110,10 +154,7 @@ class MergeConflictFieldError(DatureError):
         super().__init__(self._format())
 
     def _format(self) -> str:
-        path_str = ".".join(self.field_path)
-        if not path_str:
-            path_str = "<root>"
-        lines = [f"  [{path_str}]  {self.message}"]
+        lines = [f"  [{_format_path(self.field_path)}]  {self.message}"]
         for loc in self.locations:
             lines.extend(_format_location(loc))
         return "\n".join(lines)
@@ -213,10 +254,7 @@ class EnvVarExpandError(DatureConfigError):
         for err in self.exceptions:
             if not isinstance(err, MissingEnvVarError):
                 continue
-            if err.field_path:
-                path_str = ".".join(err.field_path)
-            else:
-                path_str = "<root>"
+            path_str = _format_path(err.field_path)
             lines.append(f"  [{path_str}]  Missing environment variable '{err.var_name}'")
             if err.location is not None:
                 lines.extend(_format_location(err.location))
@@ -234,23 +272,10 @@ class MergeConflictError(DatureConfigError):
         return super().__new__(cls, dataclass_name, errors)
 
     def __str__(self) -> str:
-        lines: list[str] = []
-        lines.append(f"{self.dataclass_name} merge conflicts ({len(self.exceptions)})")
-        lines.append("")
-
+        lines = [f"{self.dataclass_name} merge conflicts ({len(self.exceptions)})", ""]
         for exc in self.exceptions:
-            if isinstance(exc, MergeConflictFieldError):
-                path_str = ".".join(exc.field_path)
-                if not path_str:
-                    path_str = "<root>"
-                lines.append(f"  [{path_str}]  {exc.message}")
-                for loc in exc.locations:
-                    lines.extend(_format_location(loc))
-                lines.append("")
-            else:
-                lines.append(f"  {exc}")
-                lines.append("")
-
+            lines.append(str(exc))
+            lines.append("")
         return "\n".join(lines)
 
 
@@ -296,25 +321,8 @@ class FieldGroupError(DatureConfigError):
         return super().__new__(cls, dataclass_name, errors)
 
     def __str__(self) -> str:
-        lines: list[str] = []
-        lines.append(f"{self.dataclass_name} field group errors ({len(self.exceptions)})")
-        lines.append("")
-
+        lines = [f"{self.dataclass_name} field group errors ({len(self.exceptions)})", ""]
         for exc in self.exceptions:
-            if isinstance(exc, FieldGroupViolationError):
-                group_str = ", ".join(exc.group_fields)
-                changed_pairs = zip(exc.changed_fields, exc.changed_sources, strict=True)
-                changed_parts = [f"{field} (from source {src})" for field, src in changed_pairs]
-                unchanged_pairs = zip(exc.unchanged_fields, exc.unchanged_sources, strict=True)
-                unchanged_parts = [f"{field} (from source {src})" for field, src in unchanged_pairs]
-                lines.append(
-                    f"  Field group ({group_str}) partially overridden in source {exc.source_index}",
-                )
-                lines.append(f"    changed:   {', '.join(changed_parts)}")
-                lines.append(f"    unchanged: {', '.join(unchanged_parts)}")
-                lines.append("")
-            else:
-                lines.append(f"  {exc}")
-                lines.append("")
-
+            lines.append(str(exc))
+            lines.append("")
         return "\n".join(lines)

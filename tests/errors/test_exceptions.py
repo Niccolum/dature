@@ -28,7 +28,10 @@ class TestDatureConfigErrorFormat:
         exc = DatureConfigError("Config", errors)
         assert str(exc) == "Config loading errors (1)"
         assert str(exc.exceptions[0]) == (
-            "  [timeout]  Expected int, got str\n   └── FILE 'config.toml', line 2\n       timeout = \"30\""
+            "  [timeout]  Expected int, got str\n"
+            '   ├── timeout = "30"\n'
+            "   ├              ^^\n"
+            "   └── FILE 'config.toml', line 2"
         )
 
     def test_multiple_errors_message(self):
@@ -66,8 +69,9 @@ class TestDatureConfigErrorFormat:
         assert str(exc) == "Config loading errors (2)"
         assert str(exc.exceptions[0]) == (
             "  [timeout]  invalid literal for int() with base 10: 'abc'\n"
-            "   └── FILE 'config.json', line 2\n"
-            '       "timeout": "abc"'
+            '   ├── "timeout": "abc"\n'
+            "   ├               ^^^\n"
+            "   └── FILE 'config.json', line 2"
         )
         assert str(exc.exceptions[1]) == ("  [db.port]  Missing required field\n   └── FILE 'config.json'")
 
