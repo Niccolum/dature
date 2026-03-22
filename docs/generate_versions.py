@@ -70,9 +70,15 @@ def main() -> None:
             },
         )
 
-    output_path = Path(output_dir) / "html" / "versions.json"
-    output_path.write_text(json.dumps(versions, indent=2))
-    print(f"Generated versions.json with {len(versions)} version(s) at {output_path}")
+    content = json.dumps(versions, indent=2)
+
+    # Material looks for ../versions.json relative to base URL.
+    # On RTD, base is /en/<version>/, so it resolves to /en/versions.json.
+    # Place the file both inside the build output and one level above.
+    html_dir = Path(output_dir) / "html"
+    for path in [html_dir / "versions.json", html_dir.parent / "versions.json"]:
+        path.write_text(content)
+        print(f"Generated versions.json at {path}")
 
 
 if __name__ == "__main__":
