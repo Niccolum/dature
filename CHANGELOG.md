@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+<!-- PR #52 -->
+### Docs
+- Updated documentation for clarity and consistency.
+- Improved the CI workflow for better integration with documentation generation.
+- Enhanced stylesheets for improved readability in documentation.
+<!-- PR #52 -->
+
 ## 0.14.0
 
 ### Improvements
