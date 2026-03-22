@@ -71,3 +71,9 @@
 .md-typeset table:not([class]) th {
   min-width: 6rem;
 }
+
+/* Hide RTD default version flyout (replaced by Material header selector) */
+.rst-versions,
+readthedocs-flyout {
+  display: none !important;
+}

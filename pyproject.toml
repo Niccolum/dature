@@ -80,6 +80,12 @@ ignore = [
 "src/dature/sources_loader/loaders/*.py" = [
     "FBT001",  # loader functions accept bool as scalar value, not as a flag
 ]
+"docs/generate_*.py" = [
+    "INP001",  # implicit namespace package
+    "T201",    # print (CLI script)
+    "S310",    # URL open audit (hardcoded https)
+    "BLE001",  # blind exception (graceful fallback)
+]
 "examples/**/*.py" = [
     "INP001",  # implicit namespace package
     "T201",    # print

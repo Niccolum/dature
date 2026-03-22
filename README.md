@@ -3,6 +3,7 @@
 ---
 
 <div align="center">
+
 [![PyPI](https://img.shields.io/pypi/v/dature)](https://pypi.org/project/dature/)
 [![Supported Python versions](https://img.shields.io/pypi/pyversions/dature)](https://pypi.org/project/dature/)
 [![Documentation](https://readthedocs.org/projects/dature/badge/?version=latest)](https://dature.readthedocs.io/)
@@ -16,6 +17,7 @@
 [![Commits since latest release](https://img.shields.io/github/commits-since/Niccolum/dature/latest?logo=github)](https://github.com/Niccolum/dature/commits)
 [![Last commit date](https://img.shields.io/github/last-commit/Niccolum/dature?logo=github&label=Last%20Commit)](https://github.com/Niccolum/dature/commits)
 [![Last release date](https://img.shields.io/github/release-date/Niccolum/dature?logo=github&label=Release%20Date)](https://github.com/Niccolum/dature/releases)
+
 </div>
 
 **[Documentation](https://dature.readthedocs.io/)** | **[Changelog](https://dature.readthedocs.io/en/latest/changelog/)**
