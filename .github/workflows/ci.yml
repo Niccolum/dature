@@ -296,35 +296,16 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Sync, activate and trigger RTD build
+      - name: Activate and build RTD version
         env:
           RTD_API_TOKEN: ${{ secrets.RTD_API_TOKEN }}
-          RTD_VERSION: refactor-fix-docs
+          RTD_VERSION: refactor-fix_docs
         run: |
-          curl -X POST \
-            -H "Authorization: Token $RTD_API_TOKEN" \
-            https://readthedocs.org/api/v3/projects/dature/sync-versions/
-
-          for i in $(seq 1 12); do
-            status=$(curl -s -o /dev/null -w "%{http_code}" \
-              -H "Authorization: Token $RTD_API_TOKEN" \
-              https://readthedocs.org/api/v3/projects/dature/versions/$RTD_VERSION/)
-            if [ "$status" = "200" ]; then
-              echo "Version $RTD_VERSION found after ${i}0s"
-              break
-            fi
-            echo "Waiting for version to appear... (attempt $i)"
-            sleep 10
-          done
-
-          curl -X PATCH \
+          curl -sf -X PATCH \
             -H "Authorization: Token $RTD_API_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"active": true, "hidden": true}' \
             https://readthedocs.org/api/v3/projects/dature/versions/$RTD_VERSION/
-          curl -X POST \
-            -H "Authorization: Token $RTD_API_TOKEN" \
-            https://readthedocs.org/api/v3/projects/dature/versions/$RTD_VERSION/builds/
 
   trigger-rtd-tag:
     needs: [tag]
