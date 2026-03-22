@@ -1,9 +1,11 @@
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
 
 from dature.config import config
+from dature.types import JSONValue
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,13 +48,33 @@ def _format_content_lines(content: list[str], *, prefix: str = "       ") -> lis
     return [f"{prefix}{_truncate_line(line)}" for line in content]
 
 
-def _find_value_position(line: str, *, input_value: str | float | bool | None) -> int | None:
-    if input_value is None or str(input_value) == "":
+@dataclass(frozen=True, slots=True)
+class _FoundValue:
+    pos: int
+    length: int
+
+
+def _build_candidates(input_value: JSONValue) -> list[str]:
+    if isinstance(input_value, (list, dict)):
+        return [json.dumps(input_value, ensure_ascii=False)]
+
+    if isinstance(input_value, str) and input_value == "":
+        return ['""', "''"]
+
+    text = str(input_value)
+    lower = text.lower()
+    if lower == text:
+        return [text]
+    return [text, lower]
+
+
+def _find_value_position(line: str, *, input_value: JSONValue) -> _FoundValue | None:
+    if input_value is None:
         return None
-    for candidate in (str(input_value), str(input_value).lower()):
+    for candidate in _build_candidates(input_value):
         pos = line.rfind(candidate)
         if pos != -1:
-            return pos
+            return _FoundValue(pos=pos, length=len(candidate))
     return None
 
 
@@ -60,7 +82,7 @@ def _format_location(
     loc: SourceLocation,
     *,
     connector: str = "└──",
-    input_value: str | float | bool | None = None,
+    input_value: JSONValue = None,
     is_last: bool = True,
 ) -> list[str]:
     suffix = f" ({loc.annotation})" if loc.annotation is not None else ""
@@ -75,15 +97,14 @@ def _format_location(
         return []
 
     if loc.line_content is not None and input_value is not None and len(loc.line_content) == 1:
-        pos = _find_value_position(loc.line_content[0], input_value=input_value)
-        if pos is not None:
-            value_len = len(str(input_value))
+        found = _find_value_position(loc.line_content[0], input_value=input_value)
+        if found is not None:
             max_visible = config.error_display.max_line_length - 3
-            if pos < max_visible:
-                caret_len = min(value_len, max_visible - pos)
+            if found.pos < max_visible:
+                caret_len = min(found.length, max_visible - found.pos)
                 return [
                     *_format_content_lines(loc.line_content, prefix="   ├── "),
-                    f"   │   {' ' * pos}{'^' * caret_len}",
+                    f"   │   {' ' * found.pos}{'^' * caret_len}",
                     *_format_file_line(loc, connector="└──" if is_last else "├──", suffix=suffix),
                 ]
 
@@ -117,7 +138,7 @@ class FieldLoadError(DatureError):
         *,
         field_path: list[str],
         message: str,
-        input_value: str | float | bool | None = None,
+        input_value: JSONValue = None,
         locations: list[SourceLocation] | None = None,
     ) -> None:
         self.field_path = field_path

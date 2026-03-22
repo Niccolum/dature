@@ -92,7 +92,11 @@ def int_from_string(value: str | int) -> int:
         raise TypeLoadError(int, value)
     if isinstance(value, int):
         return value
-    return int(value)
+    try:
+        return int(value)
+    except ValueError as exc:
+        exc.input_value = value  # type: ignore[attr-defined]
+        raise
 
 
 def float_passthrough(value: float) -> float:

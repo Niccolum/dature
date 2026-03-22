@@ -402,6 +402,7 @@ class TestInvalidDataNestedResolveEnvFile:
         assert str(first) == (
             "  [var.foo]  invalid literal for int() with base 10: 'not_a_number'\n"
             '   ├── MYAPP__VAR={"foo": "not_a_number", "bar": "not_a_number"}\n'
+            f"   │   {' ' * 43}^^^^^^^^^^^^\n"
             f"   └── ENV FILE '{env_file}', line 1"
         )
         second = err.exceptions[1]
@@ -409,6 +410,7 @@ class TestInvalidDataNestedResolveEnvFile:
         assert str(second) == (
             "  [var.bar]  invalid literal for int() with base 10: 'not_a_number'\n"
             '   ├── MYAPP__VAR={"foo": "not_a_number", "bar": "not_a_number"}\n'
+            f"   │   {' ' * 43}^^^^^^^^^^^^\n"
             f"   └── ENV FILE '{env_file}', line 1"
         )
 
@@ -445,6 +447,7 @@ class TestInvalidDataNestedResolveEnvFile:
         assert str(first) == (
             "  [var.foo]  invalid literal for int() with base 10: 'not_a_number'\n"
             "   ├── MYAPP__VAR__FOO=not_a_number\n"
+            "   │                   ^^^^^^^^^^^^\n"
             f"   └── ENV FILE '{env_file}', line 2"
         )
         second = err.exceptions[1]
@@ -452,6 +455,7 @@ class TestInvalidDataNestedResolveEnvFile:
         assert str(second) == (
             "  [var.bar]  invalid literal for int() with base 10: 'not_a_number'\n"
             "   ├── MYAPP__VAR__BAR=not_a_number\n"
+            "   │                   ^^^^^^^^^^^^\n"
             f"   └── ENV FILE '{env_file}', line 3"
         )
 

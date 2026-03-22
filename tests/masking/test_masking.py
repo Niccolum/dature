@@ -423,8 +423,11 @@ class TestSecretMaskingIntegration:
             load(LoadMetadata(file_=json_file), Cfg)
 
         assert str(exc_info.value) == "Cfg loading errors (1)"
+        content = f'{{"password": "{expected_password}", "port": "not_a_number"}}'
+        caret_pos = content.rfind("not_a_number")
         assert str(exc_info.value.exceptions[0]) == (
             "  [port]  invalid literal for int() with base 10: 'not_a_number'\n"
-            f'   ├── {{"password": "{expected_password}", "port": "not_a_number"}}\n'
+            f"   ├── {content}\n"
+            f"   │   {' ' * caret_pos}{'^^^^^^^^^^^^'}\n"
             f"   └── FILE '{json_file}', line 1"
         )

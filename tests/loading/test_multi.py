@@ -947,6 +947,7 @@ class TestFirstFound:
         assert str(err.exceptions[0]) == (
             f"  [port]  invalid literal for int() with base 10: 'not_a_number'\n"
             f"   ├── port: not_a_number\n"
+            f"   │         ^^^^^^^^^^^^\n"
             f"   └── FILE '{bad_type}', line 2"
         )
 

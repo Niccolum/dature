@@ -174,9 +174,12 @@ class TestLoadIntegrationErrors:
         assert isinstance(first, FieldLoadError)
         assert first.field_path == ["timeout"]
         assert str(err) == "Config loading errors (1)"
+        content = json_file.read_text()
+        caret_pos = content.rfind("abc")
         assert str(err.exceptions[0]) == (
             f"  [timeout]  invalid literal for int() with base 10: 'abc'\n"
-            f"   ├── {json_file.read_text()}\n"
+            f"   ├── {content}\n"
+            f"   │   {' ' * caret_pos}^^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -223,9 +226,12 @@ class TestLoadIntegrationErrors:
         assert str(err) == "Config loading errors (2)"
         timeout_err = next(e for e in err.exceptions if isinstance(e, FieldLoadError) and e.field_path == ["timeout"])
         name_err = next(e for e in err.exceptions if isinstance(e, FieldLoadError) and e.field_path == ["name"])
+        content = json_file.read_text()
+        caret_pos = content.rfind("abc")
         assert str(timeout_err) == (
             f"  [timeout]  invalid literal for int() with base 10: 'abc'\n"
-            f"   ├── {json_file.read_text()}\n"
+            f"   ├── {content}\n"
+            f"   │   {' ' * caret_pos}^^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
         assert str(name_err) == (f"  [name]  Missing required field\n   └── FILE '{json_file}'")
@@ -257,6 +263,7 @@ class TestLoadIntegrationErrors:
         assert str(err.exceptions[0]) == (
             f"  [db.port]  invalid literal for int() with base 10: 'abc'\n"
             '   ├── "port": "abc"\n'
+            "   │            ^^^\n"
             f"   └── FILE '{json_file}', line 4"
         )
 
@@ -306,6 +313,7 @@ class TestLoadIntegrationErrors:
         assert str(err.exceptions[0]) == (
             f"  [timeout]  invalid literal for int() with base 10: 'abc'\n"
             '   ├── timeout = "abc"\n'
+            "   │              ^^^\n"
             f"   └── FILE '{toml_file}', line 2"
         )
 
@@ -332,6 +340,7 @@ class TestLoadIntegrationErrors:
         assert str(err.exceptions[0]) == (
             f"  [timeout]  invalid literal for int() with base 10: 'abc'\n"
             '   ├── "timeout": "abc"\n'
+            "   │               ^^^\n"
             f"   └── FILE '{json_file}', line 3"
         )
 
@@ -737,6 +746,7 @@ class TestMultilineValueDisplay:
         assert str(err.exceptions[0]) == (
             "  [product.0.sku]  invalid literal for int() with base 10: 'not_a_number'\n"
             '   ├── sku = "not_a_number"\n'
+            "   │          ^^^^^^^^^^^^\n"
             f"   └── FILE '{array_of_tables_error_first_toml_file}', line 3"
         )
 
@@ -761,5 +771,6 @@ class TestMultilineValueDisplay:
         assert str(err.exceptions[0]) == (
             "  [product.1.sku]  invalid literal for int() with base 10: 'not_a_number'\n"
             '   ├── sku = "not_a_number"\n'
+            "   │          ^^^^^^^^^^^^\n"
             f"   └── FILE '{array_of_tables_error_last_toml_file}', line 7"
         )

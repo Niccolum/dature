@@ -20,15 +20,20 @@ def bytes_from_string(value: str) -> bytes:
 
 
 def complex_from_string(value: str) -> complex:
-    return complex(value.replace(" ", ""))
+    try:
+        return complex(value.replace(" ", ""))
+    except ValueError as exc:
+        exc.input_value = value  # type: ignore[attr-defined]
+        raise
 
 
 def timedelta_from_string(value: str) -> timedelta:
     """Parse str(timedelta(...)) format: '1 day, 2:30:00', '2 days 1:02:03', '0:45:00', '2:30'."""
     match = _TIMEDELTA_RE.match(value)
     if match is None or value == "":
-        msg = f"Invalid timedelta format: {value!r}"
-        raise ValueError(msg)
+        exc = ValueError(f"Invalid timedelta format: {value!r}")
+        exc.input_value = value  # type: ignore[attr-defined]
+        raise exc
 
     groups = match.groupdict()
     microseconds = 0
@@ -64,8 +69,16 @@ def secret_str_from_string(value: str) -> SecretStr:
 
 
 def payment_card_number_from_string(value: str) -> PaymentCardNumber:
-    return PaymentCardNumber(value)
+    try:
+        return PaymentCardNumber(value)
+    except ValueError as exc:
+        exc.input_value = value  # type: ignore[attr-defined]
+        raise
 
 
 def byte_size_from_string(value: str | int) -> ByteSize:
-    return ByteSize(value)
+    try:
+        return ByteSize(value)
+    except ValueError as exc:
+        exc.input_value = value  # type: ignore[attr-defined]
+        raise

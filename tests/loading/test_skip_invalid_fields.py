@@ -202,6 +202,7 @@ class TestMergeSkipInvalidFields:
         assert str(err.exceptions[0]) == (
             f"  [port]  invalid literal for int() with base 10: 'abc'\n"
             f'   ├── {{"host": "localhost", "port": "abc"}}\n'
+            f"   │                                  ^^^\n"
             f"   └── FILE '{source1}', line 1"
         )
 

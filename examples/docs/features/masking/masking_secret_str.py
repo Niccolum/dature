@@ -30,6 +30,7 @@ except DatureConfigError as exc:
     assert str(exc.exceptions[0]) == (
         "  [card_number]  Card number must contain only digits\n"
         f'   ├── card_number: "no*****er"\n'
+        "   │                 ^^^^^^^^^\n"
         f"   └── FILE '{source}', line 2"
     )
 else:

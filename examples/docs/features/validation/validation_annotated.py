@@ -43,7 +43,10 @@ except DatureConfigError as exc:
         f"   └── FILE '{source}', line 4"
     )
     assert str(exc.exceptions[2]) == (
-        f'  [tags]  Value must contain unique items\n   ├── tags: ["web", "web"],\n   └── FILE \'{source}\', line 5'
+        f"  [tags]  Value must contain unique items\n"
+        f'   ├── tags: ["web", "web"],\n'
+        f"   │         ^^^^^^^^^^^^^^\n"
+        f"   └── FILE '{source}', line 5"
     )
     assert str(exc.exceptions[3]) == (
         f"  [workers]  Value must be greater than or equal to 1\n"

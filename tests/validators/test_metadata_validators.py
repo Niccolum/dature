@@ -187,6 +187,7 @@ class TestMetadataValidatorsNested:
         assert str(e.exceptions[0]) == (
             "  [database.host]  Value must have at least 1 characters\n"
             f"   ├── {content}\n"
+            "   │                         ^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
