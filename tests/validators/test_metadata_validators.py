@@ -97,7 +97,7 @@ class TestMetadataValidatorsFailure:
         assert str(e.exceptions[0]) == (
             f"  [name]  Value must have at least 3 characters\n"
             f"   ├── {content}\n"
-            f"   ├             ^^\n"
+            f"   │             ^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -126,7 +126,7 @@ class TestMetadataValidatorsFailure:
         assert str(e.exceptions[0]) == (
             f"  [port]  Value must be greater than 0\n"
             f"   ├── {content}\n"
-            f"   ├            ^^\n"
+            f"   │            ^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -187,7 +187,6 @@ class TestMetadataValidatorsNested:
         assert str(e.exceptions[0]) == (
             "  [database.host]  Value must have at least 1 characters\n"
             f"   ├── {content}\n"
-            f"   ├   \n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -239,7 +238,7 @@ class TestMetadataValidatorsComplement:
         assert str(e.exceptions[0]) == (
             f"  [name]  Value must have at least 5 characters\n"
             f"   ├── {content}\n"
-            f"   ├             ^^\n"
+            f"   │             ^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -268,7 +267,7 @@ class TestMetadataValidatorsComplement:
         assert str(e.exceptions[0]) == (
             f"  [name]  Value must have at most 10 characters\n"
             f"   ├── {content}\n"
-            f"   ├             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
+            f"   │             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -315,7 +314,7 @@ class TestMetadataValidatorsComplement:
         assert str(e.exceptions[0]) == (
             f"  [name]  Value must have at least 5 characters\n"
             f"   ├── {content}\n"
-            f"   ├             ^^\n"
+            f"   │             ^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -362,7 +361,7 @@ class TestMetadataValidatorsComplement:
         assert str(e.exceptions[0]) == (
             "  [port]  Value must be greater than or equal to 1024\n"
             f"   ├── {content}\n"
-            f"   ├            ^^\n"
+            f"   │            ^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -391,7 +390,7 @@ class TestMetadataValidatorsComplement:
         assert str(e.exceptions[0]) == (
             f"  [port]  Value must be less than 65536\n"
             f"   ├── {content}\n"
-            f"   ├            ^^^^^\n"
+            f"   │            ^^^^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 

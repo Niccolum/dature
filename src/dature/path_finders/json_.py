@@ -94,7 +94,7 @@ def _build_json_line_map(content: str) -> dict[tuple[str, ...], LineRange]:
 
 
 def _extract_key_before_value(s: str, val_start: int) -> ExtractedKey:
-    """Находит ключ JSON-объекта, отступая назад от позиции начала значения."""
+    """Find JSON object key by scanning backwards from the value start position."""
     pos = val_start - 1
     while pos >= 0 and s[pos] in " \t\n\r:":
         pos -= 1

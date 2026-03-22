@@ -445,10 +445,10 @@ class TestRaiseOnConflict:
             Config merge conflicts (1)
 
               [host]  Conflicting values in multiple sources
+               ├── "host": "host-a",
                └── FILE '{a}', line 2
-                   "host": "host-a",
+               ├── "host": "host-b"
                └── FILE '{b}', line 2
-                   "host": "host-b"
             """)
 
     def test_no_conflict_disjoint_keys(self, tmp_path: Path):
@@ -535,10 +535,10 @@ class TestRaiseOnConflict:
             Config merge conflicts (1)
 
               [database.host]  Conflicting values in multiple sources
+               ├── "host": "a-host",
                └── FILE '{a}', line 3
-                   "host": "a-host",
+               ├── "host": "b-host"
                └── FILE '{b}', line 3
-                   "host": "b-host"
             """)
 
     def test_conflict_error_message_format(self, tmp_path: Path):
@@ -568,10 +568,10 @@ class TestRaiseOnConflict:
             Config merge conflicts (1)
 
               [host]  Conflicting values in multiple sources
+               ├── "host": "a-host"
                └── FILE '{a}', line 2
-                   "host": "a-host"
+               ├── "host": "b-host"
                └── FILE '{b}', line 2
-                   "host": "b-host"
             """)
 
     def test_conflict_with_env_source(self, tmp_path: Path, monkeypatch):
@@ -601,8 +601,8 @@ class TestRaiseOnConflict:
             Config merge conflicts (1)
 
               [host]  Conflicting values in multiple sources
+               ├── "host": "json-host",
                └── FILE '{a}', line 2
-                   "host": "json-host",
                └── ENV 'APP_HOST'
             """)
 
@@ -635,16 +635,16 @@ class TestRaiseOnConflict:
             Config merge conflicts (2)
 
               [host]  Conflicting values in multiple sources
+               ├── "host": "a-host",
                └── FILE '{a}', line 2
-                   "host": "a-host",
+               ├── "host": "b-host",
                └── FILE '{b}', line 2
-                   "host": "b-host",
 
               [port]  Conflicting values in multiple sources
+               ├── "port": 1000
                └── FILE '{a}', line 3
-                   "port": 1000
+               ├── "port": 2000
                └── FILE '{b}', line 3
-                   "port": 2000
             """)
 
     def test_is_subclass_of_dature_config_error(self):
@@ -946,8 +946,8 @@ class TestFirstFound:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             f"  [port]  invalid literal for int() with base 10: 'not_a_number'\n"
-            f"   └── FILE '{bad_type}', line 2\n"
-            f"       port: not_a_number"
+            f"   ├── port: not_a_number\n"
+            f"   └── FILE '{bad_type}', line 2"
         )
 
     def test_validation_error_references_correct_source(self, tmp_path: Path):
@@ -980,7 +980,7 @@ class TestFirstFound:
         assert str(err.exceptions[0]) == (
             f"  [port]  Value must be greater than or equal to 1\n"
             f"   ├── port: 0\n"
-            f"   ├         ^\n"
+            f"   │         ^\n"
             f"   └── FILE '{first}', line 2"
         )
 
@@ -1015,6 +1015,6 @@ class TestFirstFound:
         assert str(err.exceptions[0]) == (
             f"  [port]  Value must be greater than or equal to 1\n"
             f"   ├── port: 0\n"
-            f"   ├         ^\n"
+            f"   │         ^\n"
             f"   └── FILE '{first}', line 2"
         )

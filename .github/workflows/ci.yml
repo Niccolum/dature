@@ -71,38 +71,38 @@ jobs:
           from packaging.specifiers import SpecifierSet
           from packaging.version import Version
 
-          # 1. Получаем данные из PyPI для adaptix
+          # 1. Fetch adaptix data from PyPI
           with urllib.request.urlopen("https://pypi.org/pypi/adaptix/json") as response:
               data = json.loads(response.read())
 
-          # 2. Парсим ограничение из pyproject.toml
+          # 2. Parse version constraint from pyproject.toml
           with open("pyproject.toml", "rb") as f:
               pyproject = tomllib.load(f)
               deps = pyproject.get("project", {}).get("dependencies", [])
-              # Ищем строку 'adaptix>=3.0.0b11' и достаем саму спецификацию
+              # Find 'adaptix>=3.0.0b11' and extract the specifier
               raw_spec = next((d for d in deps if d.startswith("adaptix")), "adaptix>=0")
               spec_str = raw_spec.replace("adaptix", "").strip()
 
           spec = SpecifierSet(spec_str)
 
-          # 3. Собираем все не-yanked версии 3.x
+          # 3. Collect all non-yanked 3.x versions
           all_versions = [
               v for v, info in data["releases"].items()
               if v.startswith("3.") and not any(r.get("yanked") for r in info)
           ]
 
-          # 4. Сортируем и группируем (как раньше: оставляем только последний патч/бету в ветке)
+          # 4. Sort and group (keep only the latest patch/beta per branch)
           all_versions.sort(key=Version)
           grouped = {}
           for v in all_versions:
-              # Группируем по префиксу (отрезаем последнюю часть: .1 или b11)
+              # Group by prefix (strip the trailing part: .1 or b11)
               prefix = re.sub(r"(?<=[a-z])[0-9]+$|(?<=\.)[0-9]+$", "", v)
               grouped[prefix] = v
 
-          # 5. Фильтруем по pyproject.toml
+          # 5. Filter by pyproject.toml constraint
           final_versions = [v for v in grouped.values() if Version(v) in spec]
 
-          # Записываем результат для матрицы
+          # Write result for the matrix
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               f.write(f"versions={json.dumps(final_versions)}\n")
 

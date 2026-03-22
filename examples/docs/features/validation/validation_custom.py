@@ -47,6 +47,6 @@ except DatureConfigError as exc:
     assert str(exc.exceptions[0]) == (
         f"  [workers]  Value must be divisible by 2\n"
         f"   ├── workers: 3,\n"
-        f"   ├            ^\n"
+        f"   │            ^\n"
         f"   └── FILE '{source}', line 5"
     )

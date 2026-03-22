@@ -73,7 +73,7 @@ class TestCustomFieldValidator:
         assert str(e.exceptions[0]) == (
             f"  [count]  Value must be divisible by 5\n"
             f"   ├── {content}\n"
-            f"   ├             ^\n"
+            f"   │             ^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -97,7 +97,7 @@ class TestCustomFieldValidator:
         assert str(e.exceptions[0]) == (
             f"  [count]  Must be a multiple of 3\n"
             f"   ├── {content}\n"
-            f"   ├             ^\n"
+            f"   │             ^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -136,7 +136,7 @@ class TestCustomStringValidator:
         assert str(e.exceptions[0]) == (
             f"  [url]  Value must start with 'https://'\n"
             f"   ├── {content}\n"
-            f"   ├            ^^^^^^^^^^^^^^^^^^\n"
+            f"   │            ^^^^^^^^^^^^^^^^^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -173,7 +173,7 @@ class TestCustomValidatorWithDecorator:
         assert str(e.exceptions[0]) == (
             f"  [port]  Value must be divisible by 10\n"
             f"   ├── {content}\n"
-            f"   ├            ^^^^\n"
+            f"   │            ^^^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -194,7 +194,7 @@ class TestCustomValidatorWithDecorator:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [port]  Value must be divisible by 10\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [port]  Value must be divisible by 10\n   ├── {content}\n   └── FILE '{json_file}', line 1"
         )
 
 
@@ -235,12 +235,12 @@ class TestMultipleCustomValidators:
         assert str(e.exceptions[0]) == (
             f"  [count]  Value must be divisible by 5\n"
             f"   ├── {content}\n"
-            f"   ├             ^\n"
+            f"   │             ^\n"
             f"   └── FILE '{json_file}', line 1"
         )
         assert str(e.exceptions[1]) == (
             f"  [url]  Value must start with 'https://'\n"
             f"   ├── {content}\n"
-            f"   ├                        ^^^^^^^^^^^^^^^^^^\n"
+            f"   │                        ^^^^^^^^^^^^^^^^^^\n"
             f"   └── FILE '{json_file}', line 1"
         )

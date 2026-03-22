@@ -43,7 +43,7 @@ class TestGt:
         assert str(e.exceptions[0]) == (
             f"  [age]  Value must be greater than 18\n"
             f"   ├── {content}\n"
-            f"   ├           ^^\n"
+            f"   │           ^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -82,7 +82,7 @@ class TestGe:
         assert str(e.exceptions[0]) == (
             f"  [age]  Value must be greater than or equal to 18\n"
             f"   ├── {content}\n"
-            f"   ├           ^^\n"
+            f"   │           ^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -121,7 +121,7 @@ class TestLt:
         assert str(e.exceptions[0]) == (
             f"  [age]  Value must be less than 100\n"
             f"   ├── {content}\n"
-            f"   ├           ^^^\n"
+            f"   │           ^^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -160,7 +160,7 @@ class TestLe:
         assert str(e.exceptions[0]) == (
             f"  [age]  Value must be less than or equal to 100\n"
             f"   ├── {content}\n"
-            f"   ├           ^^^\n"
+            f"   │           ^^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -199,6 +199,6 @@ class TestCombined:
         assert str(e.exceptions[0]) == (
             f"  [age]  Value must be less than or equal to 65\n"
             f"   ├── {content}\n"
-            f"   ├           ^^\n"
+            f"   │           ^^\n"
             f"   └── FILE '{json_file}', line 1"
         )

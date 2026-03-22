@@ -41,7 +41,7 @@ class TestMinItems:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [tags]  Value must have at least 3 items\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [tags]  Value must have at least 3 items\n   ├── {content}\n   └── FILE '{json_file}', line 1"
         )
 
 
@@ -77,7 +77,7 @@ class TestMaxItems:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [tags]  Value must have at most 2 items\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [tags]  Value must have at most 2 items\n   ├── {content}\n   └── FILE '{json_file}', line 1"
         )
 
 
@@ -113,7 +113,7 @@ class TestUniqueItems:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [tags]  Value must contain unique items\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [tags]  Value must contain unique items\n   ├── {content}\n   └── FILE '{json_file}', line 1"
         )
 
 
@@ -149,5 +149,5 @@ class TestCombined:
         assert len(e.exceptions) == 1
         assert str(e) == "Config loading errors (1)"
         assert str(e.exceptions[0]) == (
-            f"  [tags]  Value must have at most 5 items\n   └── FILE '{json_file}', line 1\n       {content}"
+            f"  [tags]  Value must have at most 5 items\n   ├── {content}\n   └── FILE '{json_file}', line 1"
         )

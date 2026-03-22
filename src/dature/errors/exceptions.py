@@ -47,10 +47,10 @@ def _format_content_lines(content: list[str], *, prefix: str = "       ") -> lis
 
 
 def _find_value_position(line: str, *, input_value: str | float | bool | None) -> int | None:
-    if input_value is None:
+    if input_value is None or str(input_value) == "":
         return None
     for candidate in (str(input_value), str(input_value).lower()):
-        pos = line.find(candidate)
+        pos = line.rfind(candidate)
         if pos != -1:
             return pos
     return None
@@ -78,17 +78,19 @@ def _format_location(
         pos = _find_value_position(loc.line_content[0], input_value=input_value)
         if pos is not None:
             value_len = len(str(input_value))
-            return [
-                *_format_content_lines(loc.line_content, prefix="   ├── "),
-                f"   ├   {' ' * pos}{'^' * value_len}",
-                *_format_file_line(loc, connector="└──" if is_last else "├──", suffix=suffix),
-            ]
+            max_visible = config.error_display.max_line_length - 3
+            if pos < max_visible:
+                caret_len = min(value_len, max_visible - pos)
+                return [
+                    *_format_content_lines(loc.line_content, prefix="   ├── "),
+                    f"   │   {' ' * pos}{'^' * caret_len}",
+                    *_format_file_line(loc, connector="└──" if is_last else "├──", suffix=suffix),
+                ]
 
-    file_connector = "├──" if not is_last else connector
     if loc.line_content is not None:
         return [
-            *_format_file_line(loc, connector=file_connector, suffix=suffix),
-            *_format_content_lines(loc.line_content),
+            *_format_content_lines(loc.line_content, prefix="   ├── "),
+            *_format_file_line(loc, connector="└──" if is_last else "├──", suffix=suffix),
         ]
 
     return _format_file_line(loc, connector="└──" if is_last else "├──", suffix=suffix)
@@ -106,7 +108,7 @@ def _format_path(field_path: list[str]) -> str:
 
 
 class DatureError(Exception):
-    """Базовая ошибка dature."""
+    """Base dature error."""
 
 
 class FieldLoadError(DatureError):

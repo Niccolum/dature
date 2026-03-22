@@ -145,7 +145,7 @@ class _PatchContext:
             mask_secrets=mask_secrets,
         )
 
-        # probe_retort создаётся заранее, чтобы adaptix увидел оригинальную сигнатуру
+        # probe_retort is created early so adaptix sees the original signature
         self.probe_retort: Retort | None = None
         if metadata.skip_if_invalid:
             self.probe_retort = loader_instance.create_probe_retort()

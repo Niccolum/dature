@@ -132,7 +132,7 @@ class TestToml11Loader:
         assert str(first) == (
             f"  [count]  Expected int, got bool\n"
             f"   ├── count = true\n"
-            f"   ├           ^^^^\n"
+            f"   │           ^^^^\n"
             f"   └── FILE '{toml_file}', line 1"
         )
 
@@ -155,6 +155,6 @@ class TestToml11Loader:
         assert str(first) == (
             f"  [flag]  Expected bool, got int\n"
             f"   ├── flag = 1\n"
-            f"   ├          ^\n"
+            f"   │          ^\n"
             f"   └── FILE '{toml_file}', line 1"
         )  # fmt: skip

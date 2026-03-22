@@ -419,6 +419,6 @@ class TestEnvVarExpandErrorFormat:
             StrictConfig env expand errors (1)
 
               [host]  Missing environment variable 'MISSING_HOST'
+               ├── {line_content}
                └── {source_label} '{file}', line {line}
-                   {line_content}
         """)

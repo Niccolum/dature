@@ -36,12 +36,11 @@ except DatureConfigError as exc:
     assert str(exc.exceptions[0]) == (
         f"  [host]  Value must have at least 1 characters\n"
         f'   ├── host: ""\n'
-        f"   ├   \n"
         f"   └── FILE '{source}', line 1"
     )  # fmt: skip
     assert str(exc.exceptions[1]) == (
         f"  [port]  Value must be greater than or equal to 1\n"
         f"   ├── port: 0\n"
-        f"   ├         ^\n"
+        f"   │         ^\n"
         f"   └── FILE '{source}', line 2"
     )

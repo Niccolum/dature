@@ -29,8 +29,8 @@ except DatureConfigError as exc:
     assert len(exc.exceptions) == 1
     assert str(exc.exceptions[0]) == (
         "  [card_number]  Card number must contain only digits\n"
-        f"   └── FILE '{source}', line 2\n"
-        '       card_number: "no*****er"'
+        f'   ├── card_number: "no*****er"\n'
+        f"   └── FILE '{source}', line 2"
     )
 else:
     raise AssertionError("Expected DatureConfigError")

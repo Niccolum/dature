@@ -241,8 +241,8 @@ class TestPartialNestedResolveEnvFile:
         assert isinstance(field_err, FieldLoadError)
         assert str(field_err) == (
             "  [var.bar]  Missing required field\n"
-            f"   └── ENV FILE '{env_file}', line 1\n"
-            '       MYAPP__VAR={"foo": "from_json"}'
+            '   ├── MYAPP__VAR={"foo": "from_json"}\n'
+            f"   └── ENV FILE '{env_file}', line 1"
         )
 
 
@@ -401,15 +401,15 @@ class TestInvalidDataNestedResolveEnvFile:
         assert isinstance(first, FieldLoadError)
         assert str(first) == (
             "  [var.foo]  invalid literal for int() with base 10: 'not_a_number'\n"
-            f"   └── ENV FILE '{env_file}', line 1\n"
-            '       MYAPP__VAR={"foo": "not_a_number", "bar": "not_a_number"}'
+            '   ├── MYAPP__VAR={"foo": "not_a_number", "bar": "not_a_number"}\n'
+            f"   └── ENV FILE '{env_file}', line 1"
         )
         second = err.exceptions[1]
         assert isinstance(second, FieldLoadError)
         assert str(second) == (
             "  [var.bar]  invalid literal for int() with base 10: 'not_a_number'\n"
-            f"   └── ENV FILE '{env_file}', line 1\n"
-            '       MYAPP__VAR={"foo": "not_a_number", "bar": "not_a_number"}'
+            '   ├── MYAPP__VAR={"foo": "not_a_number", "bar": "not_a_number"}\n'
+            f"   └── ENV FILE '{env_file}', line 1"
         )
 
     def test_flat_invalid_json_strategy_succeeds(self, tmp_path: Path) -> None:
@@ -444,15 +444,15 @@ class TestInvalidDataNestedResolveEnvFile:
         assert isinstance(first, FieldLoadError)
         assert str(first) == (
             "  [var.foo]  invalid literal for int() with base 10: 'not_a_number'\n"
-            f"   └── ENV FILE '{env_file}', line 2\n"
-            "       MYAPP__VAR__FOO=not_a_number"
+            "   ├── MYAPP__VAR__FOO=not_a_number\n"
+            f"   └── ENV FILE '{env_file}', line 2"
         )
         second = err.exceptions[1]
         assert isinstance(second, FieldLoadError)
         assert str(second) == (
             "  [var.bar]  invalid literal for int() with base 10: 'not_a_number'\n"
-            f"   └── ENV FILE '{env_file}', line 3\n"
-            "       MYAPP__VAR__BAR=not_a_number"
+            "   ├── MYAPP__VAR__BAR=not_a_number\n"
+            f"   └── ENV FILE '{env_file}', line 3"
         )
 
 

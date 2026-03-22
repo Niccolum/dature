@@ -338,7 +338,7 @@ class TestSecretMaskingIntegration:
         assert str(exc_info.value.exceptions[0]) == (
             "  [connection_id]  Invalid variant: 'aK*****T6'\n"
             f'   ├── {{"connection_id": "aK*****T6", "host": "production"}}\n'
-            f"   ├                      ^^^^^^^^^\n"
+            f"   │                      ^^^^^^^^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -360,7 +360,7 @@ class TestSecretMaskingIntegration:
         assert str(exc_info.value.exceptions[0]) == (
             f"  [connection_id]  Invalid variant: '{random_token}'\n"
             f"   ├── {content}\n"
-            f"   ├                      ^^^^^^^^^^^^^^^^^^^^^^^^\n"
+            f"   │                      ^^^^^^^^^^^^^^^^^^^^^^^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 
@@ -425,6 +425,6 @@ class TestSecretMaskingIntegration:
         assert str(exc_info.value) == "Cfg loading errors (1)"
         assert str(exc_info.value.exceptions[0]) == (
             "  [port]  invalid literal for int() with base 10: 'not_a_number'\n"
-            f"   └── FILE '{json_file}', line 1\n"
-            f'       {{"password": "{expected_password}", "port": "not_a_number"}}'
+            f'   ├── {{"password": "{expected_password}", "port": "not_a_number"}}\n'
+            f"   └── FILE '{json_file}', line 1"
         )

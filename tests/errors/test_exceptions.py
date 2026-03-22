@@ -30,7 +30,7 @@ class TestDatureConfigErrorFormat:
         assert str(exc.exceptions[0]) == (
             "  [timeout]  Expected int, got str\n"
             '   ├── timeout = "30"\n'
-            "   ├              ^^\n"
+            "   │              ^^\n"
             "   └── FILE 'config.toml', line 2"
         )
 
@@ -70,7 +70,7 @@ class TestDatureConfigErrorFormat:
         assert str(exc.exceptions[0]) == (
             "  [timeout]  invalid literal for int() with base 10: 'abc'\n"
             '   ├── "timeout": "abc"\n'
-            "   ├               ^^^\n"
+            "   │               ^^^\n"
             "   └── FILE 'config.json', line 2"
         )
         assert str(exc.exceptions[1]) == ("  [db.port]  Missing required field\n   └── FILE 'config.json'")
@@ -99,6 +99,59 @@ class TestDatureConfigErrorFormat:
         )
 
 
+class TestCaretPointsToValue:
+    def test_caret_points_to_value_not_key_when_same_string(self) -> None:
+        # key "name" and value "name" are identical — caret should point to the value (rfind)
+        errors = [
+            FieldLoadError(
+                field_path=["name"],
+                message="Expected int, got str",
+                input_value="name",
+                locations=[
+                    SourceLocation(
+                        display_label="FILE",
+                        file_path=Path("config.toml"),
+                        line_range=LineRange(start=1, end=1),
+                        line_content=['name = "name"'],
+                        env_var_name=None,
+                    ),
+                ],
+            ),
+        ]
+        exc = DatureConfigError("Config", errors)
+        assert str(exc.exceptions[0]) == (
+            "  [name]  Expected int, got str\n"
+            '   ├── name = "name"\n'
+            "   │           ^^^^\n"
+            "   └── FILE 'config.toml', line 1"
+        )
+
+    def test_caret_points_to_value_in_json_duplicate_string(self) -> None:
+        errors = [
+            FieldLoadError(
+                field_path=["host"],
+                message="Expected int, got str",
+                input_value="host",
+                locations=[
+                    SourceLocation(
+                        display_label="FILE",
+                        file_path=Path("config.json"),
+                        line_range=LineRange(start=2, end=2),
+                        line_content=['"host": "host"'],
+                        env_var_name=None,
+                    ),
+                ],
+            ),
+        ]
+        exc = DatureConfigError("Config", errors)
+        assert str(exc.exceptions[0]) == (
+            "  [host]  Expected int, got str\n"
+            '   ├── "host": "host"\n'
+            "   │            ^^^^\n"
+            "   └── FILE 'config.json', line 2"
+        )
+
+
 class TestLoadIntegrationErrors:
     def test_json_type_error_decorator(self, tmp_path: Path):
         json_file = tmp_path / "config.json"
@@ -123,8 +176,8 @@ class TestLoadIntegrationErrors:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             f"  [timeout]  invalid literal for int() with base 10: 'abc'\n"
-            f"   └── FILE '{json_file}', line 1\n"
-            f"       {json_file.read_text()}"
+            f"   ├── {json_file.read_text()}\n"
+            f"   └── FILE '{json_file}', line 1"
         )
 
     def test_json_missing_field_function(self, tmp_path: Path):
@@ -172,8 +225,8 @@ class TestLoadIntegrationErrors:
         name_err = next(e for e in err.exceptions if isinstance(e, FieldLoadError) and e.field_path == ["name"])
         assert str(timeout_err) == (
             f"  [timeout]  invalid literal for int() with base 10: 'abc'\n"
-            f"   └── FILE '{json_file}', line 1\n"
-            f"       {json_file.read_text()}"
+            f"   ├── {json_file.read_text()}\n"
+            f"   └── FILE '{json_file}', line 1"
         )
         assert str(name_err) == (f"  [name]  Missing required field\n   └── FILE '{json_file}'")
 
@@ -203,8 +256,8 @@ class TestLoadIntegrationErrors:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             f"  [db.port]  invalid literal for int() with base 10: 'abc'\n"
-            f"   └── FILE '{json_file}', line 4\n"
-            '       "port": "abc"'
+            '   ├── "port": "abc"\n'
+            f"   └── FILE '{json_file}', line 4"
         )
 
     def test_env_type_error(self, monkeypatch: pytest.MonkeyPatch):
@@ -252,8 +305,8 @@ class TestLoadIntegrationErrors:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             f"  [timeout]  invalid literal for int() with base 10: 'abc'\n"
-            f"   └── FILE '{toml_file}', line 2\n"
-            '       timeout = "abc"'
+            '   ├── timeout = "abc"\n'
+            f"   └── FILE '{toml_file}', line 2"
         )
 
     def test_json_with_line_number(self, tmp_path: Path):
@@ -278,8 +331,8 @@ class TestLoadIntegrationErrors:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             f"  [timeout]  invalid literal for int() with base 10: 'abc'\n"
-            f"   └── FILE '{json_file}', line 3\n"
-            '       "timeout": "abc"'
+            '   ├── "timeout": "abc"\n'
+            f"   └── FILE '{json_file}', line 3"
         )
 
 
@@ -328,7 +381,7 @@ class TestLineTruncation:
         exc = DatureConfigError("Config", errors)
         assert str(exc) == "Config loading errors (1)"
         assert str(exc.exceptions[0]) == (
-            f"  [timeout]  Expected int, got str\n   └── FILE 'config.toml', line 2\n       {expected_content}"
+            f"  [timeout]  Expected int, got str\n   ├── {expected_content}\n   └── FILE 'config.toml', line 2"
         )
 
     @pytest.mark.parametrize(
@@ -376,8 +429,8 @@ class TestLineTruncation:
         assert str(exc) == "Config loading errors (1)"
         assert str(exc.exceptions[0]) == (
             f"  [timeout]  invalid literal for int() with base 10: 'abc'\n"
-            f"   └── ENV FILE '.env', line 2\n"
-            f"       {expected_content}"
+            f"   ├── {expected_content}\n"
+            f"   └── ENV FILE '.env', line 2"
         )
 
     def test_multiline_content_each_line_truncated(self) -> None:
@@ -404,10 +457,10 @@ class TestLineTruncation:
         assert str(exc) == "Config loading errors (1)"
         assert str(exc.exceptions[0]) == (
             "  [db]  Expected int, got dict\n"
-            "   └── FILE 'config.json', line 2-4\n"
-            f"       {truncated}\n"
-            f"       {line_short}\n"
-            f"       {truncated}"
+            f"   ├── {truncated}\n"
+            f"   ├── {line_short}\n"
+            f"   ├── {truncated}\n"
+            "   └── FILE 'config.json', line 2-4"
         )
 
     def test_four_lines_shows_two_and_ellipsis(self) -> None:
@@ -431,10 +484,10 @@ class TestLineTruncation:
         assert str(exc) == "Config loading errors (1)"
         assert str(exc.exceptions[0]) == (
             "  [db]  Expected int, got dict\n"
-            "   └── FILE 'config.json', line 2-5\n"
-            "       line1\n"
-            "       line2\n"
-            "       ..."
+            "   ├── line1\n"
+            "   ├── line2\n"
+            "   ├── ...\n"
+            "   └── FILE 'config.json', line 2-5"
         )
 
     def test_five_lines_shows_two_and_ellipsis(self) -> None:
@@ -458,10 +511,93 @@ class TestLineTruncation:
         assert str(exc) == "Config loading errors (1)"
         assert str(exc.exceptions[0]) == (
             "  [db]  Expected int, got dict\n"
-            "   └── FILE 'config.json', line 2-6\n"
-            "       line1\n"
-            "       line2\n"
-            "       ..."
+            "   ├── line1\n"
+            "   ├── line2\n"
+            "   ├── ...\n"
+            "   └── FILE 'config.json', line 2-6"
+        )
+
+
+class TestCaretTruncation:
+    def test_value_fully_past_truncation_skips_caret(self) -> None:
+        # "port": 0 at position 85+, past max_line_length=80 truncation boundary (77 visible chars)
+        line = '{"key1": "aaaaaaaaaaaaaaaaaaaaaaaaaaa", "key2": "bbbbbbbbbbbbbbbbbbbbbbbbb", "port": 0}'
+        errors = [
+            FieldLoadError(
+                field_path=["port"],
+                message="Expected str, got int",
+                input_value=0,
+                locations=[
+                    SourceLocation(
+                        display_label="FILE",
+                        file_path=Path("config.json"),
+                        line_range=LineRange(start=1, end=1),
+                        line_content=[line],
+                        env_var_name=None,
+                    ),
+                ],
+            ),
+        ]
+        exc = DatureConfigError("Config", errors)
+        truncated = line[:77] + "..."
+        assert str(exc.exceptions[0]) == (
+            f"  [port]  Expected str, got int\n   ├── {truncated}\n   └── FILE 'config.json', line 1"
+        )
+
+    def test_value_partially_truncated_shows_partial_caret(self) -> None:
+        # Value starts within visible area but extends past truncation point
+        padding = "x" * 73
+        line = f"{padding}abcdefghij" + "y" * 10  # "abcdefghij" at pos 73, line > 80
+        errors = [
+            FieldLoadError(
+                field_path=["field"],
+                message="Expected int, got str",
+                input_value="abcdefghij",
+                locations=[
+                    SourceLocation(
+                        display_label="FILE",
+                        file_path=Path("config.toml"),
+                        line_range=LineRange(start=1, end=1),
+                        line_content=[line],
+                        env_var_name=None,
+                    ),
+                ],
+            ),
+        ]
+        exc = DatureConfigError("Config", errors)
+        truncated = line[:77] + "..."
+        assert str(exc.exceptions[0]) == (
+            "  [field]  Expected int, got str\n"
+            f"   ├── {truncated}\n"
+            f"   │   {' ' * 73}^^^^\n"
+            "   └── FILE 'config.toml', line 1"
+        )
+
+    def test_value_within_visible_area_shows_full_caret(self) -> None:
+        line = 'timeout = "30"' + "x" * 70
+        errors = [
+            FieldLoadError(
+                field_path=["timeout"],
+                message="Expected int, got str",
+                input_value="30",
+                locations=[
+                    SourceLocation(
+                        display_label="FILE",
+                        file_path=Path("config.toml"),
+                        line_range=LineRange(start=2, end=2),
+                        line_content=[line],
+                        env_var_name=None,
+                    ),
+                ],
+            ),
+        ]
+        exc = DatureConfigError("Config", errors)
+        truncated = line[:77] + "..."
+        assert str(exc.exceptions[0]) == (
+            "  [timeout]  Expected int, got str\n"
+            f"   ├── {truncated}\n"
+            "   │              ^^\n"
+            "   └── FILE 'config.toml', line 2"
         )
 
 
@@ -483,10 +619,10 @@ class TestMultilineValueDisplay:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             "  [db]  int() argument must be a string, a bytes-like object or a real number, not 'dict'\n"
-            f"   └── FILE '{json_file}', line 2-5\n"
-            '       "db": {\n'
-            '         "host": "localhost",\n'
-            "       ..."
+            '   ├── "db": {\n'
+            '   ├──   "host": "localhost",\n'
+            "   ├── ...\n"
+            f"   └── FILE '{json_file}', line 2-5"
         )
 
     def test_yaml_multiline_block(self, tmp_path: Path):
@@ -507,10 +643,10 @@ class TestMultilineValueDisplay:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             "  [db]  int() argument must be a string, a bytes-like object or a real number, not 'dict'\n"
-            f"   └── FILE '{yaml_file}', line 1-3\n"
-            "       db:\n"
-            "         host: localhost\n"
-            "         port: abc"
+            "   ├── db:\n"
+            "   ├──   host: localhost\n"
+            "   ├──   port: abc\n"
+            f"   └── FILE '{yaml_file}', line 1-3"
         )
 
     def test_toml_multiline_array(self, tmp_path: Path):
@@ -530,10 +666,10 @@ class TestMultilineValueDisplay:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             "  [tags]  int() argument must be a string, a bytes-like object or a real number, not 'list'\n"
-            f"   └── FILE '{toml_file}', line 1-4\n"
-            "       tags = [\n"
-            '         "a",\n'
-            "       ..."
+            "   ├── tags = [\n"
+            '   ├──   "a",\n'
+            "   ├── ...\n"
+            f"   └── FILE '{toml_file}', line 1-4"
         )
 
     def test_json_multiline_array(self, tmp_path: Path):
@@ -553,10 +689,10 @@ class TestMultilineValueDisplay:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             "  [tags]  int() argument must be a string, a bytes-like object or a real number, not 'list'\n"
-            f"   └── FILE '{json_file}', line 2-5\n"
-            '       "tags": [\n'
-            '         "a",\n'
-            "       ..."
+            '   ├── "tags": [\n'
+            '   ├──   "a",\n'
+            "   ├── ...\n"
+            f"   └── FILE '{json_file}', line 2-5"
         )
 
     def test_toml_array_of_tables_success(self, array_of_tables_toml_file: Path):
@@ -600,8 +736,8 @@ class TestMultilineValueDisplay:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             "  [product.0.sku]  invalid literal for int() with base 10: 'not_a_number'\n"
-            f"   └── FILE '{array_of_tables_error_first_toml_file}', line 3\n"
-            '       sku = "not_a_number"'
+            '   ├── sku = "not_a_number"\n'
+            f"   └── FILE '{array_of_tables_error_first_toml_file}', line 3"
         )
 
     def test_toml_array_of_tables_error_last_element(self, array_of_tables_error_last_toml_file: Path):
@@ -624,6 +760,6 @@ class TestMultilineValueDisplay:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             "  [product.1.sku]  invalid literal for int() with base 10: 'not_a_number'\n"
-            f"   └── FILE '{array_of_tables_error_last_toml_file}', line 7\n"
-            '       sku = "not_a_number"'
+            '   ├── sku = "not_a_number"\n'
+            f"   └── FILE '{array_of_tables_error_last_toml_file}', line 7"
         )

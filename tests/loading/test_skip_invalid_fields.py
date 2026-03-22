@@ -92,10 +92,10 @@ class TestMergeSkipInvalidFields:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             f"  [port]  Missing required field (invalid in: json '{source1}', json '{source2}')\n"
+            f'   ├── {{"host": "localhost", "port": "abc"}}\n'
             f"   ├── FILE '{source1}', line 1\n"
-            f'       {{"host": "localhost", "port": "abc"}}\n'
-            f"   └── FILE '{source2}', line 1\n"
-            f'       {{"port": "def"}}'
+            f'   ├── {{"port": "def"}}\n'
+            f"   └── FILE '{source2}', line 1"
         )
 
     def test_nested_dataclass(self, tmp_path: Path):
@@ -201,8 +201,8 @@ class TestMergeSkipInvalidFields:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             f"  [port]  invalid literal for int() with base 10: 'abc'\n"
-            f"   └── FILE '{source1}', line 1\n"
-            f'       {{"host": "localhost", "port": "abc"}}'
+            f'   ├── {{"host": "localhost", "port": "abc"}}\n'
+            f"   └── FILE '{source1}', line 1"
         )
 
     def test_raise_on_conflict_with_skip(self, tmp_path: Path):
@@ -290,13 +290,13 @@ class TestMergeSkipInvalidFields:
         assert str(err.exceptions[0]) == (
             f"  [host]  Expected str, got int\n"
             f'   ├── {{"host": 123, "port": "abc"}}\n'
-            f"   ├            ^^^\n"
+            f"   │            ^^^\n"
             f"   └── FILE '{source1}', line 1"
         )
         assert str(err.exceptions[1]) == (
             f"  [port]  Missing required field (invalid in: json '{source1}')\n"
-            f"   └── FILE '{source1}', line 1\n"
-            f'       {{"host": 123, "port": "abc"}}'
+            f'   ├── {{"host": 123, "port": "abc"}}\n'
+            f"   └── FILE '{source1}', line 1"
         )
 
     def test_log_warnings(self, tmp_path: Path, caplog: pytest.LogCaptureFixture):
@@ -368,8 +368,8 @@ class TestSingleSourceSkipInvalidFields:
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
             f"  [port]  Missing required field (invalid in: json '{json_file}')\n"
-            f"   └── FILE '{json_file}', line 1\n"
-            f'       {{"host": "localhost", "port": "abc"}}'
+            f'   ├── {{"host": "localhost", "port": "abc"}}\n'
+            f"   └── FILE '{json_file}', line 1"
         )
 
     def test_single_source_decorator_skip(self, tmp_path: Path):

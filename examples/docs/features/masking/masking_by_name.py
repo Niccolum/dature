@@ -25,7 +25,7 @@ except DatureConfigError as exc:
     assert str(exc.exceptions[0]) == (
         f"  [password]  Invalid variant: 'my*****rd'\n"
         f'   ├── password: "my*****rd"\n'
-        f"   ├              ^^^^^^^^^\n"
+        f"   │              ^^^^^^^^^\n"
         f"   └── FILE '{source}', line 1"
     )
 else:

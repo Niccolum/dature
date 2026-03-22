@@ -132,7 +132,7 @@ class TestJson5Loader:
         assert str(first) == (
             f"  [count]  Expected int, got bool\n"
             f"   ├── {json5_file.read_text()}\n"
-            f"   ├           ^^^^\n"
+            f"   │           ^^^^\n"
             f"   └── FILE '{json5_file}', line 1"
         )
 
@@ -155,6 +155,6 @@ class TestJson5Loader:
         assert str(first) == (
             f"  [flag]  Expected bool, got int\n"
             f"   ├── {json5_file.read_text()}\n"
-            f"   ├          ^\n"
+            f"   │          ^\n"
             f"   └── FILE '{json5_file}', line 1"
         )
