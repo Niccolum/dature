@@ -8,7 +8,7 @@ from dature.sources_loader.json_ import JsonLoader
 from dature.types import FILE_LIKE_TYPES, ExpandEnvVarsMode, NestedResolve, NestedResolveStrategy
 
 if TYPE_CHECKING:
-    from dature.metadata import LoadMetadata, TypeLoader
+    from dature.metadata import Source, TypeLoader
     from dature.protocols import LoaderProtocol
     from dature.types import FileLike, FilePath
 
@@ -104,7 +104,7 @@ def resolve_loader_class(
 
 
 def resolve_loader(
-    metadata: "LoadMetadata",
+    metadata: "Source",
     *,
     expand_env_vars: ExpandEnvVarsMode | None = None,
     type_loaders: "tuple[TypeLoader, ...]" = (),

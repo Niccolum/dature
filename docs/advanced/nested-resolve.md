@@ -23,7 +23,7 @@ By default, flat keys win (`nested_resolve_strategy="flat"`). This is usually wh
 
 ## Global Strategy
 
-Set `nested_resolve_strategy` on `LoadMetadata` to choose the source for **all** nested fields:
+Set `nested_resolve_strategy` on `Source` to choose the source for **all** nested fields:
 
 | Strategy | Behavior |
 |----------|----------|

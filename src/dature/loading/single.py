@@ -20,7 +20,7 @@ from dature.loading.resolver import resolve_loader_class
 from dature.loading.source_loading import SkippedFieldSource
 from dature.masking.detection import build_secret_paths
 from dature.masking.masking import mask_json_value
-from dature.metadata import LoadMetadata
+from dature.metadata import Source
 from dature.protocols import DataclassInstance, LoaderProtocol
 from dature.types import FILE_LIKE_TYPES, FileOrStream, JSONValue
 
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger("dature")
 
 
-def _resolve_single_mask_secrets(metadata: LoadMetadata) -> bool:
+def _resolve_single_mask_secrets(metadata: Source) -> bool:
     if metadata.mask_secrets is not None:
         return metadata.mask_secrets
     return config.masking.mask_secrets
@@ -108,7 +108,7 @@ class _PatchContext:
         loader_instance: LoaderProtocol,
         file_path: FileOrStream,
         cls: type[DataclassInstance],
-        metadata: LoadMetadata,
+        metadata: Source,
         cache: bool,
         debug: bool,
     ) -> None:
@@ -255,7 +255,7 @@ def load_as_function(  # noqa: C901, PLR0912
     loader_instance: LoaderProtocol,
     file_path: FileOrStream,
     dataclass_: type[DataclassInstance],
-    metadata: LoadMetadata,
+    metadata: Source,
     debug: bool,
 ) -> DataclassInstance:
     loader_class = resolve_loader_class(metadata.loader, metadata.file_)
@@ -361,7 +361,7 @@ def make_decorator(
     *,
     loader_instance: LoaderProtocol,
     file_path: FileOrStream,
-    metadata: LoadMetadata,
+    metadata: Source,
     cache: bool,
     debug: bool,
 ) -> Callable[[type[DataclassInstance]], type[DataclassInstance]]:

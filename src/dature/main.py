@@ -6,14 +6,14 @@ from dature.config import config
 from dature.loading.multi import merge_load_as_function, merge_make_decorator
 from dature.loading.resolver import resolve_loader
 from dature.loading.single import load_as_function, make_decorator
-from dature.metadata import LoadMetadata, MergeMetadata
+from dature.metadata import Merge, Source
 from dature.protocols import DataclassInstance
 from dature.types import FILE_LIKE_TYPES, FileOrStream
 
 
 @overload
 def load[T](
-    metadata: LoadMetadata | MergeMetadata | tuple[LoadMetadata, ...] | None,
+    metadata: Source | Merge | tuple[Source, ...] | None,
     /,
     dataclass_: type[T],
     *,
@@ -23,7 +23,7 @@ def load[T](
 
 @overload
 def load(
-    metadata: LoadMetadata | MergeMetadata | tuple[LoadMetadata, ...] | None = None,
+    metadata: Source | Merge | tuple[Source, ...] | None = None,
     /,
     dataclass_: None = None,
     *,
@@ -34,7 +34,7 @@ def load(
 
 # --8<-- [start:load]
 def load(
-    metadata: LoadMetadata | MergeMetadata | tuple[LoadMetadata, ...] | None = None,
+    metadata: Source | Merge | tuple[Source, ...] | None = None,
     /,
     dataclass_: type[Any] | None = None,
     *,
@@ -48,16 +48,16 @@ def load(
         debug = config.loading.debug
 
     if isinstance(metadata, tuple):
-        metadata = MergeMetadata(sources=metadata)
+        metadata = Merge(sources=metadata)
 
-    if isinstance(metadata, MergeMetadata):
+    if isinstance(metadata, Merge):
         merge_type_loaders = (metadata.type_loaders or ()) + config.type_loaders
         if dataclass_ is not None:
             return merge_load_as_function(metadata, dataclass_, debug=debug, type_loaders=merge_type_loaders)
         return merge_make_decorator(metadata, cache=cache, debug=debug, type_loaders=merge_type_loaders)
 
     if metadata is None:
-        metadata = LoadMetadata()
+        metadata = Source()
 
     type_loaders = (metadata.type_loaders or ()) + config.type_loaders
     loader_instance = resolve_loader(

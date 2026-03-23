@@ -3,12 +3,12 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, load
+from dature import Source, load
 
 SHARED_DIR = Path(__file__).parents[1] / "shared"
 
 
-@load(LoadMetadata(file_=SHARED_DIR / "common_app.yaml"))
+@load(Source(file_=SHARED_DIR / "common_app.yaml"))
 @dataclass
 class Config:
     host: str

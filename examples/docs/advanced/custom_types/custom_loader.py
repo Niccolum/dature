@@ -7,7 +7,7 @@ from typing import ClassVar
 
 from adaptix import Provider, loader
 
-from dature import LoadMetadata, load
+from dature import Source, load
 from dature.sources_loader.base import BaseLoader
 from dature.sources_loader.loaders import bool_loader, float_from_string
 from dature.types import FileOrStream, JSONValue
@@ -41,7 +41,7 @@ class Config:
 
 
 config = load(
-    LoadMetadata(
+    Source(
         file_=SOURCES_DIR / "custom_loader.xml",
         loader=XmlLoader,
     ),

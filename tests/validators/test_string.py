@@ -4,7 +4,7 @@ from typing import Annotated
 
 import pytest
 
-from dature import LoadMetadata, load
+from dature import Source, load
 from dature.errors.exceptions import DatureConfigError
 from dature.validators.string import MaxLength, MinLength, RegexPattern
 
@@ -18,7 +18,7 @@ class TestMinLength:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "Alice"}')
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
         result = load(metadata, Config)
 
         assert result.name == "Alice"
@@ -32,7 +32,7 @@ class TestMinLength:
         content = '{"name": "Bob"}'
         json_file.write_text(content)
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
@@ -57,7 +57,7 @@ class TestMaxLength:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "Alice"}')
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
         result = load(metadata, Config)
 
         assert result.name == "Alice"
@@ -71,7 +71,7 @@ class TestMaxLength:
         content = '{"name": "Alexander"}'
         json_file.write_text(content)
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
@@ -96,7 +96,7 @@ class TestRegexPattern:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"email": "test@example.com"}')
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
         result = load(metadata, Config)
 
         assert result.email == "test@example.com"
@@ -110,7 +110,7 @@ class TestRegexPattern:
         content = '{"email": "invalid-email"}'
         json_file.write_text(content)
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
@@ -135,7 +135,7 @@ class TestCombined:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"username": "john_doe"}')
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
         result = load(metadata, Config)
 
         assert result.username == "john_doe"
@@ -149,7 +149,7 @@ class TestCombined:
         content = '{"username": "this_is_a_very_long_username_that_exceeds_limit"}'
         json_file.write_text(content)
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)

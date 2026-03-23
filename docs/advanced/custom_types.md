@@ -16,15 +16,15 @@ Each `TypeLoader` maps a type to a conversion function:
 
 ### Per-source vs Global
 
-`type_loaders` can be set per-source in `LoadMetadata`, per-merge in `MergeMetadata`, or globally via `configure()`:
+`type_loaders` can be set per-source in `Source`, per-merge in `Merge`, or globally via `configure()`:
 
-=== "Per-source (LoadMetadata)"
+=== "Per-source (Source)"
 
     ```python
     --8<-- "examples/docs/advanced/custom_types/custom_type.py"
     ```
 
-=== "Per-merge (MergeMetadata)"
+=== "Per-merge (Merge)"
 
     ```python
     --8<-- "examples/docs/advanced/custom_types/custom_type_merge.py"
@@ -64,4 +64,4 @@ For formats that dature doesn't support out of the box, subclass `BaseLoader` an
 --8<-- "examples/docs/advanced/custom_types/sources/custom_loader.xml"
 ```
 
-Pass your custom loader via the `loader` parameter in `LoadMetadata`. All built-in features (type coercion, validation, prefix extraction, ENV expansion) work automatically.
+Pass your custom loader via the `loader` parameter in `Source`. All built-in features (type coercion, validation, prefix extraction, ENV expansion) work automatically.

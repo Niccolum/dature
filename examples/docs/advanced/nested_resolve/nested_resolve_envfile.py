@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, load
+from dature import Source, load
 from dature.sources_loader.env_ import EnvFileLoader
 
 SOURCES_DIR = Path(__file__).parent / "sources"
@@ -21,7 +21,7 @@ class Config:
 
 
 config = load(
-    LoadMetadata(
+    Source(
         file_=SOURCES_DIR / "nested_resolve.env",
         loader=EnvFileLoader,
         prefix="APP__",

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from dature import LoadMetadata, load
+from dature import Source, load
 from dature.errors.exceptions import DatureConfigError
 from dature.validators.number import Ge
 
@@ -37,7 +37,7 @@ class ServiceConfig:
 
 try:
     load(
-        LoadMetadata(file_=SOURCES_DIR / "validation_custom_invalid.json5"),
+        Source(file_=SOURCES_DIR / "validation_custom_invalid.json5"),
         ServiceConfig,
     )
 except DatureConfigError as exc:

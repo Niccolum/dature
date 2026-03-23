@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from dature import F, LoadMetadata, MergeMetadata, MergeStrategy, load
+from dature import F, Merge, MergeStrategy, Source, load
 from dature.errors.exceptions import DatureConfigError
 
 
@@ -24,10 +24,10 @@ class TestMergeSkipInvalidFields:
             port: int
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=source1),
-                    LoadMetadata(file_=source2),
+                    Source(file_=source1),
+                    Source(file_=source2),
                 ),
                 skip_invalid_fields=True,
             ),
@@ -50,10 +50,10 @@ class TestMergeSkipInvalidFields:
             port: int = 9090
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=source1),
-                    LoadMetadata(file_=source2),
+                    Source(file_=source1),
+                    Source(file_=source2),
                 ),
                 skip_invalid_fields=True,
             ),
@@ -77,10 +77,10 @@ class TestMergeSkipInvalidFields:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                MergeMetadata(
+                Merge(
                     sources=(
-                        LoadMetadata(file_=source1),
-                        LoadMetadata(file_=source2),
+                        Source(file_=source1),
+                        Source(file_=source2),
                     ),
                     skip_invalid_fields=True,
                 ),
@@ -115,10 +115,10 @@ class TestMergeSkipInvalidFields:
             db: Database
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=source1),
-                    LoadMetadata(file_=source2),
+                    Source(file_=source1),
+                    Source(file_=source2),
                 ),
                 skip_invalid_fields=True,
             ),
@@ -141,10 +141,10 @@ class TestMergeSkipInvalidFields:
             port: int
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=source1, skip_if_invalid=True),
-                    LoadMetadata(file_=source2),
+                    Source(file_=source1, skip_if_invalid=True),
+                    Source(file_=source2),
                 ),
             ),
             Config,
@@ -166,10 +166,10 @@ class TestMergeSkipInvalidFields:
             port: int
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=source1),
-                    LoadMetadata(file_=source2),
+                    Source(file_=source1),
+                    Source(file_=source2),
                 ),
                 skip_invalid_fields=True,
             ),
@@ -190,8 +190,8 @@ class TestMergeSkipInvalidFields:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                MergeMetadata(
-                    sources=(LoadMetadata(file_=source1),),
+                Merge(
+                    sources=(Source(file_=source1),),
                 ),
                 Config,
             )
@@ -219,10 +219,10 @@ class TestMergeSkipInvalidFields:
             port: int
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=source1),
-                    LoadMetadata(file_=source2),
+                    Source(file_=source1),
+                    Source(file_=source2),
                 ),
                 strategy=MergeStrategy.RAISE_ON_CONFLICT,
                 skip_invalid_fields=True,
@@ -247,13 +247,13 @@ class TestMergeSkipInvalidFields:
             timeout: int = 30
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(
+                    Source(
                         file_=source1,
                         skip_if_invalid=(F[Config].port, F[Config].timeout),
                     ),
-                    LoadMetadata(file_=source2),
+                    Source(file_=source2),
                 ),
             ),
             Config,
@@ -274,9 +274,9 @@ class TestMergeSkipInvalidFields:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                MergeMetadata(
+                Merge(
                     sources=(
-                        LoadMetadata(
+                        Source(
                             file_=source1,
                             skip_if_invalid=(F[Config].port,),
                         ),
@@ -314,10 +314,10 @@ class TestMergeSkipInvalidFields:
 
         with caplog.at_level(logging.WARNING, logger="dature"):
             load(
-                MergeMetadata(
+                Merge(
                     sources=(
-                        LoadMetadata(file_=source1),
-                        LoadMetadata(file_=source2),
+                        Source(file_=source1),
+                        Source(file_=source2),
                     ),
                     skip_invalid_fields=True,
                 ),
@@ -342,7 +342,7 @@ class TestSingleSourceSkipInvalidFields:
             port: int = 8080
 
         result = load(
-            LoadMetadata(file_=json_file, skip_if_invalid=True),
+            Source(file_=json_file, skip_if_invalid=True),
             Config,
         )
 
@@ -360,7 +360,7 @@ class TestSingleSourceSkipInvalidFields:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(file_=json_file, skip_if_invalid=True),
+                Source(file_=json_file, skip_if_invalid=True),
                 Config,
             )
 
@@ -377,7 +377,7 @@ class TestSingleSourceSkipInvalidFields:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"host": "localhost", "port": "abc"}')
 
-        @load(LoadMetadata(file_=json_file, skip_if_invalid=True))
+        @load(Source(file_=json_file, skip_if_invalid=True))
         @dataclass
         class Config:
             host: str
@@ -398,7 +398,7 @@ class TestSingleSourceSkipInvalidFields:
             timeout: int = 30
 
         result = load(
-            LoadMetadata(
+            Source(
                 file_=json_file,
                 skip_if_invalid=(F[Config].port,),
             ),
@@ -420,7 +420,7 @@ class TestSingleSourceSkipInvalidFields:
 
         with caplog.at_level(logging.WARNING, logger="dature"):
             load(
-                LoadMetadata(file_=json_file, skip_if_invalid=True),
+                Source(file_=json_file, skip_if_invalid=True),
                 Config,
             )
 
@@ -443,7 +443,7 @@ class TestSkipInvalidSameFieldNameNested:
             inner: Inner = None  # type: ignore[assignment]
 
         result = load(
-            LoadMetadata(
+            Source(
                 file_=source,
                 skip_if_invalid=(F[Config].port,),
             ),
@@ -470,13 +470,13 @@ class TestSkipInvalidSameFieldNameNested:
             inner: Inner
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(
+                    Source(
                         file_=source1,
                         skip_if_invalid=(F[Config].inner.port,),
                     ),
-                    LoadMetadata(file_=source2),
+                    Source(file_=source2),
                 ),
             ),
             Config,
@@ -502,13 +502,13 @@ class TestSkipInvalidSameFieldNameNested:
             inner: Inner
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(
+                    Source(
                         file_=source1,
                         skip_if_invalid=(F[Config].port, F[Config].inner.port),
                     ),
-                    LoadMetadata(file_=source2),
+                    Source(file_=source2),
                 ),
             ),
             Config,

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, TypeLoader, load
+from dature import Source, TypeLoader, load
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -27,7 +27,7 @@ class AppConfig:
 
 
 config = load(
-    LoadMetadata(
+    Source(
         file_=SOURCES_DIR / "custom_type_common.yaml",
         type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
     ),

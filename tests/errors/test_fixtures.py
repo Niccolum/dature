@@ -4,7 +4,7 @@ from typing import Annotated, Literal
 
 import pytest
 
-from dature import LoadMetadata, load
+from dature import Source, load
 from dature.errors.exceptions import DatureConfigError, FieldLoadError
 from dature.sources_loader.yaml_ import Yaml11Loader, Yaml12Loader
 from dature.validators.number import Ge, Le
@@ -98,7 +98,7 @@ def test_load_error_types(
     fixture_file: str,
     metadata_kwargs: dict[str, str],
 ) -> None:
-    metadata = LoadMetadata(file_=str(FIXTURES_DIR / fixture_file), **metadata_kwargs)
+    metadata = Source(file_=str(FIXTURES_DIR / fixture_file), **metadata_kwargs)
 
     with pytest.raises(DatureConfigError) as exc_info:
         load(metadata, LoadErrorConfig)
@@ -113,7 +113,7 @@ def test_validation_error_types(
     fixture_file: str,
     metadata_kwargs: dict[str, str],
 ) -> None:
-    metadata = LoadMetadata(file_=str(FIXTURES_DIR / fixture_file), **metadata_kwargs)
+    metadata = Source(file_=str(FIXTURES_DIR / fixture_file), **metadata_kwargs)
 
     with pytest.raises(DatureConfigError) as exc_info:
         load(metadata, ValidationErrorConfig)

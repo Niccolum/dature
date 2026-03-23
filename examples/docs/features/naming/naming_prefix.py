@@ -3,7 +3,7 @@
 import os
 from dataclasses import dataclass
 
-from dature import LoadMetadata, load
+from dature import Source, load
 
 os.environ["MYAPP_HOST"] = "localhost"
 os.environ["MYAPP_PORT"] = "9090"
@@ -17,7 +17,7 @@ class Config:
     debug: bool = False
 
 
-config = load(LoadMetadata(prefix="MYAPP_"), Config)
+config = load(Source(prefix="MYAPP_"), Config)
 
 assert config.host == "localhost"
 assert config.port == 9090

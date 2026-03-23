@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import F, LoadMetadata, load
+from dature import F, Source, load
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -21,7 +21,7 @@ class User:
 
 
 config = load(
-    LoadMetadata(
+    Source(
         file_=SOURCES_DIR / "naming_nested_fields.yaml",
         field_mapping={
             F[User].name: "fullName",

@@ -43,7 +43,7 @@ pip install dature[secure]  # Secret detection heuristics
 
 ```python
 from dataclasses import dataclass
-from dature import LoadMetadata, load
+from dature import Source, load
 
 @dataclass
 class Config:
@@ -51,7 +51,7 @@ class Config:
     port: int
     debug: bool = False
 
-config = load(LoadMetadata(file_="config.yaml"), Config)
+config = load(Source(file_="config.yaml"), Config)
 ```
 
 ## Key Features

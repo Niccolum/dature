@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from textwrap import dedent
 
-from dature import F, FieldGroup, LoadMetadata, MergeMetadata, load
+from dature import F, FieldGroup, Merge, Source, load
 from dature.errors.exceptions import FieldGroupError
 
 SOURCES_DIR = Path(__file__).parent / "sources"
@@ -27,10 +27,10 @@ class Config:
 # expands to (database.host, database.port, port)
 try:
     load(
-        MergeMetadata(
+        Merge(
             sources=(
-                LoadMetadata(file_=SOURCES_DIR / "field_groups_nested_defaults.yaml"),
-                LoadMetadata(file_=SOURCES_DIR / "advanced_field_groups_expansion_error_overrides.yaml"),
+                Source(file_=SOURCES_DIR / "field_groups_nested_defaults.yaml"),
+                Source(file_=SOURCES_DIR / "advanced_field_groups_expansion_error_overrides.yaml"),
             ),
             field_groups=(FieldGroup(F[Config].database, F[Config].port),),
         ),
