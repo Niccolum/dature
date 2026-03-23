@@ -109,6 +109,28 @@ class Config:
 
 Plus root validators for cross-field checks, custom validators, and standard `__post_init__`.
 
+And when validation fails, dature underlines the exact problematic value:
+
+```
+Config loading errors (1)
+
+  [port]  Must be greater than 0
+   ├── port: -1
+   │         ^^
+   └── FILE 'config.yaml', line 2
+```
+
+Compare with OmegaConf's error for a wrong type:
+
+```
+omegaconf.errors.ValidationError: Value 'abc' of type 'str'
+could not be converted to Integer
+    full_key: port
+    object_type=Config
+```
+
+No file, no line number, no context.
+
 ## Unmaintained
 
 Hydra's last release (1.3.0) was in **December 2022**. Issues accumulate without maintainer response. Other Meta projects have moved away from it. The `hydra-zen` community project fills some gaps, but the core framework is effectively frozen.

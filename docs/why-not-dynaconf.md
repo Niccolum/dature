@@ -146,17 +146,18 @@ Dynaconf:
 dynaconf.validator.ValidationError: PORT must gte 1 but it is 0 in env main
 ```
 
-dature:
+dature points to the exact value:
 
 ```
 Config loading errors (1)
 
   [port]  Must be greater than 0
+   ├── port = 0
+   │          ^
    └── FILE 'config.toml', line 3
-       port = 0
 ```
 
-Source file, line number, the actual config line. No guessing.
+Source file, line number, the actual config line, and caret underline on the problematic value.
 
 ## When to Use Dynaconf
 
