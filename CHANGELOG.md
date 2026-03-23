@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+<!-- PR #58 -->
+### Docs
+- Improved documentation for the "Why not Pydantic Settings" section.
+- Updated the configuration of the documentation site.
+<!-- PR #58 -->
+
 ## 0.14.3
 
 ### Docs
