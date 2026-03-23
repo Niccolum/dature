@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+<!-- PR #54 -->
+### Fixes
+- Corrected issues in the documentation related to JavaScript integration.
+<!-- PR #54 -->
+
 ## 0.14.1
 
 ### Docs
