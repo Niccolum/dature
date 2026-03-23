@@ -6,6 +6,7 @@
 ### Docs
 - Fixed issues in the documentation for improved clarity and accuracy.
 - Updated the configuration for Read the Docs integration in the documentation.
+- Updated the JavaScript configuration for Read the Docs.
 <!-- PR #56 -->
 
 ## 0.14.2
