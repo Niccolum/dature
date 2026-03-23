@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.14.2
+
+### Fixes
+- Corrected issues in the documentation related to JavaScript integration.
+
 ## 0.14.1
 
 ### Docs
