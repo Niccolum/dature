@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, MergeMetadata, get_load_report, load
+from dature import Merge, Source, get_load_report, load
 from dature.errors.exceptions import DatureConfigError
 
 SOURCES_DIR = Path(__file__).parent / "sources"
@@ -19,10 +19,10 @@ class Config:
 
 try:
     config = load(
-        MergeMetadata(
+        Merge(
             sources=(
-                LoadMetadata(file_=SHARED_DIR / "common_overrides.yaml"),
-                LoadMetadata(file_=SOURCES_DIR / "advanced_debug_error_defaults.yaml"),
+                Source(file_=SHARED_DIR / "common_overrides.yaml"),
+                Source(file_=SOURCES_DIR / "advanced_debug_error_defaults.yaml"),
             ),
         ),
         Config,

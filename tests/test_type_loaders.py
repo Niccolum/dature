@@ -1,4 +1,4 @@
-"""Tests for TypeLoader — custom type loading via LoadMetadata, configure(), and MergeMetadata."""
+"""Tests for TypeLoader — custom type loading via Source, configure(), and Merge."""
 
 from collections.abc import Generator
 from dataclasses import dataclass
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from dature import LoadMetadata, MergeMetadata, TypeLoader, configure, load
+from dature import Merge, Source, TypeLoader, configure, load
 from dature.config import _ConfigProxy
 
 
@@ -44,10 +44,10 @@ def yaml_with_rgb(tmp_path: Path) -> Path:
     return p
 
 
-class TestTypeLoadersInLoadMetadata:
+class TestTypeLoadersInSource:
     def test_single_source_with_type_loader(self, yaml_with_rgb: Path) -> None:
         result = load(
-            LoadMetadata(
+            Source(
                 file_=yaml_with_rgb,
                 type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
             ),
@@ -66,7 +66,7 @@ class TestTypeLoadersInLoadMetadata:
         p.write_text("name: app\ncolor: '10,20,30'\n")
 
         result = load(
-            LoadMetadata(
+            Source(
                 file_=p,
                 type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
             ),
@@ -81,11 +81,11 @@ class TestTypeLoadersInConfigure:
         configure(
             type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
         )
-        result = load(LoadMetadata(file_=yaml_with_rgb), ConfigWithRgb)
+        result = load(Source(file_=yaml_with_rgb), ConfigWithRgb)
         assert result.color == Rgb(r=255, g=128, b=0)
 
 
-class TestTypeLoadersInMergeMetadata:
+class TestTypeLoadersInMerge:
     def test_merge_metadata_type_loaders(self, tmp_path: Path) -> None:
         base = tmp_path / "base.yaml"
         base.write_text("name: base\ncolor: '1,2,3'\n")
@@ -93,10 +93,10 @@ class TestTypeLoadersInMergeMetadata:
         override.write_text("name: override\n")
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=base),
-                    LoadMetadata(file_=override),
+                    Source(file_=base),
+                    Source(file_=override),
                 ),
                 type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
             ),
@@ -125,7 +125,7 @@ class TestTypeLoadersMergedFromBoth:
         p.write_text("color: '10,20,30'\ntag: hello\n")
 
         result = load(
-            LoadMetadata(
+            Source(
                 file_=p,
                 type_loaders=(TypeLoader(type_=str, func=tag_upper),),
             ),

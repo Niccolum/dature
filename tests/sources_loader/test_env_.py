@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from dature import LoadMetadata, load
+from dature import Source, load
 from dature.sources_loader.env_ import EnvFileLoader, EnvLoader
 from examples.all_types_dataclass import EXPECTED_ALL_TYPES, AllPythonTypesCompact
 from tests.sources_loader.checker import assert_all_types_equal
@@ -44,7 +44,7 @@ class TestEnvFileLoader:
 
     def test_comprehensive_type_conversion(self, all_types_env_file: Path):
         """Test loading ENV with full type coercion to dataclass."""
-        result = load(LoadMetadata(file_=all_types_env_file, loader=EnvFileLoader), AllPythonTypesCompact)
+        result = load(Source(file_=all_types_env_file, loader=EnvFileLoader), AllPythonTypesCompact)
 
         assert_all_types_equal(result, EXPECTED_ALL_TYPES)
 
@@ -69,7 +69,7 @@ class TestEnvFileLoader:
             api_url: str
             base: str
 
-        result = load(LoadMetadata(file_=env_file, loader=EnvFileLoader), Config)
+        result = load(Source(file_=env_file, loader=EnvFileLoader), Config)
 
         assert result.api_url == "https://api.example.com/v1"
         assert result.base == "https://api.example.com"
@@ -85,7 +85,7 @@ class TestEnvFileLoader:
         class Config:
             url: str
 
-        result = load(LoadMetadata(file_=env_file, loader=EnvFileLoader), Config)
+        result = load(Source(file_=env_file, loader=EnvFileLoader), Config)
 
         assert result.url == "http://localhost:8080/api"
 
@@ -99,7 +99,7 @@ class TestEnvFileLoader:
         class Config:
             value: str
 
-        result = load(LoadMetadata(file_=env_file, loader=EnvFileLoader), Config)
+        result = load(Source(file_=env_file, loader=EnvFileLoader), Config)
 
         assert result.value == "prefixreplaced/suffix"
 
@@ -140,7 +140,7 @@ class TestEnvFileLoader:
         class Config:
             value: str
 
-        result = load(LoadMetadata(file_=env_file, loader=EnvFileLoader), Config)
+        result = load(Source(file_=env_file, loader=EnvFileLoader), Config)
 
         assert result.value == "prefix$nonexistent/suffix"
 
@@ -256,7 +256,7 @@ class TestEnvLoader:
         for key, value in env_vars.items():
             monkeypatch.setenv(key, value)
 
-        result = load(LoadMetadata(loader=EnvLoader, prefix="APP_"), AllPythonTypesCompact)
+        result = load(Source(loader=EnvLoader, prefix="APP_"), AllPythonTypesCompact)
 
         assert_all_types_equal(result, EXPECTED_ALL_TYPES)
 
@@ -273,7 +273,7 @@ class TestEnvLoader:
 
         expected_data = TestConfig(var="included", key="also_included")
 
-        data = load(LoadMetadata(loader=EnvLoader, prefix="APP_"), TestConfig)
+        data = load(Source(loader=EnvLoader, prefix="APP_"), TestConfig)
 
         assert data == expected_data
 
@@ -294,8 +294,9 @@ class TestEnvLoader:
         expected_data = TestConfig(db=TestData(host="localhost", port="5432"))
 
         data = load(
-            LoadMetadata(loader=EnvLoader, prefix="APP_", split_symbols="."),
+            Source(loader=EnvLoader, prefix="APP_", split_symbols="."),
             TestConfig,
         )
 
+        assert data == expected_data
         assert data == expected_data

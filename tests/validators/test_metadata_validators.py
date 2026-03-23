@@ -4,7 +4,7 @@ from typing import Annotated
 
 import pytest
 
-from dature import LoadMetadata, load
+from dature import Source, load
 from dature.errors.exceptions import DatureConfigError
 from dature.field_path import F
 from dature.validators.number import Ge, Gt, Lt
@@ -21,7 +21,7 @@ class TestMetadataValidatorsSuccess:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "Alice"}')
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].name: MinLength(value=3),
@@ -39,7 +39,7 @@ class TestMetadataValidatorsSuccess:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"port": 8080}')
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].port: (Gt(value=0), Lt(value=65536)),
@@ -58,7 +58,7 @@ class TestMetadataValidatorsSuccess:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "Alice", "port": 8080}')
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].name: MinLength(value=3),
@@ -81,7 +81,7 @@ class TestMetadataValidatorsFailure:
         content = '{"name": "Al"}'
         json_file.write_text(content)
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].name: MinLength(value=3),
@@ -110,7 +110,7 @@ class TestMetadataValidatorsFailure:
         content = '{"port": -1}'
         json_file.write_text(content)
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].port: (Gt(value=0), Lt(value=65536)),
@@ -145,7 +145,7 @@ class TestMetadataValidatorsNested:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"database": {"host": "localhost", "port": 5432}}')
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].database.host: MinLength(value=1),
@@ -171,7 +171,7 @@ class TestMetadataValidatorsNested:
         content = '{"database": {"host": "", "port": 5432}}'
         json_file.write_text(content)
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].database.host: MinLength(value=1),
@@ -202,7 +202,7 @@ class TestMetadataValidatorsComplement:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "Alice", "port": 8080}')
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].name: MaxLength(value=50),
@@ -223,7 +223,7 @@ class TestMetadataValidatorsComplement:
         content = '{"name": "Al"}'
         json_file.write_text(content)
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].name: MaxLength(value=50),
@@ -252,7 +252,7 @@ class TestMetadataValidatorsComplement:
         content = '{"name": "This is a very long name that exceeds the limit"}'
         json_file.write_text(content)
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].name: MaxLength(value=10),
@@ -280,7 +280,7 @@ class TestMetadataValidatorsComplement:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "Alice"}')
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].name: MaxLength(value=10),
@@ -299,7 +299,7 @@ class TestMetadataValidatorsComplement:
         content = '{"name": "AB"}'
         json_file.write_text(content)
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].name: MaxLength(value=50),
@@ -327,7 +327,7 @@ class TestMetadataValidatorsComplement:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"port": 8080}')
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].port: Lt(value=65536),
@@ -346,7 +346,7 @@ class TestMetadataValidatorsComplement:
         content = '{"port": 80}'
         json_file.write_text(content)
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].port: Lt(value=65536),
@@ -375,7 +375,7 @@ class TestMetadataValidatorsComplement:
         content = '{"port": 70000}'
         json_file.write_text(content)
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].port: Lt(value=65536),
@@ -405,7 +405,7 @@ class TestMetadataValidatorsNone:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "Alice"}')
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
         result = load(metadata, Config)
 
         assert result.name == "Alice"
@@ -426,7 +426,7 @@ class TestMetadataValidatorsWithRootValidators:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"port": 8080, "user": "admin"}')
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             root_validators=(RootValidator(func=validate_config),),
             validators={
@@ -449,7 +449,7 @@ class TestMetadataValidatorsDecorator:
             name: str
             age: int
 
-        metadata = LoadMetadata(
+        metadata = Source(
             file_=json_file,
             validators={
                 F[Config].name: MinLength(value=2),

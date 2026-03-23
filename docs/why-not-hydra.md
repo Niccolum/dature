@@ -1,47 +1,52 @@
 # Why Not Hydra?
 
-[Hydra](https://hydra.cc/) (by Meta Research) is a popular configuration framework in the ML world. It shines at composing YAML configs with overrides from the command line. If your workflow is "train a model with 50 hyperparameter combinations" — Hydra was built for that.
+[Hydra](https://hydra.cc/) (by Meta Research) is a powerful configuration framework built for ML experimentation. Its composition system, CLI overrides, parameter sweeps, and plugin architecture make it the go-to choice for training pipelines with many hyperparameter combinations.
 
-But for **application configuration** — web services, data pipelines, microservices — Hydra's design becomes a burden. dature is built for this use case from the ground up.
+The trade-off is scope: Hydra is a **framework** that takes over your entry point, working directory, and logging. For **application configuration** — web services, data pipelines, microservices — this is too much. dature is a **library** that loads config and returns a dataclass. Nothing else.
 
 ## Side-by-Side
 
 | | Hydra | dature |
 |---|---|---|
+| **Approach** | Framework — takes over entry point, working dir, logging | Library — loads config, returns a dataclass |
 | **Config definition** | YAML files + `@dataclass` structured configs | stdlib `@dataclass` — single source of truth |
-| **Formats** | YAML only | YAML, JSON, JSON5, TOML, INI, `.env`, env vars, Docker secrets |
-| **Env variables** | Not built-in (community plugins) | First-class: env vars, `.env` files, `${VAR:-default}` expansion in all formats |
-| **Docker secrets** | No | Built-in `DockerSecretsLoader` |
-| **Merging** | Composition via defaults list | 4 strategies + per-field rules (`APPEND`, `PREPEND`, field groups, etc.) |
+| **Formats** | YAML only | YAML (1.1/1.2), JSON, JSON5, TOML (1.0/1.1), INI, `.env`, env vars, Docker secrets |
+| **Env variables** | `oc.env` resolver; no `.env` support | First-class: env vars, `.env` files, `${VAR:-default}` expansion in all formats |
+| **CLI overrides** | Built-in: `python app.py db.port=3306` + tab completion | No CLI |
+| **Composition** | Config groups, defaults list, package overrides | Multi-source `Merge` with explicit strategies |
+| **Parameter sweeps** | Built-in multirun + sweeper plugins (Ax, Optuna, etc.) | No — not a use case |
+| **Object instantiation** | `instantiate()` — creates objects from config with DI | No — config loading only |
+| **Variable interpolation** | OmegaConf `${path.to.key}` + custom resolvers | `${VAR:-default}` env expansion in all formats |
 | **Validation** | Basic type checking via OmegaConf | `Annotated` validators, root validators, custom validators |
+| **Type support** | Primitives, enums, basic containers. No Union types | Primitives, `datetime`, `IPv4Address`, `Enum`, `SecretStr`, `ByteSize`, Union types, and more |
 | **Error messages** | OmegaConf exceptions | Human-readable: source file, line number, context snippet |
 | **Secret masking** | No | Auto-masks secrets in errors and logs |
-| **Type support** | Primitives, enums, basic containers | Primitives, `datetime`, `IPv4Address`, `Enum`, `SecretStr`, `ByteSize`, nested dataclasses, and more |
-| **Union types** | Not supported | Supported |
-| **Debug / audit** | No | `debug=True` — which source provided each value |
+| **Debug / audit** | Output dir with saved config + logs | `debug=True` — which source provided each value |
+| **Plugin system** | Sweepers, launchers, config sources, search path | Custom loaders via `BaseLoader` subclass |
 | **Dependencies** | `hydra-core` + `omegaconf` + `antlr4-runtime` | `adaptix` (pure Python) |
+| **Config result** | `OmegaConf.DictConfig` (dict-like wrapper) | Your actual `@dataclass` instance |
 | **Maintenance** | Last release: Dec 2022. [Acknowledged as unmaintained](https://github.com/facebookresearch/xformers/issues/848) by other Meta teams | Active development |
 
 ## YAML-Only vs. Real-World Formats
 
-Hydra only reads YAML. For application configuration this is a serious limitation:
+Hydra reads YAML exclusively. You can reference env vars via OmegaConf's `${oc.env:VAR}` resolver, but there's no native support for:
 
-- **Environment variables** — the standard for containers and CI/CD. Hydra has no built-in support; you need community plugins or OmegaConf resolvers.
 - **`.env` files** — ubiquitous in local development. Not supported.
-- **TOML** — the standard for Python packaging (`pyproject.toml`), gaining popularity for app config. Not supported.
-- **Docker secrets** — mounted as files at `/run/secrets/`. Not supported.
+- **TOML** — the standard for Python packaging (`pyproject.toml`), increasingly used for app config. Not supported.
+- **JSON / JSON5** — common in web services and JavaScript-adjacent tooling. Not supported.
+- **INI** — legacy format still common in enterprise. Not supported.
 
 dature handles all of these out of the box, with auto-detection from file extension:
 
 ```python
-from dature import load, MergeMetadata, LoadMetadata
+from dature import load, Merge, Source
 
 config = load(
-    MergeMetadata(
-        LoadMetadata(file_="defaults.yaml"),
-        LoadMetadata(file_="config.toml", skip_if_broken=True),
-        LoadMetadata(file_=".env", skip_if_broken=True),
-        LoadMetadata(prefix="APP_"),  # env vars
+    Merge(
+        Source(file_="defaults.yaml"),
+        Source(file_="config.toml", skip_if_broken=True),
+        Source(file_=".env", skip_if_broken=True),
+        Source(prefix="APP_"),  # env vars
     ),
     Config,
 )
@@ -66,7 +71,7 @@ dature returns **your actual dataclass**:
 
 ```python
 # dature
-config = load(LoadMetadata(file_="config.yaml"), Config)
+config = load(Source(file_="config.yaml"), Config)
 # isinstance(config, Config) → True
 # Full IDE support, type safety, __post_init__ works
 ```
@@ -99,7 +104,7 @@ dature uses `Annotated` validators:
 ```python
 from dataclasses import dataclass
 from typing import Annotated
-from dature import load, LoadMetadata
+from dature import load, Source
 from dature.validators import Gt, Lt
 
 @dataclass
@@ -131,9 +136,22 @@ could not be converted to Integer
 
 No file, no line number, no context.
 
-## Unmaintained
+## What Hydra Does Better
 
-Hydra's last release (1.3.0) was in **December 2022**. Issues accumulate without maintainer response. Other Meta projects have moved away from it. The `hydra-zen` community project fills some gaps, but the core framework is effectively frozen.
+To be fair — Hydra has powerful features designed for ML experimentation that dature doesn't try to replicate:
+
+- **Config composition** — defaults list, config groups, and package overrides let you assemble complex configs from reusable fragments. This is Hydra's killer feature for ML pipelines with many model/dataset/optimizer combinations.
+- **CLI overrides** — `python train.py model.lr=0.001 db=postgresql` with tab completion. No code changes needed to override any config value.
+- **Parameter sweeps** — built-in multirun mode with sweeper plugins (Ax, Optuna, Nevergrad) for hyperparameter optimization.
+- **Object instantiation** — `instantiate()` creates Python objects directly from config with recursive dependency injection.
+- **Variable interpolation** — OmegaConf's `${path.to.key}` cross-references within config, plus custom resolvers for computed values.
+- **Plugin system** — extensible launchers (local, Submitit, Ray), sweepers, and config sources.
+- **Output management** — automatic output directories with saved config, logs, and overrides for each run. Essential for ML experiment tracking.
+- **Community ecosystem** — `hydra-zen` (Pythonic config generation), `lightning-hydra-template`, DVC integration.
+
+## Maintenance
+
+Hydra's last release (1.3.0) was in **December 2022**. Issues accumulate without maintainer response. Other Meta projects have [acknowledged it as unmaintained](https://github.com/facebookresearch/xformers/issues/848). The `hydra-zen` community project fills some gaps, but the core framework is effectively frozen.
 
 dature is under active development with a clear roadmap: remote sources (Vault, AWS SSM), built-in caching, and config watching.
 
@@ -142,8 +160,10 @@ dature is under active development with a clear roadmap: remote sources (Vault, 
 Hydra is still a reasonable choice if:
 
 - You're running ML experiments with many hyperparameter sweeps
-- Your config is YAML-only and you need composition via defaults lists
-- You want CLI overrides like `python train.py model.lr=0.001`
+- You need config composition via defaults lists and config groups
+- You want CLI overrides with tab completion
+- You use `instantiate()` to build object graphs from config
+- You need output directory management for experiment tracking
 - You're already deep in the Hydra ecosystem (`hydra-zen`, `lightning-hydra-template`)
 
 For **application configuration** — dature.

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from dature import LoadMetadata, load
+from dature import Source, load
 from dature.sources_loader.env_ import EnvFileLoader
 from dature.sources_loader.ini_ import IniLoader
 from dature.sources_loader.json5_ import Json5Loader
@@ -23,7 +23,7 @@ class TestLoadAsDecorator:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "FromFile", "port": 8080}')
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         @load(metadata)
         @dataclass
@@ -39,7 +39,7 @@ class TestLoadAsDecorator:
         monkeypatch.setenv("APP_NAME", "EnvApp")
         monkeypatch.setenv("APP_PORT", "3000")
 
-        metadata = LoadMetadata(prefix="APP_")
+        metadata = Source(prefix="APP_")
 
         @load(metadata)
         @dataclass
@@ -66,7 +66,7 @@ class TestLoadAsDecorator:
         txt_file = tmp_path / "config.txt"
         txt_file.write_text('{"app_name": "OverrideApp"}')
 
-        metadata = LoadMetadata(file_=txt_file, loader=JsonLoader)
+        metadata = Source(file_=txt_file, loader=JsonLoader)
 
         @load(metadata)
         @dataclass
@@ -107,7 +107,7 @@ class TestCache:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "original", "port": 8080}')
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         @load(metadata)
         @dataclass
@@ -126,7 +126,7 @@ class TestCache:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "original", "port": 8080}')
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         @load(metadata, cache=False)
         @dataclass
@@ -152,7 +152,7 @@ class TestLoadAsFunction:
             name: str
             port: int
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
         result = load(metadata, Config)
 
         assert result.name == "FromFile"
@@ -167,7 +167,7 @@ class TestLoadAsFunction:
             name: str
             debug: bool
 
-        metadata = LoadMetadata(prefix="APP_")
+        metadata = Source(prefix="APP_")
         result = load(metadata, Config)
 
         assert result.name == "EnvFunc"
@@ -196,7 +196,7 @@ class TestFileNotFoundWithLoad:
         class Config:
             name: str
 
-        metadata = LoadMetadata(file_="/non/existent/file.json", loader=loader_class)
+        metadata = Source(file_="/non/existent/file.json", loader=loader_class)
 
         with pytest.raises(FileNotFoundError):
             load(metadata, Config)
@@ -206,7 +206,7 @@ class TestFileNotFoundWithLoad:
         _all_file_loaders(),
     )
     def test_load_decorator_single_source_file_not_found(self, loader_class: type) -> None:
-        metadata = LoadMetadata(file_="/non/existent/config.json", loader=loader_class)
+        metadata = Source(file_="/non/existent/config.json", loader=loader_class)
 
         @load(metadata)
         @dataclass

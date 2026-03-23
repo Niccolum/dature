@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, load
+from dature import Source, load
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -16,7 +16,7 @@ class Config:
 
 
 config = load(
-    LoadMetadata(file_=SOURCES_DIR / "intro_app.ini", prefix="app"),
+    Source(file_=SOURCES_DIR / "intro_app.ini", prefix="app"),
     Config,
 )
 

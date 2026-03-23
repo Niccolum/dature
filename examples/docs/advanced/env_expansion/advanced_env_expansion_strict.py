@@ -1,10 +1,10 @@
-"""ENV expansion — strict mode on LoadMetadata."""
+"""ENV expansion — strict mode on Source."""
 
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, load
+from dature import Source, load
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -18,7 +18,7 @@ class Config:
 
 
 config = load(
-    LoadMetadata(file_=SOURCES_DIR / "advanced_env_expansion_strict.yaml", expand_env_vars="strict"),
+    Source(file_=SOURCES_DIR / "advanced_env_expansion_strict.yaml", expand_env_vars="strict"),
     Config,
 )
 

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.15.0
+
+### Improvements
+- Refactored and renamed the `load_metadata` function for better clarity and consistency.
+
+### Docs
+- Updated documentation across multiple files to reflect changes related to the `load_metadata` function.
+
 ## 0.14.4
 
 ### Docs

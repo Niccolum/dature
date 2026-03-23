@@ -6,12 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from dature import LoadMetadata, load
+from dature import Source, load
 from dature.sources_loader.ini_ import IniLoader
-from examples.all_types_dataclass import (
-    EXPECTED_ALL_TYPES,
-    AllPythonTypesCompact,
-)
+from examples.all_types_dataclass import EXPECTED_ALL_TYPES, AllPythonTypesCompact
 from tests.sources_loader.checker import assert_all_types_equal
 
 
@@ -21,7 +18,7 @@ class TestIniLoader:
     def test_comprehensive_type_conversion(self, all_types_ini_file: Path):
         """Test loading INI with full type coercion to dataclass."""
         result = load(
-            LoadMetadata(file_=all_types_ini_file, loader=IniLoader, prefix="all_types"),
+            Source(file_=all_types_ini_file, loader=IniLoader, prefix="all_types"),
             AllPythonTypesCompact,
         )
 
@@ -62,7 +59,7 @@ class TestIniLoader:
         )
 
         result = load(
-            LoadMetadata(file_=prefixed_ini_file, loader=IniLoader, prefix="app"),
+            Source(file_=prefixed_ini_file, loader=IniLoader, prefix="app"),
             PrefixedConfig,
         )
 
@@ -91,7 +88,7 @@ class TestIniLoader:
             port: int
 
         result = load(
-            LoadMetadata(file_=ini_file, loader=IniLoader, prefix="database"),
+            Source(file_=ini_file, loader=IniLoader, prefix="database"),
             DbConfig,
         )
 
@@ -110,7 +107,7 @@ class TestIniLoader:
             url: str
 
         result = load(
-            LoadMetadata(file_=ini_file, loader=IniLoader, prefix="section"),
+            Source(file_=ini_file, loader=IniLoader, prefix="section"),
             Config,
         )
 
@@ -127,7 +124,7 @@ class TestIniLoader:
             value: str
 
         result = load(
-            LoadMetadata(file_=ini_file, loader=IniLoader, prefix="section"),
+            Source(file_=ini_file, loader=IniLoader, prefix="section"),
             Config,
         )
 
@@ -144,7 +141,7 @@ class TestIniLoader:
             value: str
 
         result = load(
-            LoadMetadata(file_=ini_file, loader=IniLoader, prefix="section"),
+            Source(file_=ini_file, loader=IniLoader, prefix="section"),
             Config,
         )
 

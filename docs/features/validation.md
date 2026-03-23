@@ -72,7 +72,7 @@ Root validators receive the fully constructed dataclass instance and return `Tru
 
 ## Metadata Validators
 
-Field validators can be specified in `LoadMetadata` using the `validators` parameter. Useful when the same dataclass is loaded from different sources with different validation rules. These validators **complement** (not replace) any `Annotated` validators:
+Field validators can be specified in `Source` using the `validators` parameter. Useful when the same dataclass is loaded from different sources with different validation rules. These validators **complement** (not replace) any `Annotated` validators:
 
 === "Python"
 

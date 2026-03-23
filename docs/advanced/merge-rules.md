@@ -186,7 +186,7 @@ Skip sources that fail to load (missing file, invalid syntax):
     --8<-- "examples/docs/shared/common_defaults.yaml"
     ```
 
-Override per source with `skip_if_broken` on `LoadMetadata` (takes priority over the global flag):
+Override per source with `skip_if_broken` on `Source` (takes priority over the global flag):
 
 === "Python"
 

@@ -6,7 +6,7 @@ from textwrap import dedent
 
 import pytest
 
-from dature import FieldGroup, FieldMergeStrategy, LoadMetadata, MergeMetadata, MergeRule, MergeStrategy, load
+from dature import FieldGroup, FieldMergeStrategy, Merge, MergeRule, MergeStrategy, Source, load
 from dature.errors.exceptions import FieldGroupError
 from dature.field_path import F
 
@@ -25,10 +25,10 @@ class TestFieldGroupAllChanged:
             port: int
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=defaults),
-                    LoadMetadata(file_=overrides),
+                    Source(file_=defaults),
+                    Source(file_=overrides),
                 ),
                 strategy=MergeStrategy.LAST_WINS,
                 field_groups=(FieldGroup(F[Config].host, F[Config].port),),
@@ -52,10 +52,10 @@ class TestFieldGroupAllChanged:
             port: int
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=first),
-                    LoadMetadata(file_=second),
+                    Source(file_=first),
+                    Source(file_=second),
                 ),
                 strategy=MergeStrategy.FIRST_WINS,
                 field_groups=(FieldGroup(F[Config].host, F[Config].port),),
@@ -81,10 +81,10 @@ class TestFieldGroupNoneChanged:
             port: int
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=defaults),
-                    LoadMetadata(file_=overrides),
+                    Source(file_=defaults),
+                    Source(file_=overrides),
                 ),
                 field_groups=(FieldGroup(F[Config].host, F[Config].port),),
             ),
@@ -108,10 +108,10 @@ class TestFieldGroupNoneChanged:
             debug: bool
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=defaults),
-                    LoadMetadata(file_=overrides),
+                    Source(file_=defaults),
+                    Source(file_=overrides),
                 ),
                 field_groups=(FieldGroup(F[Config].host, F[Config].port),),
             ),
@@ -131,8 +131,8 @@ class TestFieldGroupPartialChange:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote"}')
 
-        defaults_meta = LoadMetadata(file_=defaults)
-        overrides_meta = LoadMetadata(file_=overrides)
+        defaults_meta = Source(file_=defaults)
+        overrides_meta = Source(file_=overrides)
 
         @dataclass
         class Config:
@@ -141,7 +141,7 @@ class TestFieldGroupPartialChange:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                MergeMetadata(
+                Merge(
                     sources=(defaults_meta, overrides_meta),
                     field_groups=(FieldGroup(F[Config].host, F[Config].port),),
                 ),
@@ -163,8 +163,8 @@ class TestFieldGroupPartialChange:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote", "port": 3000}')
 
-        defaults_meta = LoadMetadata(file_=defaults)
-        overrides_meta = LoadMetadata(file_=overrides)
+        defaults_meta = Source(file_=defaults)
+        overrides_meta = Source(file_=overrides)
 
         @dataclass
         class Config:
@@ -173,7 +173,7 @@ class TestFieldGroupPartialChange:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                MergeMetadata(
+                Merge(
                     sources=(defaults_meta, overrides_meta),
                     field_groups=(FieldGroup(F[Config].host, F[Config].port),),
                 ),
@@ -202,10 +202,10 @@ class TestFieldGroupPartialChange:
 
         with pytest.raises(FieldGroupError):
             load(
-                MergeMetadata(
+                Merge(
                     sources=(
-                        LoadMetadata(file_=defaults),
-                        LoadMetadata(file_=overrides),
+                        Source(file_=defaults),
+                        Source(file_=overrides),
                     ),
                     strategy=MergeStrategy.FIRST_WINS,
                     field_groups=(FieldGroup(F[Config].host, F[Config].port),),
@@ -227,10 +227,10 @@ class TestFieldGroupPartialChange:
 
         with pytest.raises(FieldGroupError):
             load(
-                MergeMetadata(
+                Merge(
                     sources=(
-                        LoadMetadata(file_=defaults),
-                        LoadMetadata(file_=overrides),
+                        Source(file_=defaults),
+                        Source(file_=overrides),
                     ),
                     strategy=MergeStrategy.RAISE_ON_CONFLICT,
                     field_groups=(FieldGroup(F[Config].host, F[Config].port),),
@@ -247,8 +247,8 @@ class TestFieldGroupAutoExpand:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"database": {"host": "remote"}}')
 
-        defaults_meta = LoadMetadata(file_=defaults)
-        overrides_meta = LoadMetadata(file_=overrides)
+        defaults_meta = Source(file_=defaults)
+        overrides_meta = Source(file_=overrides)
 
         @dataclass
         class Database:
@@ -261,7 +261,7 @@ class TestFieldGroupAutoExpand:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                MergeMetadata(
+                Merge(
                     sources=(defaults_meta, overrides_meta),
                     field_groups=(FieldGroup(F[Config].database),),
                 ),
@@ -293,10 +293,10 @@ class TestFieldGroupAutoExpand:
             database: Database
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=defaults),
-                    LoadMetadata(file_=overrides),
+                    Source(file_=defaults),
+                    Source(file_=overrides),
                 ),
                 field_groups=(FieldGroup(F[Config].database),),
             ),
@@ -318,9 +318,9 @@ class TestFieldGroupThreeSources:
         c = tmp_path / "c.json"
         c.write_text('{"host": "c-host", "port": 3000}')
 
-        a_meta = LoadMetadata(file_=a)
-        b_meta = LoadMetadata(file_=b)
-        c_meta = LoadMetadata(file_=c)
+        a_meta = Source(file_=a)
+        b_meta = Source(file_=b)
+        c_meta = Source(file_=c)
 
         @dataclass
         class Config:
@@ -329,7 +329,7 @@ class TestFieldGroupThreeSources:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                MergeMetadata(
+                Merge(
                     sources=(a_meta, b_meta, c_meta),
                     field_groups=(FieldGroup(F[Config].host, F[Config].port),),
                 ),
@@ -360,11 +360,11 @@ class TestFieldGroupThreeSources:
             port: int
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=a),
-                    LoadMetadata(file_=b),
-                    LoadMetadata(file_=c),
+                    Source(file_=a),
+                    Source(file_=b),
+                    Source(file_=c),
                 ),
                 field_groups=(FieldGroup(F[Config].host, F[Config].port),),
             ),
@@ -383,8 +383,8 @@ class TestFieldGroupMultipleGroups:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote", "port": 9090, "user": "root"}')
 
-        defaults_meta = LoadMetadata(file_=defaults)
-        overrides_meta = LoadMetadata(file_=overrides)
+        defaults_meta = Source(file_=defaults)
+        overrides_meta = Source(file_=overrides)
 
         @dataclass
         class Config:
@@ -395,7 +395,7 @@ class TestFieldGroupMultipleGroups:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                MergeMetadata(
+                Merge(
                     sources=(defaults_meta, overrides_meta),
                     field_groups=(
                         FieldGroup(F[Config].host, F[Config].port),
@@ -429,10 +429,10 @@ class TestFieldGroupWithFieldMerges:
             tags: list[str]
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=defaults),
-                    LoadMetadata(file_=overrides),
+                    Source(file_=defaults),
+                    Source(file_=overrides),
                 ),
                 field_merges=(MergeRule(F[Config].tags, FieldMergeStrategy.APPEND),),
                 field_groups=(FieldGroup(F[Config].host, F[Config].port),),
@@ -453,10 +453,10 @@ class TestFieldGroupDecorator:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote", "port": 9090}')
 
-        meta = MergeMetadata(
+        meta = Merge(
             sources=(
-                LoadMetadata(file_=defaults),
-                LoadMetadata(file_=overrides),
+                Source(file_=defaults),
+                Source(file_=overrides),
             ),
             field_groups=(FieldGroup(F["Config"].host, F["Config"].port),),
         )
@@ -478,10 +478,10 @@ class TestFieldGroupDecorator:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote"}')
 
-        meta = MergeMetadata(
+        meta = Merge(
             sources=(
-                LoadMetadata(file_=defaults),
-                LoadMetadata(file_=overrides),
+                Source(file_=defaults),
+                Source(file_=overrides),
             ),
             field_groups=(FieldGroup(F["Config"].host, F["Config"].port),),
         )
@@ -504,8 +504,8 @@ class TestFieldGroupErrorFormat:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote", "debug": true}')
 
-        defaults_meta = LoadMetadata(file_=defaults)
-        overrides_meta = LoadMetadata(file_=overrides)
+        defaults_meta = Source(file_=defaults)
+        overrides_meta = Source(file_=overrides)
 
         @dataclass
         class Config:
@@ -515,7 +515,7 @@ class TestFieldGroupErrorFormat:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                MergeMetadata(
+                Merge(
                     sources=(defaults_meta, overrides_meta),
                     field_groups=(FieldGroup(F[Config].host, F[Config].port),),
                 ),
@@ -537,8 +537,8 @@ class TestFieldGroupErrorFormat:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote", "user": "root"}')
 
-        defaults_meta = LoadMetadata(file_=defaults)
-        overrides_meta = LoadMetadata(file_=overrides)
+        defaults_meta = Source(file_=defaults)
+        overrides_meta = Source(file_=overrides)
 
         @dataclass
         class Config:
@@ -549,7 +549,7 @@ class TestFieldGroupErrorFormat:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                MergeMetadata(
+                Merge(
                     sources=(defaults_meta, overrides_meta),
                     field_groups=(
                         FieldGroup(F[Config].host, F[Config].port),
@@ -595,10 +595,10 @@ class TestFieldGroupMixedExpandAndFlat:
             timeout: int
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=defaults),
-                    LoadMetadata(file_=overrides),
+                    Source(file_=defaults),
+                    Source(file_=overrides),
                 ),
                 field_groups=(FieldGroup(F[Config].database, F[Config].timeout),),
             ),
@@ -631,10 +631,10 @@ class TestFieldGroupMixedExpandAndFlat:
             timeout: int
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=defaults),
-                    LoadMetadata(file_=overrides),
+                    Source(file_=defaults),
+                    Source(file_=overrides),
                 ),
                 field_groups=(FieldGroup(F[Config].database, F[Config].timeout),),
             ),
@@ -654,8 +654,8 @@ class TestFieldGroupMixedExpandAndFlat:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"timeout": 60}')
 
-        defaults_meta = LoadMetadata(file_=defaults)
-        overrides_meta = LoadMetadata(file_=overrides)
+        defaults_meta = Source(file_=defaults)
+        overrides_meta = Source(file_=overrides)
 
         @dataclass
         class Database:
@@ -669,7 +669,7 @@ class TestFieldGroupMixedExpandAndFlat:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                MergeMetadata(
+                Merge(
                     sources=(defaults_meta, overrides_meta),
                     field_groups=(FieldGroup(F[Config].database, F[Config].timeout),),
                 ),
@@ -693,8 +693,8 @@ class TestFieldGroupMixedExpandAndFlat:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"database": {"host": "remote"}}')
 
-        defaults_meta = LoadMetadata(file_=defaults)
-        overrides_meta = LoadMetadata(file_=overrides)
+        defaults_meta = Source(file_=defaults)
+        overrides_meta = Source(file_=overrides)
 
         @dataclass
         class Database:
@@ -708,7 +708,7 @@ class TestFieldGroupMixedExpandAndFlat:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                MergeMetadata(
+                Merge(
                     sources=(defaults_meta, overrides_meta),
                     field_groups=(FieldGroup(F[Config].database, F[Config].timeout),),
                 ),
@@ -732,8 +732,8 @@ class TestFieldGroupMixedExpandAndFlat:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"database": {"host": "remote", "port": 3306}}')
 
-        defaults_meta = LoadMetadata(file_=defaults)
-        overrides_meta = LoadMetadata(file_=overrides)
+        defaults_meta = Source(file_=defaults)
+        overrides_meta = Source(file_=overrides)
         d = repr(defaults_meta)
         o = repr(overrides_meta)
 
@@ -749,7 +749,7 @@ class TestFieldGroupMixedExpandAndFlat:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                MergeMetadata(
+                Merge(
                     sources=(defaults_meta, overrides_meta),
                     field_groups=(FieldGroup(F[Config].database, F[Config].timeout),),
                 ),
@@ -787,10 +787,10 @@ class TestFieldGroupSameFieldNameNested:
             inner: Inner
 
         result = load(
-            MergeMetadata(
+            Merge(
                 sources=(
-                    LoadMetadata(file_=defaults),
-                    LoadMetadata(file_=overrides),
+                    Source(file_=defaults),
+                    Source(file_=overrides),
                 ),
                 field_groups=(FieldGroup(F[Config].user_name, F[Config].inner.user_name),),
             ),
@@ -809,8 +809,8 @@ class TestFieldGroupSameFieldNameNested:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"user_name": "root-new"}')
 
-        defaults_meta = LoadMetadata(file_=defaults)
-        overrides_meta = LoadMetadata(file_=overrides)
+        defaults_meta = Source(file_=defaults)
+        overrides_meta = Source(file_=overrides)
 
         @dataclass
         class Inner:
@@ -823,7 +823,7 @@ class TestFieldGroupSameFieldNameNested:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                MergeMetadata(
+                Merge(
                     sources=(defaults_meta, overrides_meta),
                     field_groups=(FieldGroup(F[Config].user_name, F[Config].inner.user_name),),
                 ),

@@ -4,7 +4,7 @@ Load configuration from multiple sources and merge them into one dataclass.
 
 ## Basic Merging
 
-Use `MergeMetadata` to combine sources:
+Use `Merge` to combine sources:
 
 === "Python"
 
@@ -26,7 +26,7 @@ Use `MergeMetadata` to combine sources:
 
 ## Tuple Shorthand
 
-Pass a tuple of `LoadMetadata` directly — uses `LAST_WINS` by default:
+Pass a tuple of `Source` directly — uses `LAST_WINS` by default:
 
 === "Python"
 
@@ -147,7 +147,7 @@ Nested dicts are merged recursively. Lists and scalars are replaced entirely acc
 
 For per-field strategy overrides, see [Per-Field Merge Strategies](../advanced/merge-rules.md#per-field-merge-strategies). To enforce that related fields are always overridden together, see [Field Groups](../advanced/merge-rules.md#field-groups).
 
-## MergeMetadata Reference
+## Merge Reference
 
 ```python
 --8<-- "src/dature/metadata.py:merge-metadata"
@@ -155,7 +155,7 @@ For per-field strategy overrides, see [Per-Field Merge Strategies](../advanced/m
 
 | Parameter | Description |
 |-----------|-------------|
-| `sources` | Tuple of `LoadMetadata` descriptors — one per source to merge |
+| `sources` | Tuple of `Source` descriptors — one per source to merge |
 | `strategy` | Global merge strategy. Default: `LAST_WINS`. See [Merge Strategies](#merge-strategies) |
 | `field_merges` | Per-field merge strategy overrides. See [Per-Field Merge Strategies](../advanced/merge-rules.md#per-field-merge-strategies) |
 | `field_groups` | Enforce related fields are overridden together. See [Field Groups](../advanced/merge-rules.md#field-groups) |

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, MergeMetadata, MergeStrategy, load
+from dature import Merge, MergeStrategy, Source, load
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -15,10 +15,10 @@ class Config:
 
 
 config = load(
-    MergeMetadata(
+    Merge(
         sources=(
-            LoadMetadata(file_=SOURCES_DIR / "merging_first_found_primary.yaml"),
-            LoadMetadata(file_=SOURCES_DIR / "merging_first_found_fallback.yaml"),
+            Source(file_=SOURCES_DIR / "merging_first_found_primary.yaml"),
+            Source(file_=SOURCES_DIR / "merging_first_found_fallback.yaml"),
         ),
         strategy=MergeStrategy.FIRST_FOUND,
     ),

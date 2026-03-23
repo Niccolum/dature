@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, load
+from dature import Source, load
 
 SHARED_DIR = Path(__file__).parents[1] / "shared"
 
@@ -15,7 +15,7 @@ class Config:
     debug: bool = False
 
 
-config = load(LoadMetadata(file_=SHARED_DIR / "common_app.yaml"), Config)
+config = load(Source(file_=SHARED_DIR / "common_app.yaml"), Config)
 
 assert config.host == "localhost"
 assert config.port == 8080

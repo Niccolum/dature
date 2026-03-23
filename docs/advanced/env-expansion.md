@@ -35,7 +35,7 @@ String values in all file formats support environment variable expansion:
 | `"strict"` | Raises `EnvVarExpandError` |
 | `"disabled"` | No expansion at all |
 
-Set the mode on `LoadMetadata`:
+Set the mode on `Source`:
 
 === "Python"
 
@@ -49,7 +49,7 @@ Set the mode on `LoadMetadata`:
     --8<-- "examples/docs/advanced/env_expansion/sources/advanced_env_expansion_strict.yaml"
     ```
 
-For merge mode, set on `MergeMetadata` as default for all sources:
+For merge mode, set on `Merge` as default for all sources:
 
 === "Python"
 

@@ -13,13 +13,13 @@ Main entry point. Two calling patterns:
 **Function mode** — pass `dataclass_`, get an instance back:
 
 ```python
-config = load(LoadMetadata(file_="config.yaml"), Config)
+config = load(Source(file_="config.yaml"), Config)
 ```
 
 **Decorator mode** — omit `dataclass_`, get a decorator:
 
 ```python
-@load(LoadMetadata(file_="config.yaml"))
+@load(Source(file_="config.yaml"))
 @dataclass
 class Config:
     host: str
@@ -29,24 +29,24 @@ class Config:
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `metadata` | `LoadMetadata \| MergeMetadata \| tuple[LoadMetadata, ...] \| None` | Source descriptor. Tuple is shorthand for `MergeMetadata(sources=...)` with `LAST_WINS`. `None` → `LoadMetadata()` (env vars). |
+| `metadata` | `Source \| Merge \| tuple[Source, ...] \| None` | Source descriptor. Tuple is shorthand for `Merge(sources=...)` with `LAST_WINS`. `None` → `Source()` (env vars). |
 | `dataclass_` | `type[T] \| None` | Target dataclass. If provided → function mode. If `None` → decorator mode. |
 | `cache` | `bool \| None` | Enable caching in decorator mode. Default from `configure()`. |
 | `debug` | `bool \| None` | Collect `LoadReport`. Default from `configure()`. |
 
 ---
 
-### `LoadMetadata`
+### `Source`
 
 ```python
 --8<-- "src/dature/metadata.py:load-metadata"
 ```
 
-See [Introduction — LoadMetadata Reference](introduction.md#loadmetadata-reference) for parameter descriptions.
+See [Introduction — Source Reference](introduction.md#Source-reference) for parameter descriptions.
 
 ---
 
-### `MergeMetadata`
+### `Merge`
 
 ```python
 --8<-- "src/dature/metadata.py:merge-metadata"
@@ -54,7 +54,7 @@ See [Introduction — LoadMetadata Reference](introduction.md#loadmetadata-refer
 
 | Parameter | Description |
 |-----------|-------------|
-| `sources` | Ordered tuple of `LoadMetadata` to merge |
+| `sources` | Ordered tuple of `Source` to merge |
 | `strategy` | Global merge strategy |
 | `field_merges` | Per-field strategy overrides |
 | `field_groups` | Groups of fields that must change together |
