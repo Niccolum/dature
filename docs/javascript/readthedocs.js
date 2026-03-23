@@ -5,6 +5,24 @@
 
 const MAX_VISIBLE = 10;
 
+function escapeHtml(str) {
+  const el = document.createElement("span");
+  el.textContent = str;
+  return el.innerHTML;
+}
+
+function sanitizeUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+      return escapeHtml(parsed.href);
+    }
+  } catch {
+    // invalid URL
+  }
+  return "#";
+}
+
 // Keep only the latest patch for each major.minor group.
 // Non-semver slugs (stable, latest, branches) are always kept.
 function latestPatchOnly(versions) {
@@ -29,8 +47,8 @@ function latestPatchOnly(versions) {
 function renderVersionItem(version) {
   return `
     <li class="md-version__item">
-      <a href="${version.urls.documentation}" class="md-version__link">
-        ${version.slug}
+      <a href="${sanitizeUrl(version.urls.documentation)}" class="md-version__link">
+        ${escapeHtml(version.slug)}
       </a>
     </li>`;
 }
@@ -62,7 +80,7 @@ document.addEventListener(
     const versioning = `
       <div class="md-version">
         <button class="md-version__current" aria-label="Select version">
-          ${current.slug}
+          ${escapeHtml(current.slug)}
         </button>
         <ul class="md-version__list">
           ${visible.map(renderVersionItem).join("\n")}
@@ -75,9 +93,11 @@ document.addEventListener(
     if (existing !== null) {
       existing.remove();
     }
-    document
-      .querySelector(".md-header__topic")
-      .insertAdjacentHTML("beforeend", versioning);
+    const topic = document.querySelector(".md-header__topic");
+    if (topic === null) {
+      return;
+    }
+    topic.insertAdjacentHTML("beforeend", versioning);
 
     // "older versions…" expands the list inline
     const toggle = document.querySelector(".md-version__show-older");
