@@ -292,19 +292,6 @@ jobs:
             -H "Authorization: Token ${{ secrets.RTD_API_TOKEN }}" \
             https://readthedocs.org/api/v3/projects/dature/versions/latest/builds/
 
-  fix-docs:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Activate and build RTD version
-        env:
-          RTD_API_TOKEN: ${{ secrets.RTD_API_TOKEN }}
-          RTD_VERSION: refactor-fix_docs
-        run: |
-          curl -sf -X POST \
-            -H "Authorization: Token $RTD_API_TOKEN" \
-            https://readthedocs.org/api/v3/projects/dature/versions/$RTD_VERSION/builds/
-
   trigger-rtd-tag:
     needs: [tag]
     if: >-

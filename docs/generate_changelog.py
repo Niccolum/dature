@@ -38,9 +38,9 @@ def build_changelog(releases: list[dict[str, str]]) -> str:
 
     for release in releases:
         tag = release.get("tag_name", "")
-        name = release.get("name", tag)
+        name = release.get("name") or tag
         url = release.get("html_url", "")
-        body = release.get("body", "").strip()
+        body = (release.get("body") or "").strip()
         prerelease = release.get("prerelease", False)
 
         heading = f"## [{name}]({url})"
@@ -63,7 +63,8 @@ def main() -> None:
         releases = fetch_releases()
     except Exception as exc:
         print(f"Warning: failed to fetch releases from GitHub API: {exc}")
-        releases = []
+        print("Keeping existing changelog.md")
+        return
 
     content = build_changelog(releases)
     OUTPUT.write_text(content)
