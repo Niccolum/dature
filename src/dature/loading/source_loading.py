@@ -11,7 +11,7 @@ from dature.load_report import SourceEntry
 from dature.loading.context import apply_skip_invalid, build_error_ctx
 from dature.loading.resolver import resolve_loader, resolve_loader_class
 from dature.masking.masking import mask_json_value
-from dature.metadata import LoadMetadata, MergeMetadata, MergeStrategy, TypeLoader
+from dature.metadata import Merge, MergeStrategy, Source, TypeLoader
 from dature.protocols import DataclassInstance, LoaderProtocol
 from dature.skip_field_provider import FilterResult
 from dature.types import FILE_LIKE_TYPES, ExpandEnvVarsMode, FileOrStream, JSONValue, LoadRawResult
@@ -23,7 +23,7 @@ def resolve_loader_for_source(
     *,
     loaders: tuple[LoaderProtocol, ...] | None,
     index: int,
-    source_meta: LoadMetadata,
+    source_meta: Source,
     expand_env_vars: ExpandEnvVarsMode | None = None,
     type_loaders: "tuple[TypeLoader, ...]" = (),
 ) -> LoaderProtocol:
@@ -32,7 +32,7 @@ def resolve_loader_for_source(
     return resolve_loader(source_meta, expand_env_vars=expand_env_vars, type_loaders=type_loaders)
 
 
-def should_skip_broken(source_meta: LoadMetadata, merge_meta: MergeMetadata) -> bool:
+def should_skip_broken(source_meta: Source, merge_meta: Merge) -> bool:
     if source_meta.skip_if_broken is not None:
         if source_meta.file_ is None:
             logger.warning(
@@ -42,22 +42,22 @@ def should_skip_broken(source_meta: LoadMetadata, merge_meta: MergeMetadata) -> 
     return merge_meta.skip_broken_sources
 
 
-def resolve_expand_env_vars(source_meta: LoadMetadata, merge_meta: MergeMetadata) -> ExpandEnvVarsMode:
+def resolve_expand_env_vars(source_meta: Source, merge_meta: Merge) -> ExpandEnvVarsMode:
     if source_meta.expand_env_vars is not None:
         return source_meta.expand_env_vars
     return merge_meta.expand_env_vars
 
 
 def resolve_skip_invalid(
-    source_meta: LoadMetadata,
-    merge_meta: MergeMetadata,
+    source_meta: Source,
+    merge_meta: Merge,
 ) -> bool | tuple[FieldPath, ...]:
     if source_meta.skip_if_invalid is not None:
         return source_meta.skip_if_invalid
     return merge_meta.skip_invalid_fields
 
 
-def resolve_mask_secrets(source_meta: LoadMetadata, merge_meta: MergeMetadata) -> bool:
+def resolve_mask_secrets(source_meta: Source, merge_meta: Merge) -> bool:
     if source_meta.mask_secrets is not None:
         return source_meta.mask_secrets
     if merge_meta.mask_secrets is not None:
@@ -65,7 +65,7 @@ def resolve_mask_secrets(source_meta: LoadMetadata, merge_meta: MergeMetadata) -
     return config.masking.mask_secrets
 
 
-def resolve_secret_field_names(source_meta: LoadMetadata, merge_meta: MergeMetadata) -> tuple[str, ...]:
+def resolve_secret_field_names(source_meta: Source, merge_meta: Merge) -> tuple[str, ...]:
     source_names = source_meta.secret_field_names or ()
     merge_names = merge_meta.secret_field_names or ()
     return source_names + merge_names
@@ -74,8 +74,8 @@ def resolve_secret_field_names(source_meta: LoadMetadata, merge_meta: MergeMetad
 def apply_merge_skip_invalid(
     *,
     raw: JSONValue,
-    source_meta: LoadMetadata,
-    merge_meta: MergeMetadata,
+    source_meta: Source,
+    merge_meta: Merge,
     loader_instance: LoaderProtocol,
     dataclass_: type[DataclassInstance],
     source_index: int,
@@ -101,7 +101,7 @@ class SourceContext:
 
 @dataclass(frozen=True, slots=True)
 class SkippedFieldSource:
-    metadata: LoadMetadata
+    metadata: Source
     error_ctx: ErrorContext
     file_content: str | None
 
@@ -117,7 +117,7 @@ class LoadedSources:
 
 def load_sources(  # noqa: C901, PLR0912, PLR0913, PLR0915
     *,
-    merge_meta: MergeMetadata,
+    merge_meta: Merge,
     dataclass_name: str,
     dataclass_: type[DataclassInstance],
     loaders: tuple[LoaderProtocol, ...] | None = None,
@@ -270,7 +270,7 @@ def load_sources(  # noqa: C901, PLR0912, PLR0913, PLR0915
         if merge_meta.sources:
             msg = f"All {len(merge_meta.sources)} source(s) failed to load"
         else:
-            msg = "MergeMetadata.sources must not be empty"
+            msg = "Merge.sources must not be empty"
         source_error = SourceLoadError(message=msg)
         raise DatureConfigError(dataclass_name, [source_error])
 

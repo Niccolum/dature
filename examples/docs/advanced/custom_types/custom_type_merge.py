@@ -1,9 +1,9 @@
-"""Per-merge type_loaders — set type_loaders on MergeMetadata for multi-source loads."""
+"""Per-merge type_loaders — set type_loaders on Merge for multi-source loads."""
 
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, MergeMetadata, TypeLoader, load
+from dature import Merge, Source, TypeLoader, load
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -27,10 +27,10 @@ class AppConfig:
 
 
 config = load(
-    MergeMetadata(
+    Merge(
         sources=(
-            LoadMetadata(file_=SOURCES_DIR / "custom_type_common.yaml"),
-            LoadMetadata(file_=SOURCES_DIR / "custom_type_merge_override.yaml"),
+            Source(file_=SOURCES_DIR / "custom_type_common.yaml"),
+            Source(file_=SOURCES_DIR / "custom_type_merge_override.yaml"),
         ),
         type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
     ),

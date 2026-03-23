@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, load
+from dature import Source, load
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -17,7 +17,7 @@ class ApiConfig:
 
 
 config = load(
-    LoadMetadata(file_=SOURCES_DIR / "naming_name_style.yaml", name_style="lower_camel"),
+    Source(file_=SOURCES_DIR / "naming_name_style.yaml", name_style="lower_camel"),
     ApiConfig,
 )
 

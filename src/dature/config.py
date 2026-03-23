@@ -67,9 +67,9 @@ class DatureConfig:
 
 def _load_config() -> DatureConfig:
     from dature.main import load  # noqa: PLC0415
-    from dature.metadata import LoadMetadata  # noqa: PLC0415
+    from dature.metadata import Source  # noqa: PLC0415
 
-    return load(LoadMetadata(prefix="DATURE_"), DatureConfig)
+    return load(Source(prefix="DATURE_"), DatureConfig)
 
 
 class _ConfigProxy:

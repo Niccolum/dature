@@ -5,7 +5,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, MergeMetadata, load
+from dature import Merge, Source, load
 
 log_stream = io.StringIO()
 handler = logging.StreamHandler(log_stream)
@@ -24,10 +24,10 @@ class Config:
 
 
 config = load(
-    MergeMetadata(
+    Merge(
         sources=(
-            LoadMetadata(file_=SHARED_DIR / "common_defaults.yaml"),
-            LoadMetadata(file_=SHARED_DIR / "common_overrides.yaml"),
+            Source(file_=SHARED_DIR / "common_defaults.yaml"),
+            Source(file_=SHARED_DIR / "common_overrides.yaml"),
         ),
     ),
     Config,

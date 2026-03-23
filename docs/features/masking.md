@@ -87,12 +87,12 @@ dature uses three methods to identify secrets:
 
 ### Per-source
 
-Control masking via `LoadMetadata` and `MergeMetadata`:
+Control masking via `Source` and `Merge`:
 
 ```python
 # Add custom secret patterns (added to defaults)
 config = load(
-    LoadMetadata(
+    Source(
         file_="config.yaml",
         secret_field_names=("connection_string", "dsn"),
     ),
@@ -101,7 +101,7 @@ config = load(
 
 # Disable masking entirely
 config = load(
-    LoadMetadata(file_="config.yaml", mask_secrets=False),
+    Source(file_="config.yaml", mask_secrets=False),
     Config,
 )
 ```
@@ -110,10 +110,10 @@ config = load(
 
 ```python
 config = load(
-    MergeMetadata(
+    Merge(
         sources=(
-            LoadMetadata(file_="defaults.yaml"),
-            LoadMetadata(file_="secrets.yaml", secret_field_names=("custom_key",)),  # added to MergeMetadata patterns
+            Source(file_="defaults.yaml"),
+            Source(file_="secrets.yaml", secret_field_names=("custom_key",)),  # added to Merge patterns
         ),
         mask_secrets=True,  # enabled by default
         secret_field_names=("my_pattern",),  # extra patterns for all sources
@@ -122,7 +122,7 @@ config = load(
 )
 ```
 
-`LoadMetadata.mask_secrets` overrides `MergeMetadata.mask_secrets` when not `None`. `secret_field_names` from both are combined.
+`Source.mask_secrets` overrides `Merge.mask_secrets` when not `None`. `secret_field_names` from both are combined.
 
 ### Global
 

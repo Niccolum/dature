@@ -123,10 +123,10 @@ Override auto-detection with the `loader` parameter:
 ```python
 from dature.sources_loader.yaml_ import Yaml11Loader
 
-LoadMetadata(file_="config.yaml", loader=Yaml11Loader)
+Source(file_="config.yaml", loader=Yaml11Loader)
 ```
 
-## LoadMetadata Reference
+## Source Reference
 
 ```python
 --8<-- "src/dature/metadata.py:load-metadata"

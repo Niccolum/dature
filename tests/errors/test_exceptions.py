@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from dature import LoadMetadata, load
+from dature import Source, load
 from dature.errors.exceptions import DatureConfigError, FieldLoadError, LineRange, SourceLocation
 
 
@@ -157,7 +157,7 @@ class TestLoadIntegrationErrors:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"timeout": "abc", "name": "test"}')
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         @load(metadata)
         @dataclass
@@ -192,7 +192,7 @@ class TestLoadIntegrationErrors:
             name: str
             port: int
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
@@ -214,7 +214,7 @@ class TestLoadIntegrationErrors:
             timeout: int
             name: str
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
@@ -249,7 +249,7 @@ class TestLoadIntegrationErrors:
         class Config:
             db: DB
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
@@ -271,7 +271,7 @@ class TestLoadIntegrationErrors:
         monkeypatch.setenv("APP_TIMEOUT", "abc")
         monkeypatch.setenv("APP_NAME", "test")
 
-        metadata = LoadMetadata(prefix="APP_")
+        metadata = Source(prefix="APP_")
 
         @load(metadata)
         @dataclass
@@ -298,7 +298,7 @@ class TestLoadIntegrationErrors:
             name: str
             timeout: int
 
-        metadata = LoadMetadata(file_=toml_file)
+        metadata = Source(file_=toml_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
@@ -326,7 +326,7 @@ class TestLoadIntegrationErrors:
             name: str
             timeout: int
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
@@ -619,7 +619,7 @@ class TestMultilineValueDisplay:
         class Config:
             db: int
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
@@ -643,7 +643,7 @@ class TestMultilineValueDisplay:
             db: int
             name: str
 
-        metadata = LoadMetadata(file_=yaml_file)
+        metadata = Source(file_=yaml_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
@@ -666,7 +666,7 @@ class TestMultilineValueDisplay:
         class Config:
             tags: int
 
-        metadata = LoadMetadata(file_=toml_file)
+        metadata = Source(file_=toml_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
@@ -689,7 +689,7 @@ class TestMultilineValueDisplay:
         class Config:
             tags: int
 
-        metadata = LoadMetadata(file_=json_file)
+        metadata = Source(file_=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
@@ -714,7 +714,7 @@ class TestMultilineValueDisplay:
         class Config:
             product: list[Product]
 
-        metadata = LoadMetadata(file_=array_of_tables_toml_file)
+        metadata = Source(file_=array_of_tables_toml_file)
         result = load(metadata, Config)
 
         assert result == Config(
@@ -735,7 +735,7 @@ class TestMultilineValueDisplay:
         class Config:
             product: list[Product]
 
-        metadata = LoadMetadata(file_=array_of_tables_error_first_toml_file)
+        metadata = Source(file_=array_of_tables_error_first_toml_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)
@@ -760,7 +760,7 @@ class TestMultilineValueDisplay:
         class Config:
             product: list[Product]
 
-        metadata = LoadMetadata(file_=array_of_tables_error_last_toml_file)
+        metadata = Source(file_=array_of_tables_error_last_toml_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(metadata, Config)

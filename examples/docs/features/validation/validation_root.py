@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, load
+from dature import Source, load
 from dature.errors.exceptions import DatureConfigError
 from dature.validators.root import RootValidator
 
@@ -25,7 +25,7 @@ def check_debug_not_on_production(obj: Config) -> bool:
 
 try:
     load(
-        LoadMetadata(
+        Source(
             file_=SOURCES_DIR / "validation_root_invalid.yaml",
             root_validators=(
                 RootValidator(

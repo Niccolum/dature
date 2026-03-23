@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 import pytest
 
-from dature import F, LoadMetadata, load
+from dature import F, Source, load
 from dature.errors.exceptions import DatureConfigError, FieldLoadError
 from dature.sources_loader.docker_secrets import DockerSecretsLoader
 from dature.sources_loader.env_ import EnvFileLoader, EnvLoader
@@ -59,7 +59,7 @@ class DeepConfig:
 @dataclass
 class FlatLoaderSetup:
     set_data: Callable[[dict[str, str]], None]
-    make_metadata: Callable[..., LoadMetadata]
+    make_metadata: Callable[..., Source]
 
 
 @pytest.fixture(params=["env", "envfile", "docker_secrets"])
@@ -81,12 +81,12 @@ def flat_loader_setup(
             for key, value in data.items():
                 (tmp_path / key).write_text(value)
 
-    def make_metadata(**kwargs: Any) -> LoadMetadata:
+    def make_metadata(**kwargs: Any) -> Source:
         if loader_type == "env":
-            return LoadMetadata(loader=EnvLoader, prefix="MYAPP__", **kwargs)
+            return Source(loader=EnvLoader, prefix="MYAPP__", **kwargs)
         if loader_type == "envfile":
-            return LoadMetadata(file_=tmp_path / ".env", loader=EnvFileLoader, prefix="MYAPP__", **kwargs)
-        return LoadMetadata(file_=tmp_path, loader=DockerSecretsLoader, **kwargs)
+            return Source(file_=tmp_path / ".env", loader=EnvFileLoader, prefix="MYAPP__", **kwargs)
+        return Source(file_=tmp_path, loader=DockerSecretsLoader, **kwargs)
 
     return FlatLoaderSetup(set_data=set_data, make_metadata=make_metadata)
 
@@ -180,7 +180,7 @@ class TestPartialNestedResolveEnv:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(loader=EnvLoader, prefix="MYAPP__", **_strategy_kwargs(strategy, local=local)),
+                Source(loader=EnvLoader, prefix="MYAPP__", **_strategy_kwargs(strategy, local=local)),
                 NestedConfig,
             )
 
@@ -202,7 +202,7 @@ class TestPartialNestedResolveEnvFile:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(
+                Source(
                     file_=env_file,
                     loader=EnvFileLoader,
                     prefix="MYAPP__",
@@ -225,7 +225,7 @@ class TestPartialNestedResolveEnvFile:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(
+                Source(
                     file_=env_file,
                     loader=EnvFileLoader,
                     prefix="MYAPP__",
@@ -256,7 +256,7 @@ class TestPartialNestedResolveDockerSecrets:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(file_=tmp_path, loader=DockerSecretsLoader, **_strategy_kwargs("flat", local=local)),
+                Source(file_=tmp_path, loader=DockerSecretsLoader, **_strategy_kwargs("flat", local=local)),
                 NestedConfig,
             )
 
@@ -274,7 +274,7 @@ class TestPartialNestedResolveDockerSecrets:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(file_=tmp_path, loader=DockerSecretsLoader, **_strategy_kwargs("json", local=local)),
+                Source(file_=tmp_path, loader=DockerSecretsLoader, **_strategy_kwargs("json", local=local)),
                 NestedConfig,
             )
 
@@ -295,7 +295,7 @@ class TestInvalidDataNestedResolveEnv:
         monkeypatch.setenv("MYAPP__VAR__BAR", "20")
 
         result = load(
-            LoadMetadata(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="flat"),
+            Source(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="flat"),
             NestedIntConfig,
         )
 
@@ -308,7 +308,7 @@ class TestInvalidDataNestedResolveEnv:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="json"),
+                Source(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="json"),
                 NestedIntConfig,
             )
 
@@ -334,7 +334,7 @@ class TestInvalidDataNestedResolveEnv:
         monkeypatch.setenv("MYAPP__VAR__BAR", "not_a_number")
 
         result = load(
-            LoadMetadata(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="json"),
+            Source(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="json"),
             NestedIntConfig,
         )
 
@@ -347,7 +347,7 @@ class TestInvalidDataNestedResolveEnv:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="flat"),
+                Source(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="flat"),
                 NestedIntConfig,
             )
 
@@ -376,7 +376,7 @@ class TestInvalidDataNestedResolveEnvFile:
         )
 
         result = load(
-            LoadMetadata(file_=env_file, loader=EnvFileLoader, prefix="MYAPP__", nested_resolve_strategy="flat"),
+            Source(file_=env_file, loader=EnvFileLoader, prefix="MYAPP__", nested_resolve_strategy="flat"),
             NestedIntConfig,
         )
 
@@ -390,7 +390,7 @@ class TestInvalidDataNestedResolveEnvFile:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(file_=env_file, loader=EnvFileLoader, prefix="MYAPP__", nested_resolve_strategy="json"),
+                Source(file_=env_file, loader=EnvFileLoader, prefix="MYAPP__", nested_resolve_strategy="json"),
                 NestedIntConfig,
             )
 
@@ -421,7 +421,7 @@ class TestInvalidDataNestedResolveEnvFile:
         )
 
         result = load(
-            LoadMetadata(file_=env_file, loader=EnvFileLoader, prefix="MYAPP__", nested_resolve_strategy="json"),
+            Source(file_=env_file, loader=EnvFileLoader, prefix="MYAPP__", nested_resolve_strategy="json"),
             NestedIntConfig,
         )
 
@@ -435,7 +435,7 @@ class TestInvalidDataNestedResolveEnvFile:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(file_=env_file, loader=EnvFileLoader, prefix="MYAPP__", nested_resolve_strategy="flat"),
+                Source(file_=env_file, loader=EnvFileLoader, prefix="MYAPP__", nested_resolve_strategy="flat"),
                 NestedIntConfig,
             )
 
@@ -469,7 +469,7 @@ class TestInvalidDataNestedResolveDockerSecrets:
         (tmp_path / "var__bar").write_text("20")
 
         result = load(
-            LoadMetadata(file_=tmp_path, loader=DockerSecretsLoader, nested_resolve_strategy="flat"),
+            Source(file_=tmp_path, loader=DockerSecretsLoader, nested_resolve_strategy="flat"),
             NestedIntConfig,
         )
 
@@ -482,7 +482,7 @@ class TestInvalidDataNestedResolveDockerSecrets:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(file_=tmp_path, loader=DockerSecretsLoader, nested_resolve_strategy="json"),
+                Source(file_=tmp_path, loader=DockerSecretsLoader, nested_resolve_strategy="json"),
                 NestedIntConfig,
             )
 
@@ -508,7 +508,7 @@ class TestInvalidDataNestedResolveDockerSecrets:
         (tmp_path / "var__bar").write_text("not_a_number")
 
         result = load(
-            LoadMetadata(file_=tmp_path, loader=DockerSecretsLoader, nested_resolve_strategy="json"),
+            Source(file_=tmp_path, loader=DockerSecretsLoader, nested_resolve_strategy="json"),
             NestedIntConfig,
         )
 
@@ -521,7 +521,7 @@ class TestInvalidDataNestedResolveDockerSecrets:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(file_=tmp_path, loader=DockerSecretsLoader, nested_resolve_strategy="flat"),
+                Source(file_=tmp_path, loader=DockerSecretsLoader, nested_resolve_strategy="flat"),
                 NestedIntConfig,
             )
 
@@ -553,7 +553,7 @@ class TestMultilineJsonNestedResolveEnv:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="json"),
+                Source(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="json"),
                 NestedIntConfig,
             )
 
@@ -582,7 +582,7 @@ class TestMultilineJsonNestedResolveEnv:
         monkeypatch.setenv("MYAPP__VAR__BAR", "20")
 
         result = load(
-            LoadMetadata(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="flat"),
+            Source(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="flat"),
             NestedIntConfig,
         )
 
@@ -616,7 +616,7 @@ class TestPerFieldDifferentStrategies:
         monkeypatch.setenv("MYAPP__VAR2__BAR", "flat2")
 
         result = load(
-            LoadMetadata(
+            Source(
                 loader=EnvLoader,
                 prefix="MYAPP__",
                 nested_resolve={
@@ -653,7 +653,7 @@ class TestPerFieldOverridesGlobal:
         monkeypatch.setenv("MYAPP__VAR__BAR", "from_flat")
 
         result = load(
-            LoadMetadata(
+            Source(
                 loader=EnvLoader,
                 prefix="MYAPP__",
                 nested_resolve_strategy=global_strategy,
@@ -674,7 +674,7 @@ class TestCustomSplitSymbolsConflict:
         monkeypatch.setenv("APP_VAR_BAR", "from_flat")
 
         result = load(
-            LoadMetadata(
+            Source(
                 loader=EnvLoader,
                 prefix="APP_",
                 split_symbols="_",
@@ -692,7 +692,7 @@ class TestCustomSplitSymbolsConflict:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(
+                Source(
                     loader=EnvLoader,
                     prefix="APP_",
                     split_symbols="_",
@@ -716,7 +716,7 @@ class TestCustomSplitSymbolsConflict:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(
+                Source(
                     loader=EnvLoader,
                     prefix="APP_",
                     split_symbols="_",
@@ -780,7 +780,7 @@ class TestDeepNestedConflict:
         monkeypatch.setenv("MYAPP__VAR__SUB__KEY", "from_flat")
 
         result = load(
-            LoadMetadata(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy=strategy),
+            Source(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy=strategy),
             DeepConfig,
         )
 
@@ -793,7 +793,7 @@ class TestDeepNestedConflict:
         )
 
         result = load(
-            LoadMetadata(
+            Source(
                 file_=env_file,
                 loader=EnvFileLoader,
                 prefix="MYAPP__",
@@ -809,7 +809,7 @@ class TestDeepNestedConflict:
         (tmp_path / "var__sub__key").write_text("from_flat")
 
         result = load(
-            LoadMetadata(file_=tmp_path, loader=DockerSecretsLoader, nested_resolve_strategy="json"),
+            Source(file_=tmp_path, loader=DockerSecretsLoader, nested_resolve_strategy="json"),
             DeepConfig,
         )
 
@@ -826,7 +826,7 @@ class TestPrefixDockerSecretsConflict:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(
+                Source(
                     file_=tmp_path,
                     loader=DockerSecretsLoader,
                     prefix="myapp__",
@@ -851,7 +851,7 @@ class TestPrefixDockerSecretsConflict:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                LoadMetadata(
+                Source(
                     file_=tmp_path,
                     loader=DockerSecretsLoader,
                     prefix="myapp__",
@@ -879,11 +879,11 @@ class TestKeyOrderDoesNotAffectConflict:
         monkeypatch.setenv("MYAPP__VAR", '{"foo": "from_json", "bar": "from_json"}')
 
         result_flat = load(
-            LoadMetadata(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="flat"),
+            Source(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="flat"),
             NestedConfig,
         )
         result_json = load(
-            LoadMetadata(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="json"),
+            Source(loader=EnvLoader, prefix="MYAPP__", nested_resolve_strategy="json"),
             NestedConfig,
         )
 
@@ -897,7 +897,7 @@ class TestKeyOrderDoesNotAffectConflict:
         )
 
         result_flat = load(
-            LoadMetadata(
+            Source(
                 file_=env_file,
                 loader=EnvFileLoader,
                 prefix="MYAPP__",
@@ -906,7 +906,7 @@ class TestKeyOrderDoesNotAffectConflict:
             NestedConfig,
         )
         result_json = load(
-            LoadMetadata(
+            Source(
                 file_=env_file,
                 loader=EnvFileLoader,
                 prefix="MYAPP__",
@@ -938,7 +938,7 @@ class TestEmptyNestedResolveDict:
         monkeypatch.setenv("MYAPP__VAR__BAR", "from_flat")
 
         result = load(
-            LoadMetadata(
+            Source(
                 loader=EnvLoader,
                 prefix="MYAPP__",
                 nested_resolve_strategy=strategy,

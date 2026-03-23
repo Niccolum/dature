@@ -7,7 +7,7 @@ import pytest
 
 from dature.field_path import F
 from dature.loading.resolver import resolve_loader, resolve_loader_class
-from dature.metadata import LoadMetadata
+from dature.metadata import Source
 from dature.sources_loader.docker_secrets import DockerSecretsLoader
 from dature.sources_loader.env_ import EnvFileLoader, EnvLoader
 from dature.sources_loader.ini_ import IniLoader
@@ -103,21 +103,21 @@ class TestMissingOptionalDependency:
 
 class TestResolveLoader:
     def test_returns_correct_loader_type(self) -> None:
-        metadata = LoadMetadata(file_="config.json")
+        metadata = Source(file_="config.json")
 
         loader = resolve_loader(metadata)
 
         assert isinstance(loader, JsonLoader)
 
     def test_passes_prefix(self) -> None:
-        metadata = LoadMetadata(prefix="APP_")
+        metadata = Source(prefix="APP_")
 
         loader = resolve_loader(metadata)
 
         assert loader._prefix == "APP_"
 
     def test_passes_name_style(self) -> None:
-        metadata = LoadMetadata(file_="config.json", name_style="lower_snake")
+        metadata = Source(file_="config.json", name_style="lower_snake")
 
         loader = resolve_loader(metadata)
 
@@ -129,14 +129,14 @@ class TestResolveLoader:
             key: str
 
         mapping = {F[Config].key: "value"}
-        metadata = LoadMetadata(file_="config.json", field_mapping=mapping)
+        metadata = Source(file_="config.json", field_mapping=mapping)
 
         loader = resolve_loader(metadata)
 
         assert loader._field_mapping == mapping
 
     def test_default_metadata_returns_env_loader(self) -> None:
-        metadata = LoadMetadata()
+        metadata = Source()
 
         loader = resolve_loader(metadata)
 
@@ -145,7 +145,7 @@ class TestResolveLoader:
     def test_env_with_file_path(self, tmp_path: Path) -> None:
         env_file = tmp_path / ".env"
         env_file.write_text("KEY=VALUE")
-        metadata = LoadMetadata(file_=env_file)
+        metadata = Source(file_=env_file)
 
         loader = resolve_loader(metadata)
 

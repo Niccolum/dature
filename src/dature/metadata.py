@@ -59,7 +59,7 @@ class FieldMergeStrategy(StrEnum):
 
 # --8<-- [start:load-metadata]
 @dataclass(frozen=True, slots=True, kw_only=True)
-class LoadMetadata:
+class Source:
     file_: "FileLike | FilePath | None" = None
     loader: "type[LoaderProtocol] | None" = None
     prefix: "DotSeparatedPath | None" = None
@@ -112,8 +112,8 @@ class FieldGroup:
 
 # --8<-- [start:merge-metadata]
 @dataclass(frozen=True, slots=True, kw_only=True)
-class MergeMetadata:
-    sources: tuple[LoadMetadata, ...]
+class Merge:
+    sources: tuple[Source, ...]
     strategy: MergeStrategy = MergeStrategy.LAST_WINS
     field_merges: tuple[MergeRule, ...] = ()
     field_groups: tuple[FieldGroup, ...] = ()

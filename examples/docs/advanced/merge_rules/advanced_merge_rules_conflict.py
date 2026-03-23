@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import F, FieldMergeStrategy, LoadMetadata, MergeMetadata, MergeRule, MergeStrategy, load
+from dature import F, FieldMergeStrategy, Merge, MergeRule, MergeStrategy, Source, load
 
 SHARED_DIR = Path(__file__).parents[2] / "shared"
 
@@ -16,10 +16,10 @@ class Config:
 
 
 config = load(
-    MergeMetadata(
+    Merge(
         sources=(
-            LoadMetadata(file_=SHARED_DIR / "common_defaults.yaml"),
-            LoadMetadata(file_=SHARED_DIR / "common_overrides.yaml"),
+            Source(file_=SHARED_DIR / "common_defaults.yaml"),
+            Source(file_=SHARED_DIR / "common_overrides.yaml"),
         ),
         strategy=MergeStrategy.RAISE_ON_CONFLICT,
         field_merges=(
@@ -33,4 +33,6 @@ config = load(
 
 assert config.host == "production.example.com"
 assert config.port == 8080
+assert config.tags == ["default", "web", "api"]
+assert config.tags == ["default", "web", "api"]
 assert config.tags == ["default", "web", "api"]

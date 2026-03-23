@@ -13,7 +13,7 @@ from dature.errors.location import ErrorContext
 from dature.field_path import FieldPath
 from dature.loading.resolver import resolve_loader_class
 from dature.merging.predicate import extract_field_path
-from dature.metadata import LoadMetadata
+from dature.metadata import Source
 from dature.protocols import DataclassInstance, LoaderProtocol
 from dature.skip_field_provider import FilterResult, filter_invalid_fields
 from dature.types import FILE_LIKE_TYPES, JSONValue, NestedConflicts
@@ -42,7 +42,7 @@ def coerce_flag_fields[T](data: JSONValue, dataclass_: type[T]) -> JSONValue:
 
 
 def build_error_ctx(
-    metadata: LoadMetadata,
+    metadata: Source,
     dataclass_name: str,
     *,
     secret_paths: frozenset[str] = frozenset(),

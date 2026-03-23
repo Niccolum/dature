@@ -3,14 +3,14 @@
 import os
 from dataclasses import dataclass
 
-from dature import LoadMetadata, load
+from dature import Source, load
 
 os.environ["APP_HOST"] = "0.0.0.0"
 os.environ["APP_PORT"] = "8080"
 os.environ["APP_DEBUG"] = "true"
 
 
-@load(LoadMetadata(prefix="APP_"))
+@load(Source(prefix="APP_"))
 @dataclass
 class AppConfig:
     host: str

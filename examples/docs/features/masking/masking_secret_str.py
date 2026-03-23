@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, load
+from dature import Source, load
 from dature.errors.exceptions import DatureConfigError
 from dature.fields.payment_card import PaymentCardNumber
 from dature.fields.secret_str import SecretStr
@@ -20,7 +20,7 @@ class Config:
 
 try:
     config = load(
-        LoadMetadata(file_=SOURCES_DIR / "masking_secret_str.yaml"),
+        Source(file_=SOURCES_DIR / "masking_secret_str.yaml"),
         Config,
     )
 except DatureConfigError as exc:

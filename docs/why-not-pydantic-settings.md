@@ -1,24 +1,26 @@
 # Why Not pydantic-settings?
 
-pydantic-settings is a good choice when Pydantic is already in your project and your configuration is simple: a few environment variables, maybe a `.env` file. For that scenario it works well.
+pydantic-settings is a mature, well-maintained library backed by the Pydantic ecosystem. It has built-in CLI support, JSON/YAML/TOML file sources, and strong validation via Pydantic's Rust core.
 
-But once your requirements grow — multiple config files, layered overrides, custom formats, secrets management — pydantic-settings starts showing its limits. dature is designed for exactly these cases.
+The trade-off is coupling: your config must be a Pydantic model, custom types need Pydantic-specific schemas, and advanced merging or format handling requires writing custom `SettingsSource` classes. dature takes a different approach — stdlib dataclasses, 8 formats out of the box, and explicit merge control.
 
 ## Side-by-Side
 
 | | pydantic-settings | dature |
 |---|---|---|
 | **Base class** | `BaseSettings` (Pydantic model) | stdlib `@dataclass` |
-| **Formats** | `.env`, env vars; others via custom sources | YAML, JSON, JSON5, TOML, INI, `.env`, env vars, Docker secrets — auto-detected |
-| **Merging multiple sources** | Priority order only | 4 strategies (`LAST_WINS`, `FIRST_WINS`, `FIRST_FOUND`, `RAISE_ON_CONFLICT`) + per-field rules (`APPEND`, `PREPEND`, `APPEND_UNIQUE`, etc.) |
+| **Formats** | `.env`, env vars, JSON, YAML, TOML + custom sources | YAML (1.1/1.2), JSON, JSON5, TOML (1.0/1.1), INI, `.env`, env vars, Docker secrets — auto-detected |
+| **Merging** | Fixed priority order (init > env > dotenv > secrets > defaults) | 4 strategies + per-field rules (`APPEND`, `PREPEND`, field groups, etc.) |
 | **Skip broken sources** | No | Yes — `skip_if_broken`, `skip_if_invalid` |
 | **Field groups** | No | Yes — enforce related fields are overridden together |
-| **Naming conventions** | Manual `alias` / `alias_generator` | Built-in `name_style` (`camelCase`, `UPPER_SNAKE`, etc.) + explicit `field_mapping` |
-| **Secret masking** | No built-in | Auto-masks secrets in errors and logs (by type, name pattern, or heuristic) |
+| **Naming conventions** | `alias` / `alias_generator` (`to_camel`, `to_pascal`, `to_snake`) | Built-in `name_style` (6 conventions) + explicit `field_mapping` with multiple aliases |
+| **CLI** | Built-in `CliSettingsSource` with subcommands, async support | No CLI |
+| **Secrets** | `SecretStr`, `secrets_dir`, nested secrets directories | `SecretStr`, auto-masking in errors/logs (by type, name pattern, or heuristic) |
 | **ENV expansion** | No | `${VAR:-default}` syntax in all file formats |
 | **Error messages** | Pydantic `ValidationError` | Human-readable: source file, line number, context snippet |
-| **Debug / audit** | No | `debug=True` shows which source provided each value |
-| **Validation** | Pydantic validators | `Annotated` validators, root validators, custom validators, `__post_init__` |
+| **Debug / audit** | No | `debug=True` — which source provided each value |
+| **Validation** | Pydantic `field_validator`, `model_validator` (pre/post), constraints | `Annotated` validators, root validators, custom validators, `__post_init__` |
+| **Ecosystem** | FastAPI, SQLModel, LangChain integration | Framework-agnostic |
 | **Dependency** | pydantic (Rust core) | adaptix + stdlib dataclasses |
 
 ## dataclasses, Not Pydantic Models
@@ -33,7 +35,7 @@ dature uses **stdlib `@dataclass`** — no vendor lock-in, no magic metaclasses,
 
 ```python
 from dataclasses import dataclass
-from dature import load, LoadMetadata
+from dature import load, Source
 
 @dataclass
 class Config:
@@ -41,7 +43,7 @@ class Config:
     port: int
     debug: bool = False
 
-config = load(LoadMetadata(file_="config.yaml"), Config)
+config = load(Source(file_="config.yaml"), Config)
 ```
 
 ## Multi-Source Merging That Actually Works
@@ -51,13 +53,13 @@ pydantic-settings merges sources by simple priority: env vars override `.env` fi
 dature gives you **real merge control**:
 
 ```python
-from dature import load, MergeMetadata, LoadMetadata
+from dature import load, Merge, Source
 
 config = load(
-    MergeMetadata(
-        LoadMetadata(file_="defaults.yaml"),
-        LoadMetadata(file_="local.yaml", skip_if_broken=True),
-        LoadMetadata(prefix="APP_"),
+    Merge(
+        Source(file_="defaults.yaml"),
+        Source(file_="local.yaml", skip_if_broken=True),
+        Source(prefix="APP_"),
     ),
     Config,
 )
@@ -69,19 +71,36 @@ config = load(
 
 With pydantic-settings, implementing any of these requires writing custom `SettingsSource` classes.
 
-## Formats Beyond `.env`
+## Format Support
 
-pydantic-settings is built around environment variables. YAML, TOML, JSON — each needs a [custom source class](https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources). You write the file reading, the parsing, and the nested key handling yourself.
+pydantic-settings v2 added built-in `JsonConfigSettingsSource`, `YamlConfigSettingsSource`, and `TomlConfigSettingsSource`. But each must be explicitly configured and wired into `settings_customise_sources`:
 
-dature supports **8 formats out of the box** with auto-detection from file extension:
+```python
+# pydantic-settings
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        toml_file="config.toml",
+    )
+
+    @classmethod
+    def settings_customise_sources(cls, settings_cls, **kwargs):
+        return (
+            kwargs["init_settings"],
+            kwargs["env_settings"],
+            TomlConfigSettingsSource(settings_cls),
+        )
+```
+
+dature **auto-detects** the format from the file extension — no boilerplate:
 
 ```python
 # Just change the file — dature picks the right loader
-LoadMetadata(file_="config.yaml")
-LoadMetadata(file_="config.toml")
-LoadMetadata(file_="config.json5")
-LoadMetadata(file_="/run/secrets/")  # Docker secrets directory
+Source(file_="config.yaml")
+Source(file_="config.toml")
+Source(file_="config.json5")
 ```
+
+dature also supports INI, JSON5, and YAML 1.1/1.2 + TOML 1.0/1.1 version variants — formats that pydantic-settings doesn't cover.
 
 Need a custom format? Subclass `BaseLoader` — one method to implement, not an entire `SettingsSource`.
 
@@ -118,13 +137,25 @@ dature's architecture is built for extensibility:
 
 These features are possible because dature's loader system is modular by design — not bolted onto a validation framework.
 
+## What pydantic-settings Does Better
+
+To be fair — pydantic-settings has mature features that dature doesn't:
+
+- **CLI support** — built-in `CliSettingsSource` with subcommands, argument parsing, and async CLI commands. dature has no CLI.
+- **Pydantic ecosystem** — seamless integration with FastAPI, SQLModel, LangChain. If you're already in this ecosystem, pydantic-settings is the natural fit.
+- **Validation power** — Pydantic's `field_validator` and `model_validator` with `mode="before"` / `mode="after"`, computed fields, and the full Pydantic constraint system are more feature-rich than dature's validators.
+- **`pyproject.toml` source** — built-in `PyprojectTomlConfigSettingsSource` reads settings directly from `pyproject.toml`.
+- **Nested secrets directories** — `NestedSecretsSettingsSource` maps directory structure to nested model fields.
+- **Active ecosystem** — large community, frequent releases, extensive third-party documentation.
+
 ## When to Use pydantic-settings
 
-pydantic-settings is still a reasonable choice if:
+pydantic-settings is a reasonable choice if:
 
 - Pydantic is already your core dependency
-- You only need env vars and `.env` files
-- You don't need multi-source merging or format variety
-- Pydantic's error format is acceptable for your use case
+- You need CLI argument parsing for your settings
+- You're building on FastAPI/SQLModel and want tight integration
+- You rely on Pydantic's advanced validator features (computed fields, `mode="before"`)
+- The fixed priority merge order (init > env > dotenv > secrets) is sufficient
 
-For everything else — **dature**.
+For **multi-source merging, format variety, human-readable errors, and stdlib dataclasses** — dature.

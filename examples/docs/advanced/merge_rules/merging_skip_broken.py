@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import LoadMetadata, MergeMetadata, load
+from dature import Merge, Source, load
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 SHARED_DIR = Path(__file__).parents[2] / "shared"
@@ -17,10 +17,10 @@ class Config:
 
 
 config = load(
-    MergeMetadata(
+    Merge(
         sources=(
-            LoadMetadata(file_=SHARED_DIR / "common_defaults.yaml"),
-            LoadMetadata(file_=SOURCES_DIR / "nonexistent.yaml", skip_if_broken=True),
+            Source(file_=SHARED_DIR / "common_defaults.yaml"),
+            Source(file_=SOURCES_DIR / "nonexistent.yaml", skip_if_broken=True),
         ),
     ),
     Config,
