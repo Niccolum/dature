@@ -45,6 +45,11 @@ jobs:
             major) NEW_VERSION="$((MAJOR + 1)).0.0" ;;
           esac
 
+          if grep -q "^## $NEW_VERSION" CHANGELOG.md; then
+            echo "::error::Version $NEW_VERSION already exists in CHANGELOG.md"
+            exit 1
+          fi
+
           echo "value=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Install uv
@@ -61,6 +66,11 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.value }}
         run: |
+          FRAGMENTS=$(find changes/ -type f ! -name '.gitkeep' | head -1)
+          if [ -z "$FRAGMENTS" ]; then
+            mkdir -p changes/misc
+            echo "Do something better. Probably in CI" > "changes/misc/+placeholder.md"
+          fi
           uv run towncrier build --yes --version "$VERSION"
 
       - name: Push release branch
