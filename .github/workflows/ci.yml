@@ -202,7 +202,12 @@ jobs:
         run: |
           MERGE_MSG=$(git log -1 --format='%s')
 
+          # Squash merge: "chore: release X.Y.Z (#N)"
+          # Regular merge: "Merge pull request #N from org/chore/release-X.Y.Z"
           if [[ "$MERGE_MSG" =~ ^chore:\ release\ ([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$MERGE_MSG" =~ chore/release-([0-9]+\.[0-9]+\.[0-9]+) ]]; then
             echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
             echo "is_release=true" >> "$GITHUB_OUTPUT"
           else
@@ -234,7 +239,15 @@ jobs:
           if not notes:
               notes = "No changes documented."
 
-          encoded = urllib.parse.quote(notes, safe="")
+          # Trim notes to fit GitHub URL limit (~8000 chars, ~7000 for body)
+          max_len = 7000
+          trimmed = notes
+          while "\n" in trimmed and len(urllib.parse.quote(trimmed, safe="")) > max_len:
+              trimmed = trimmed.rsplit("\n", 1)[0]
+
+          encoded = urllib.parse.quote(trimmed, safe="")
+          if len(encoded) > max_len:
+              encoded = ""
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               f.write(f"encoded={encoded}\n")
@@ -250,7 +263,10 @@ jobs:
           REPO_URL="${{ github.server_url }}/${{ github.repository }}"
           TAG="v$VERSION"
 
-          RELEASE_URL="$REPO_URL/releases/new?tag=$TAG&title=$TAG&body=$NOTES_ENCODED"
+          RELEASE_URL="$REPO_URL/releases/new?tag=$TAG&title=$TAG"
+          if [ -n "$NOTES_ENCODED" ]; then
+            RELEASE_URL="$RELEASE_URL&body=$NOTES_ENCODED"
+          fi
 
           {
             echo "## Release $VERSION"
