@@ -117,7 +117,7 @@ echo "Fixed typo in error message." > changes/+fix-typo.bugfix
 
 ## Releasing
 
-1. Run the [Release workflow](https://github.com/reagento/dature/actions/workflows/release.yml) with the desired version (e.g. `0.16.0`).
+1. Run the [Release workflow](https://github.com/reagento/dature/actions/workflows/release.yml) and choose bump type (`patch` / `minor` / `major`). The next version is calculated from the latest git tag automatically.
 2. The workflow builds the changelog from fragments and creates a PR.
 3. Merge the PR — CI automatically creates the tag, publishes to PyPI, creates a GitHub Release, and updates docs.
 
