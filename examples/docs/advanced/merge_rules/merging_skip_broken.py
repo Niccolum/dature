@@ -18,10 +18,8 @@ class Config:
 
 config = load(
     Merge(
-        sources=(
-            Source(file_=SHARED_DIR / "common_defaults.yaml"),
-            Source(file_=SOURCES_DIR / "nonexistent.yaml", skip_if_broken=True),
-        ),
+        Source(file_=SHARED_DIR / "common_defaults.yaml"),
+        Source(file_=SOURCES_DIR / "nonexistent.yaml", skip_if_broken=True),
     ),
     Config,
 )
