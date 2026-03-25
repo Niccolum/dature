@@ -90,7 +90,7 @@ dature supports **both approaches**. Inline validators live with the type:
 from dataclasses import dataclass
 from typing import Annotated
 from dature import load, Source
-from dature.validators import Gt, Lt
+from dature.validators.number import Gt, Lt
 
 @dataclass
 class Config:
@@ -148,9 +148,11 @@ from dature import load, Merge, Source
 
 config = load(
     Merge(
-        Source(file_="defaults.yaml"),
-        Source(file_="local.yaml", skip_if_broken=True),
-        strategy="LAST_WINS",  # or FIRST_WINS, FIRST_FOUND, RAISE_ON_CONFLICT
+        sources=(
+            Source(file_="defaults.yaml"),
+            Source(file_="local.yaml", skip_if_broken=True),
+        ),
+        strategy="last_wins",  # or first_wins, first_found, raise_on_conflict
     ),
     Config,
 )
@@ -178,8 +180,6 @@ Config loading errors (1)
 ```
 
 Source file, line number, the actual config line, and caret underline on the problematic value.
-
-## When to Use Dynaconf
 
 ## What Dynaconf Does Better
 

@@ -43,10 +43,12 @@ from dature import load, Merge, Source
 
 config = load(
     Merge(
-        Source(file_="defaults.yaml"),
-        Source(file_="config.toml", skip_if_broken=True),
-        Source(file_=".env", skip_if_broken=True),
-        Source(prefix="APP_"),  # env vars
+        sources=(
+            Source(file_="defaults.yaml"),
+            Source(file_="config.toml", skip_if_broken=True),
+            Source(file_=".env", skip_if_broken=True),
+            Source(prefix="APP_"),  # env vars
+        ),
     ),
     Config,
 )
@@ -105,7 +107,7 @@ dature uses `Annotated` validators:
 from dataclasses import dataclass
 from typing import Annotated
 from dature import load, Source
-from dature.validators import Gt, Lt
+from dature.validators.number import Gt, Lt
 
 @dataclass
 class Config:
