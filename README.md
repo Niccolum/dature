@@ -9,7 +9,7 @@
 [![Documentation](https://readthedocs.org/projects/dature/badge/?version=latest)](https://dature.readthedocs.io/)
 [![License](https://img.shields.io/github/license/reagento/dature.svg)](https://github.com/reagento/dature/blob/main/LICENSE)
 \
-[![CI](https://github.com/Niccoreagentolum/dature/actions/workflows/ci.yml/badge.svg)](https://github.com/reagento/dature/actions/workflows/ci.yml)
+[![CI](https://github.com/reagento/dature/actions/workflows/ci.yml/badge.svg)](https://github.com/reagento/dature/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/reagento/dature/actions/workflows/scorecard.yml/badge.svg)](https://github.com/reagento/dature/actions/workflows/scorecard.yml)
 [![Dependency Review](https://github.com/reagento/dature/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/reagento/dature/actions/workflows/dependency-review.yml)
 \
