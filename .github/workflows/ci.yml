@@ -6,7 +6,8 @@ on:
   pull_request:
     branches: [main]
 
-permissions: {}
+permissions:
+  pull-requests: write
 
 jobs:
   branch-name:
@@ -132,6 +133,82 @@ jobs:
 
       - name: Run tests
         run: uv run pytest -v
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Run tests with coverage
+        run: uv run pytest --cov --cov-report=term
+
+      - name: Extract coverage percentage
+        id: cov
+        run: |
+          TOTAL=$(uv run coverage report --format=total)
+          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch baseline coverage from gist
+        if: github.event_name == 'pull_request'
+        id: baseline
+        env:
+          GIST_ID: ${{ vars.GIST_ID }}
+        run: |
+          BASELINE=$(curl -s "https://gist.githubusercontent.com/Niccolum/${GIST_ID}/raw/coverage.json" \
+            | jq -r '.message // empty' | tr -d '%' || echo "")
+          echo "total=$BASELINE" >> "$GITHUB_OUTPUT"
+
+      - name: Post coverage comment on PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURRENT: ${{ steps.cov.outputs.total }}
+          BASELINE: ${{ steps.baseline.outputs.total }}
+        run: |
+          BODY="**Coverage:** ${CURRENT}%"
+          if [ -n "$BASELINE" ]; then
+            DIFF=$(python3 -c "print(f'{float($CURRENT) - float($BASELINE):+.0f}')")
+            if [ "$DIFF" = "+0" ]; then
+              BODY="$BODY (no change)"
+            else
+              BODY="$BODY (${DIFF}% vs main)"
+            fi
+          fi
+
+          # Delete previous coverage comment if exists
+          COMMENT_ID=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq '.[] | select(.body | startswith("**Coverage:**")) | .id' | head -1)
+          if [ -n "$COMMENT_ID" ]; then
+            gh api -X DELETE "repos/${{ github.repository }}/issues/comments/$COMMENT_ID"
+          fi
+
+          gh pr comment "${{ github.event.pull_request.number }}" --body "$BODY"
+
+      - name: Update coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483 # v1.7.0
+        with:
+          auth: ${{ secrets.GIST_TOKEN }}
+          gistID: ${{ vars.GIST_ID }}
+          filename: coverage.json
+          label: coverage
+          message: ${{ steps.cov.outputs.total }}%
+          valColorRange: ${{ steps.cov.outputs.total }}
+          minColorRange: 50
+          maxColorRange: 90
 
   test-result:
     if: always()

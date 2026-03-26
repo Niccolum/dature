@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Annotated
 
 from dature.types import NestedResolveStrategy
 from dature.validators.number import Ge
-from dature.validators.string import MaxLength, MinLength
+from dature.validators.string import MinLength
 
 if TYPE_CHECKING:
     from dature.metadata import TypeLoader
@@ -12,10 +12,9 @@ if TYPE_CHECKING:
 # --8<-- [start:masking-config]
 @dataclass(frozen=True, slots=True)
 class MaskingConfig:
-    mask_char: Annotated[str, MinLength(value=1), MaxLength(value=1)] = "*"
-    min_visible_chars: Annotated[int, Ge(value=1)] = 2
-    min_length_for_partial_mask: Annotated[int, Ge(value=1)] = 5
-    fixed_mask_length: Annotated[int, Ge(value=1)] = 5
+    mask: Annotated[str, MinLength(value=1)] = "<REDACTED>"
+    visible_prefix: Annotated[int, Ge(value=0)] = 0
+    visible_suffix: Annotated[int, Ge(value=0)] = 0
     min_heuristic_length: Annotated[int, Ge(value=1)] = 8
     heuristic_threshold: float = 0.5
     secret_field_names: tuple[str, ...] = (

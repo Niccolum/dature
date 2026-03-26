@@ -111,7 +111,7 @@ class TestResolveSourceLocation:
             secret_paths=frozenset({"password"}),
         )
         locs = resolve_source_location(["password"], ctx, file_content=content)
-        assert locs[0].line_content == ['"password": "se*****23",']
+        assert locs[0].line_content == ['"password": "<REDACTED>",']
 
     def test_file_source_masks_line_when_secret_on_same_line(self):
         content = '{"password": "secret123", "timeout": "30"}'
@@ -124,4 +124,4 @@ class TestResolveSourceLocation:
             secret_paths=frozenset({"password"}),
         )
         locs = resolve_source_location(["timeout"], ctx, file_content=content)
-        assert locs[0].line_content == ['{"password": "se*****23", "timeout": "30"}']
+        assert locs[0].line_content == ['{"password": "<REDACTED>", "timeout": "30"}']

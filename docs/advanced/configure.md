@@ -50,10 +50,9 @@ dature auto-loads its own config from `DATURE_*` environment variables on first 
 
 | Variable | Config | Field | Description |
 |---|---|---|---|
-| `DATURE_MASKING__MASK_CHAR` | [MaskingConfig](#maskingconfig) | `mask_char` | Character used to replace secret values |
-| `DATURE_MASKING__MIN_VISIBLE_CHARS` | [MaskingConfig](#maskingconfig) | `min_visible_chars` | Number of characters left unmasked at the start |
-| `DATURE_MASKING__MIN_LENGTH_FOR_PARTIAL_MASK` | [MaskingConfig](#maskingconfig) | `min_length_for_partial_mask` | Minimum value length to apply partial masking; shorter values are fully masked |
-| `DATURE_MASKING__FIXED_MASK_LENGTH` | [MaskingConfig](#maskingconfig) | `fixed_mask_length` | Fixed number of mask characters in the masked part |
+| `DATURE_MASKING__MASK` | [MaskingConfig](#maskingconfig) | `mask` | Replacement string for masked values |
+| `DATURE_MASKING__VISIBLE_PREFIX` | [MaskingConfig](#maskingconfig) | `visible_prefix` | Number of characters left visible at the start |
+| `DATURE_MASKING__VISIBLE_SUFFIX` | [MaskingConfig](#maskingconfig) | `visible_suffix` | Number of characters left visible at the end |
 | `DATURE_MASKING__MIN_HEURISTIC_LENGTH` | [MaskingConfig](#maskingconfig) | `min_heuristic_length` | Minimum field value length for auto-detection of secrets by field name |
 | `DATURE_MASKING__HEURISTIC_THRESHOLD` | [MaskingConfig](#maskingconfig) | `heuristic_threshold` | Uncommon bigram ratio threshold for heuristic secret detection (0.0–1.0) |
 | `DATURE_MASKING__MASK_SECRETS` | [MaskingConfig](#maskingconfig) | `mask_secrets` | Enable or disable secret masking globally |

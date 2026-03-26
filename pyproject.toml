@@ -137,6 +137,17 @@ disable_error_code = ["no-untyped-def", "arg-type", "call-overload", "func-retur
 module = "examples.*"
 disable_error_code = ["arg-type", "call-overload", "dict-item"]
 
+[tool.coverage.run]
+source = ["dature"]
+omit = ["src/dature/_version.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "@overload",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
@@ -188,6 +199,7 @@ dev = [
     "prek>=0.3.1",
     "towncrier>=24.8",
     "tzdata>=2024.1; sys_platform == 'win32'",
+    "pytest-cov>=7.1.0",
 ]
 docs = [
     "mkdocs>=1.6,<2",
