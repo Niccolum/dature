@@ -26,9 +26,9 @@ except DatureConfigError as exc:
     assert str(exc) == "Config loading errors (1)"
     assert len(exc.exceptions) == 1
     assert str(exc.exceptions[0]) == (
-        "  [connection_id]  Invalid variant: 'aK*****T6'\n"
-        '   ├── connection_id: "aK*****T6"\n'
-        "   │                   ^^^^^^^^^\n"
+        "  [connection_id]  Invalid variant: '<REDACTED>'\n"
+        '   ├── connection_id: "<REDACTED>"\n'
+        "   │                   ^^^^^^^^^^\n"
         f"   └── FILE '{source}', line 1"
     )
 else:

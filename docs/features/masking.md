@@ -21,7 +21,7 @@ Config loading errors (1)
 
   [password]  Expected str, got int
    └── FILE 'config.yaml', line 2
-       password: my*****rd
+       password: <REDACTED>
 ```
 
 ## Detection Methods
@@ -78,10 +78,22 @@ dature uses three methods to identify secrets:
 
 ## Mask Format
 
-- Strings of 5+ characters: first 2 and last 2 characters visible, middle replaced with 5 `*`
-    - `"my_secret_password"` → `"my*****rd"`
-- Strings shorter than 5 characters: replaced with 5 `*`
-    - `"1234"` → `"*****"`
+By default, the entire value is replaced with `<REDACTED>`:
+
+- `"my_secret_password"` → `"<REDACTED>"`
+- `"1234"` → `"<REDACTED>"`
+
+Configure `visible_prefix` / `visible_suffix` to keep characters visible at the start/end:
+
+If `visible_prefix + visible_suffix >= len(value)`, the value is shown as-is.
+
+Classic `ab*****cd` style:
+
+```python
+configure(masking=MaskingConfig(mask="*****", visible_prefix=2, visible_suffix=2))
+# "my_secret_password" → "my*****rd"
+# "ab"                 → "ab"  (too short — shown as-is)
+```
 
 ## Configuration
 

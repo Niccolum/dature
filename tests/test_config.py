@@ -27,14 +27,14 @@ class TestConfigure:
         ("kwargs", "attr_path", "expected"),
         [
             (
-                {"masking": MaskingConfig(mask_char="X", fixed_mask_length=10)},
-                ("masking", "mask_char"),
-                "X",
+                {"masking": MaskingConfig(mask="[HIDDEN]")},
+                ("masking", "mask"),
+                "[HIDDEN]",
             ),
             (
-                {"masking": MaskingConfig(mask_char="X", fixed_mask_length=10)},
-                ("masking", "fixed_mask_length"),
-                10,
+                {"masking": MaskingConfig(visible_prefix=3)},
+                ("masking", "visible_prefix"),
+                3,
             ),
             (
                 {"error_display": ErrorDisplayConfig(max_visible_lines=10)},
@@ -53,8 +53,8 @@ class TestConfigure:
             ),
         ],
         ids=[
-            "masking-mask_char",
-            "masking-fixed_mask_length",
+            "masking-mask",
+            "masking-visible_prefix",
             "error_display-max_visible_lines",
             "loading-cache",
             "loading-debug",
@@ -74,12 +74,12 @@ class TestConfigure:
         ("kwargs", "unchanged_group", "expected_default"),
         [
             (
-                {"masking": MaskingConfig(mask_char="#")},
+                {"masking": MaskingConfig(mask="###")},
                 "error_display",
                 ErrorDisplayConfig(),
             ),
             (
-                {"masking": MaskingConfig(mask_char="#")},
+                {"masking": MaskingConfig(mask="###")},
                 "loading",
                 LoadingConfig(),
             ),
@@ -111,15 +111,15 @@ class TestEnvLoading:
         ("env_var", "env_value", "attr_path", "expected"),
         [
             (
-                "DATURE_MASKING__MASK_CHAR",
-                "X",
-                ("masking", "mask_char"),
-                "X",
+                "DATURE_MASKING__MASK",
+                "[HIDDEN]",
+                ("masking", "mask"),
+                "[HIDDEN]",
             ),
             (
-                "DATURE_MASKING__MIN_VISIBLE_CHARS",
+                "DATURE_MASKING__VISIBLE_PREFIX",
                 "4",
-                ("masking", "min_visible_chars"),
+                ("masking", "visible_prefix"),
                 4,
             ),
             (
@@ -148,8 +148,8 @@ class TestEnvLoading:
             ),
         ],
         ids=[
-            "str-mask_char",
-            "int-min_visible_chars",
+            "str-mask",
+            "int-visible_prefix",
             "bool-cache-false",
             "bool-debug-true",
             "bool-mask_secrets-false",
@@ -175,13 +175,13 @@ class TestValidation:
     @pytest.mark.parametrize(
         ("env_var", "env_value", "attr"),
         [
-            ("DATURE_MASKING__MASK_CHAR", "", "masking"),
-            ("DATURE_MASKING__MIN_VISIBLE_CHARS", "0", "masking"),
+            ("DATURE_MASKING__MASK", "", "masking"),
+            ("DATURE_MASKING__VISIBLE_PREFIX", "-1", "masking"),
             ("DATURE_ERROR_DISPLAY__MAX_VISIBLE_LINES", "0", "error_display"),
         ],
         ids=[
-            "empty-mask_char",
-            "zero-min_visible_chars",
+            "empty-mask",
+            "negative-visible_prefix",
             "zero-max_visible_lines",
         ],
     )

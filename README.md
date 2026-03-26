@@ -104,15 +104,24 @@ uv run mkdocs serve
 Each PR must include a [towncrier](https://towncrier.readthedocs.io/) fragment in the `changes/` directory:
 
 ```bash
-# Format: changes/<issue-or-pr-number>.<type>
-# Types: feature, bugfix, doc, removal, misc
-echo "Added support for YAML anchors." > changes/42.feature
+# Format: changes/<issue-or-pr-number>.<type>.md
+echo "Added support for YAML anchors." > changes/42.feature.md
 ```
+
+Available `<type>` values:
+
+| Type | Description |
+|------|-------------|
+| `feature` | New features |
+| `bugfix` | Bug fixes |
+| `doc` | Documentation improvements |
+| `removal` | Deprecations and removals |
+| `misc` | Other changes |
 
 Use `+<description>` instead of an issue number for changes without a linked issue:
 
 ```bash
-echo "Fixed typo in error message." > changes/+fix-typo.bugfix
+echo "Fixed typo in error message." > changes/+fix-typo.bugfix.md
 ```
 
 ## Releasing

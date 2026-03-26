@@ -12,10 +12,11 @@ except ImportError:
 
 def mask_value(value: str) -> str:
     cfg = config.masking
-    full_mask = cfg.mask_char * cfg.fixed_mask_length
-    if len(value) < cfg.min_length_for_partial_mask:
-        return full_mask
-    return value[: cfg.min_visible_chars] + full_mask + value[-cfg.min_visible_chars :]
+    if cfg.visible_prefix + cfg.visible_suffix >= len(value):
+        return value
+    prefix = value[: cfg.visible_prefix] if cfg.visible_prefix > 0 else ""
+    suffix = value[-cfg.visible_suffix :] if cfg.visible_suffix > 0 else ""
+    return prefix + cfg.mask + suffix
 
 
 def mask_json_value(

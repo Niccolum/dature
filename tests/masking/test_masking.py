@@ -17,18 +17,53 @@ class TestMaskValue:
     @pytest.mark.parametrize(
         ("input_value", "expected"),
         [
-            ("", "*****"),
-            ("a", "*****"),
-            ("ab", "*****"),
-            ("abc", "*****"),
-            ("abcd", "*****"),
-            ("abcde", "ab*****de"),
-            ("abcdef", "ab*****ef"),
-            ("abcdefghij", "ab*****ij"),
-            ("my_secret_password_123", "my*****23"),
+            ("", ""),
+            ("a", "<REDACTED>"),
+            ("ab", "<REDACTED>"),
+            ("abc", "<REDACTED>"),
+            ("abcd", "<REDACTED>"),
+            ("abcde", "<REDACTED>"),
+            ("abcdef", "<REDACTED>"),
+            ("abcdefghij", "<REDACTED>"),
+            ("my_secret_password_123", "<REDACTED>"),
         ],
     )
     def test_mask_value(self, input_value, expected):
+        assert mask_value(input_value) == expected
+
+
+class TestMaskValueCustomConfig:
+    @pytest.mark.usefixtures("_reset_config")
+    @pytest.mark.parametrize(
+        ("mask", "visible_prefix", "visible_suffix", "input_value", "expected"),
+        [
+            ("[HIDDEN]", 0, 0, "secret", "[HIDDEN]"),
+            ("***", 2, 2, "abcdef", "ab***ef"),
+            ("***", 2, 2, "abcd", "abcd"),
+            ("***", 2, 2, "abc", "abc"),
+            ("***", 3, 0, "abcdef", "abc***"),
+            ("***", 0, 3, "abcdef", "***def"),
+            ("***", 5, 0, "ab", "ab"),
+            ("***", 0, 5, "ab", "ab"),
+            ("***", 3, 3, "abcdef", "abcdef"),
+            ("<REDACTED>", 2, 2, "abcdefghij", "ab<REDACTED>ij"),
+        ],
+    )
+    def test_mask_value_with_custom_config(
+        self,
+        mask: str,
+        visible_prefix: int,
+        visible_suffix: int,
+        input_value: str,
+        expected: str,
+    ):
+        configure(
+            masking=MaskingConfig(
+                mask=mask,
+                visible_prefix=visible_prefix,
+                visible_suffix=visible_suffix,
+            ),
+        )
         assert mask_value(input_value) == expected
 
 
@@ -37,34 +72,34 @@ class TestMaskJsonValue:
         data = {"password": "my_secret_123", "host": "production"}
         secret_paths = frozenset({"password"})
         result = mask_json_value(data, secret_paths=secret_paths)
-        assert result["password"] == "my*****23"
+        assert result["password"] == "<REDACTED>"
         assert result["host"] == "production"
 
     def test_mask_nested_secret(self):
         data = {"database": {"password": "secret123", "host": "production"}}
         secret_paths = frozenset({"database.password"})
         result = mask_json_value(data, secret_paths=secret_paths)
-        assert result["database"]["password"] == "se*****23"
+        assert result["database"]["password"] == "<REDACTED>"
         assert result["database"]["host"] == "production"
 
     def test_mask_non_string_value(self):
         data = {"token": 123456}
         secret_paths = frozenset({"token"})
         result = mask_json_value(data, secret_paths=secret_paths)
-        assert result["token"] == "12*****56"
+        assert result["token"] == "<REDACTED>"
 
     def test_list_in_data(self):
         data = {"hosts": ["a", "b"], "password": "secret"}
         secret_paths = frozenset({"password"})
         result = mask_json_value(data, secret_paths=secret_paths)
         assert result["hosts"] == ["a", "b"]
-        assert result["password"] == "se*****et"
+        assert result["password"] == "<REDACTED>"
 
     def test_heuristic_masking(self):
         data = {"normal_field": "aB3xK9mZ"}
         secret_paths: frozenset[str] = frozenset()
         result = mask_json_value(data, secret_paths=secret_paths)
-        assert result["normal_field"] == "aB*****mZ"
+        assert result["normal_field"] == "<REDACTED>"
 
     def test_no_masking_without_heuristic(self):
         with patch("dature.masking.masking._heuristic_detector", None):
@@ -110,7 +145,7 @@ class TestMaskFieldOrigins:
         )
         secret_paths = frozenset({"password"})
         result = mask_field_origins(origins, secret_paths=secret_paths)
-        assert result[0].value == "se*****23"
+        assert result[0].value == "<REDACTED>"
         assert result[1].value == "production"
 
     def test_no_secret_origins(self):
@@ -139,7 +174,7 @@ class TestMaskSourceEntries:
         )
         secret_paths = frozenset({"password"})
         result = mask_source_entries(entries, secret_paths=secret_paths)
-        assert result[0].raw_data["password"] == "se*****23"
+        assert result[0].raw_data["password"] == "<REDACTED>"
         assert result[0].raw_data["host"] == "production"
 
 
@@ -147,11 +182,11 @@ class TestMaskEnvLine:
     @pytest.mark.parametrize(
         ("line", "expected"),
         [
-            ("PASSWORD=mysecret", "PASSWORD=my*****et"),
-            ("KEY=ab", "KEY=*****"),
-            ("  key: value123", "  key: va*****23"),
-            ("key: ab", "key: *****"),
-            ("random_line", "ra*****ne"),
+            ("PASSWORD=mysecret", "PASSWORD=<REDACTED>"),
+            ("KEY=ab", "KEY=<REDACTED>"),
+            ("  key: value123", "  key: <REDACTED>"),
+            ("key: ab", "key: <REDACTED>"),
+            ("random_line", "<REDACTED>"),
         ],
     )
     def test_mask_env_line(self, line, expected):
@@ -167,7 +202,7 @@ class TestGracefulDegradation:
 
 
 _SECRET_VALUE = "super_secret_password_123"
-_MASKED_SECRET = "su*****23"
+_MASKED_SECRET = "<REDACTED>"
 _PUBLIC_VALUE = "production"
 
 
@@ -332,9 +367,9 @@ class TestSecretMaskingIntegration:
 
         assert str(exc_info.value) == "Cfg loading errors (1)"
         assert str(exc_info.value.exceptions[0]) == (
-            "  [connection_id]  Invalid variant: 'aK*****T6'\n"
-            f'   ├── {{"connection_id": "aK*****T6", "host": "production"}}\n'
-            f"   │                      ^^^^^^^^^\n"
+            "  [connection_id]  Invalid variant: '<REDACTED>'\n"
+            f'   ├── {{"connection_id": "<REDACTED>", "host": "production"}}\n'
+            f"   │                      ^^^^^^^^^^\n"
             f"   └── FILE '{json_file}', line 1"
         )
 

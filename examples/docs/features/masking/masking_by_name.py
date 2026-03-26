@@ -23,9 +23,9 @@ except DatureConfigError as exc:
     assert str(exc) == "Config loading errors (1)"
     assert len(exc.exceptions) == 1
     assert str(exc.exceptions[0]) == (
-        f"  [password]  Invalid variant: 'my*****rd'\n"
-        f'   ├── password: "my*****rd"\n'
-        f"   │              ^^^^^^^^^\n"
+        f"  [password]  Invalid variant: '<REDACTED>'\n"
+        f'   ├── password: "<REDACTED>"\n'
+        f"   │              ^^^^^^^^^^\n"
         f"   └── FILE '{source}', line 1"
     )
 else:
