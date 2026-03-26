@@ -12,7 +12,7 @@
 [![CI](https://github.com/reagento/dature/actions/workflows/ci.yml/badge.svg)](https://github.com/reagento/dature/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/reagento/dature/actions/workflows/scorecard.yml/badge.svg)](https://github.com/reagento/dature/actions/workflows/scorecard.yml)
 [![Dependency Review](https://github.com/reagento/dature/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/reagento/dature/actions/workflows/dependency-review.yml)
-[![codecov](https://codecov.io/gh/reagento/dature/graph/badge.svg)](https://codecov.io/gh/reagento/dature)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/Niccolum/57394cf935e48a8a746787f16a1791fc/raw/coverage.json)](https://github.com/reagento/dature/actions/workflows/ci.yml)
 \
 [![Monthly downloads](https://static.pepy.tech/badge/dature/month)](https://pypi.org/project/dature/)
 [![Commits since latest release](https://img.shields.io/github/commits-since/reagento/dature/latest?logo=github)](https://github.com/reagento/dature/commits)
