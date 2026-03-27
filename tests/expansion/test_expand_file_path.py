@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -5,6 +6,8 @@ import pytest
 from dature.errors.exceptions import EnvVarExpandError
 from dature.expansion.env_expand import expand_file_path
 from dature.metadata import Source
+
+SEP = os.sep
 
 
 class TestExpandFilePath:
@@ -30,6 +33,21 @@ class TestExpandFilePath:
             ),
             ("/etc/app/config.toml", {}, "/etc/app/config.toml"),
             ("config.toml", {}, "config.toml"),
+            (
+                "%DATURE_DIR%\\config.toml",
+                {"DATURE_DIR": "C:\\Users\\app"},
+                "C:\\Users\\app\\config.toml",
+            ),
+            (
+                "%DATURE_DIR%\\config.%DATURE_ENV%.toml",
+                {"DATURE_DIR": "C:\\Users\\app", "DATURE_ENV": "prod"},
+                "C:\\Users\\app\\config.prod.toml",
+            ),
+            (
+                "${DATURE_DIR}\\config.toml",
+                {"DATURE_DIR": "C:\\Users\\app"},
+                "C:\\Users\\app\\config.toml",
+            ),
         ],
         ids=[
             "dir-dollar",
@@ -39,6 +57,9 @@ class TestExpandFilePath:
             "dir-and-filename",
             "no-vars-absolute",
             "no-vars-relative",
+            "windows-percent",
+            "windows-percent-dir-and-filename",
+            "windows-braces-backslash",
         ],
     )
     def test_expansion(
@@ -83,9 +104,9 @@ class TestSourceFileExpansion:
         [
             ("$DATURE_DIR/config.toml", {"DATURE_DIR": "/etc/app"}, "/etc/app/config.toml"),
             (
-                Path("$DATURE_DIR/config.toml"),
+                Path("$DATURE_DIR") / "config.toml",
                 {"DATURE_DIR": "/etc/app"},
-                "/etc/app/config.toml",
+                f"$DATURE_DIR{SEP}config.toml".replace("$DATURE_DIR", "/etc/app"),
             ),
             (
                 "config.$DATURE_ENV.toml",
@@ -93,8 +114,21 @@ class TestSourceFileExpansion:
                 "config.production.toml",
             ),
             ("/etc/app/config.toml", {}, "/etc/app/config.toml"),
+            (
+                "%DATURE_DIR%\\config.toml",
+                {"DATURE_DIR": "C:\\Users\\app"},
+                "C:\\Users\\app\\config.toml",
+            ),
+            (
+                Path("$DATURE_DIR") / "config.$DATURE_ENV.toml",
+                {"DATURE_DIR": "/etc/app", "DATURE_ENV": "prod"},
+                f"$DATURE_DIR{SEP}config.$DATURE_ENV.toml".replace("$DATURE_DIR", "/etc/app").replace(
+                    "$DATURE_ENV",
+                    "prod",
+                ),
+            ),
         ],
-        ids=["str-dir", "path-dir", "str-filename-env", "no-vars"],
+        ids=["str-dir", "path-dir", "str-filename-env", "no-vars", "str-windows-percent", "path-dir-and-filename"],
     )
     def test_file_expanded(
         self,

@@ -156,3 +156,6 @@ This works for both directory paths and file names:
 All [supported syntax](#supported-syntax) (`$VAR`, `${VAR}`, `${VAR:-default}`, `%VAR%`) works in file paths.
 
 `str` and `Path` values are both expanded. File-like objects and `None` are passed through unchanged.
+
+!!! note
+    File path expansion is always `"strict"`, independent of the `expand_env_vars` setting. The `expand_env_vars` parameter controls expansion of values **inside** config files, while file paths are expanded at `Source` creation time. A missing variable in a file path would lead to a confusing `FileNotFoundError`, so strict validation is enforced.
