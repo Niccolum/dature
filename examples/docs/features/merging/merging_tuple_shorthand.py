@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
+import dature
 
 SHARED_DIR = Path(__file__).parents[2] / "shared"
 
@@ -15,10 +15,10 @@ class Config:
     tags: list[str]
 
 
-config = load(
+config = dature.load(
     (
-        Source(file=SHARED_DIR / "common_defaults.yaml"),
-        Source(file=SHARED_DIR / "common_overrides.yaml"),
+        dature.Source(file=SHARED_DIR / "common_defaults.yaml"),
+        dature.Source(file=SHARED_DIR / "common_overrides.yaml"),
     ),
     Config,
 )

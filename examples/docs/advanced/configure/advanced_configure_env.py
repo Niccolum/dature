@@ -1,10 +1,10 @@
-"""Global configure() via environment variables — DATURE_ prefix."""
+"""Global dature.configure() via environment variables — DATURE_ prefix."""
 
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, configure, get_load_report, load
+import dature
 from dature.config import LoadingConfig
 
 SHARED_DIR = Path(__file__).parents[2] / "shared"
@@ -21,20 +21,20 @@ class Config:
 
 
 # 1. DATURE_LOADING__DEBUG=true — debug is on, report attached
-config = load(Source(file=SHARED_DIR / "common_app.yaml"), Config)
-report = get_load_report(config)
+config = dature.load(dature.Source(file=SHARED_DIR / "common_app.yaml"), Config)
+report = dature.get_load_report(config)
 assert report is not None
 
-# 2. Override env with configure() — debug is off
-configure(loading=LoadingConfig(debug=False))
+# 2. Override env with dature.configure() — debug is off
+dature.configure(loading=LoadingConfig(debug=False))
 
-config = load(Source(file=SHARED_DIR / "common_app.yaml"), Config)
-report = get_load_report(config)
+config = dature.load(dature.Source(file=SHARED_DIR / "common_app.yaml"), Config)
+report = dature.get_load_report(config)
 assert report is None
 
 # 3. Reset to env defaults — debug is on again
-configure(loading=LoadingConfig(debug=True))
+dature.configure(loading=LoadingConfig(debug=True))
 
-config = load(Source(file=SHARED_DIR / "common_app.yaml"), Config)
-report = get_load_report(config)
+config = dature.load(dature.Source(file=SHARED_DIR / "common_app.yaml"), Config)
+report = dature.get_load_report(config)
 assert report is not None

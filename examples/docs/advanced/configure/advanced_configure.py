@@ -1,9 +1,9 @@
-"""Global configure() — customize masking, error display, loading defaults."""
+"""Global dature.configure() — customize masking, error display, loading defaults."""
 
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, configure, get_load_report, load
+import dature
 from dature.config import LoadingConfig
 
 SHARED_DIR = Path(__file__).parents[2] / "shared"
@@ -17,20 +17,20 @@ class Config:
 
 
 # 1. Default config — debug is off, no report
-config = load(Source(file=SHARED_DIR / "common_app.yaml"), Config)
-report = get_load_report(config)
+config = dature.load(dature.Source(file=SHARED_DIR / "common_app.yaml"), Config)
+report = dature.get_load_report(config)
 assert report is None
 
-# 2. Enable debug globally via configure()
-configure(loading=LoadingConfig(debug=True))
+# 2. Enable debug globally via dature.configure()
+dature.configure(loading=LoadingConfig(debug=True))
 
-config = load(Source(file=SHARED_DIR / "common_app.yaml"), Config)
-report = get_load_report(config)
+config = dature.load(dature.Source(file=SHARED_DIR / "common_app.yaml"), Config)
+report = dature.get_load_report(config)
 assert report is not None
 
 # 3. Reset to defaults — debug is off again
-configure(loading=LoadingConfig())
+dature.configure(loading=LoadingConfig())
 
-config = load(Source(file=SHARED_DIR / "common_app.yaml"), Config)
-report = get_load_report(config)
+config = dature.load(dature.Source(file=SHARED_DIR / "common_app.yaml"), Config)
+report = dature.get_load_report(config)
 assert report is None

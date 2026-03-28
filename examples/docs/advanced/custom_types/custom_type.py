@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, TypeLoader, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -26,10 +26,10 @@ class AppConfig:
     color: Rgb
 
 
-config = load(
-    Source(
+config = dature.load(
+    dature.Source(
         file=SOURCES_DIR / "custom_type_common.yaml",
-        type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
+        type_loaders=(dature.TypeLoader(type_=Rgb, func=rgb_from_string),),
     ),
     AppConfig,
 )

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from dature import Source, load
+import dature
 from dature.errors.exceptions import DatureConfigError
 from dature.validators.string import MinLength
 
@@ -19,8 +19,8 @@ class Config:
 
 # --8<-- [start:no-mask]
 try:
-    load(
-        Source(
+    dature.load(
+        dature.Source(
             file=SOURCES_DIR / "masking_per_source.yaml",
             mask_secrets=False,
         ),

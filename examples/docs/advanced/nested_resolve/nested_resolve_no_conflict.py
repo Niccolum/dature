@@ -3,7 +3,7 @@
 import os
 from dataclasses import dataclass
 
-from dature import Source, load
+import dature
 from dature.sources_loader.env_ import EnvLoader
 
 # Only JSON form, no flat keys
@@ -26,8 +26,8 @@ class Config:
 
 
 # Even with strategy="flat", JSON is parsed because there are no flat keys
-config = load(
-    Source(loader=EnvLoader, prefix="APP__", nested_resolve_strategy="flat"),
+config = dature.load(
+    dature.Source(loader=EnvLoader, prefix="APP__", nested_resolve_strategy="flat"),
     Config,
 )
 

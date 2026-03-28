@@ -3,13 +3,13 @@
 import os
 from dataclasses import dataclass
 
-from dature import Source, load
+import dature
 
 os.environ["CACHE_HOST"] = "localhost"
 os.environ["CACHE_PORT"] = "6379"
 
 
-@load(Source(prefix="CACHE_"), cache=True)
+@dature.load(dature.Source(prefix="CACHE_"), cache=True)
 @dataclass
 class CachedConfig:
     host: str
@@ -26,7 +26,7 @@ os.environ["NOCACHE_HOST"] = "localhost"
 os.environ["NOCACHE_PORT"] = "6379"
 
 
-@load(Source(prefix="NOCACHE_"), cache=False)
+@dature.load(dature.Source(prefix="NOCACHE_"), cache=False)
 @dataclass
 class UncachedConfig:
     host: str

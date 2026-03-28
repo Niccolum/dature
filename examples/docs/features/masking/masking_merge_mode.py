@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from dature import Merge, Source, load
+import dature
 from dature.errors.exceptions import DatureConfigError
 from dature.validators.string import MinLength
 
@@ -20,10 +20,10 @@ class Config:
 
 # --8<-- [start:merge-mode]
 try:
-    load(
-        Merge(
-            Source(file=SOURCES_DIR / "masking_merge_mode_defaults.yaml"),
-            Source(
+    dature.load(
+        dature.Merge(
+            dature.Source(file=SOURCES_DIR / "masking_merge_mode_defaults.yaml"),
+            dature.Source(
                 file=SOURCES_DIR / "masking_merge_mode_secrets.yaml",
                 secret_field_names=("api_key",),
             ),

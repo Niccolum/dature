@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Merge, Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 SHARED_DIR = Path(__file__).parents[2] / "shared"
@@ -16,10 +16,10 @@ class Config:
     debug: bool = False
 
 
-config = load(
-    Merge(
-        Source(file=SHARED_DIR / "common_defaults.yaml"),
-        Source(file=SOURCES_DIR / "nonexistent.yaml", skip_if_broken=True),
+config = dature.load(
+    dature.Merge(
+        dature.Source(file=SHARED_DIR / "common_defaults.yaml"),
+        dature.Source(file=SOURCES_DIR / "nonexistent.yaml", skip_if_broken=True),
     ),
     Config,
 )

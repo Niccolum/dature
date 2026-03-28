@@ -116,7 +116,7 @@ The format is auto-detected from the file extension. When `file` is not specifie
 
 ## mypy Plugin
 
-When using `@load()` as a decorator, mypy will report `call-arg` errors because the original dataclass `__init__` still requires all fields. dature ships with a mypy plugin that makes all fields optional in decorated classes:
+When using `@dature.load()` as a decorator, mypy will report `call-arg` errors because the original dataclass `__init__` still requires all fields. dature ships with a mypy plugin that makes all fields optional in decorated classes:
 
 ```toml
 [tool.mypy]

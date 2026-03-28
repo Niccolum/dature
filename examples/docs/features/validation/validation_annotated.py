@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from dature import Source, load
+import dature
 from dature.errors.exceptions import DatureConfigError
 from dature.validators.number import Ge, Le
 from dature.validators.sequence import MinItems, UniqueItems
@@ -22,8 +22,8 @@ class ServiceConfig:
 
 
 try:
-    load(
-        Source(file=SOURCES_DIR / "validation_annotated_invalid.json5"),
+    dature.load(
+        dature.Source(file=SOURCES_DIR / "validation_annotated_invalid.json5"),
         ServiceConfig,
     )
 except DatureConfigError as exc:

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -25,6 +25,6 @@ class Config:
 
 
 try:
-    load(Source(file=SOURCES_DIR / "validation_post_init_invalid.yaml"), Config)
+    dature.load(dature.Source(file=SOURCES_DIR / "validation_post_init_invalid.yaml"), Config)
 except ValueError as exc:
     assert str(exc) == "port must be between 1 and 65535, got 99999"

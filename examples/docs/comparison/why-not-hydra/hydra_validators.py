@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from dature import Source, load
+import dature
 from dature.errors.exceptions import DatureConfigError
 from dature.validators.number import Gt, Lt
 
@@ -19,7 +19,7 @@ class Config:
 
 
 try:
-    load(Source(file=SOURCES_DIR / "hydra_validators_invalid.yaml"), Config)
+    dature.load(dature.Source(file=SOURCES_DIR / "hydra_validators_invalid.yaml"), Config)
 except DatureConfigError as exc:
     source = str(SOURCES_DIR / "hydra_validators_invalid.yaml")
     assert str(exc) == "Config loading errors (1)"

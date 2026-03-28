@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from dature import Source, load
+import dature
 from dature.errors.exceptions import DatureConfigError
 
 SOURCES_DIR = Path(__file__).parent / "sources"
@@ -17,8 +17,8 @@ class Config:
 
 
 try:
-    load(
-        Source(file=SOURCES_DIR / "masking_heuristic.yaml", mask_secrets=True),
+    dature.load(
+        dature.Source(file=SOURCES_DIR / "masking_heuristic.yaml", mask_secrets=True),
         Config,
     )
 except DatureConfigError as exc:

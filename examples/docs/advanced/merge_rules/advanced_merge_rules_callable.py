@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from dature import F, Merge, MergeRule, MergeStrategy, Source, load
+import dature
 
 SHARED_DIR = Path(__file__).parents[2] / "shared"
 
@@ -20,12 +20,12 @@ def merge_tags(values: list[Any]) -> list[str]:
     return sorted({v for lst in values for v in lst})
 
 
-config = load(
-    Merge(
-        Source(file=SHARED_DIR / "common_defaults.yaml"),
-        Source(file=SHARED_DIR / "common_overrides.yaml"),
-        strategy=MergeStrategy.LAST_WINS,
-        field_merges=(MergeRule(F[Config].tags, merge_tags),),
+config = dature.load(
+    dature.Merge(
+        dature.Source(file=SHARED_DIR / "common_defaults.yaml"),
+        dature.Source(file=SHARED_DIR / "common_overrides.yaml"),
+        strategy=dature.MergeStrategy.LAST_WINS,
+        field_merges=(dature.MergeRule(dature.F[Config].tags, merge_tags),),
     ),
     Config,
 )

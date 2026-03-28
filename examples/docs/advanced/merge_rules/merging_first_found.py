@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Merge, MergeStrategy, Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -14,11 +14,11 @@ class Config:
     port: int
 
 
-config = load(
-    Merge(
-        Source(file=SOURCES_DIR / "merging_first_found_primary.yaml"),
-        Source(file=SOURCES_DIR / "merging_first_found_fallback.yaml"),
-        strategy=MergeStrategy.FIRST_FOUND,
+config = dature.load(
+    dature.Merge(
+        dature.Source(file=SOURCES_DIR / "merging_first_found_primary.yaml"),
+        dature.Source(file=SOURCES_DIR / "merging_first_found_fallback.yaml"),
+        strategy=dature.MergeStrategy.FIRST_FOUND,
     ),
     Config,
 )

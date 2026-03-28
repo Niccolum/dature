@@ -90,8 +90,8 @@ A single validator can be passed directly. Multiple validators require a tuple:
 
 ```python
 validators={
-    F[Config].port: (Gt(value=0), Lt(value=65536)),  # tuple for multiple
-    F[Config].host: MinLength(value=1),               # single, no tuple needed
+    dature.F[Config].port: (Gt(value=0), Lt(value=65536)),  # tuple for multiple
+    dature.F[Config].host: MinLength(value=1),               # single, no tuple needed
 }
 ```
 
@@ -99,8 +99,8 @@ Nested fields are supported:
 
 ```python
 validators={
-    F[Config].database.host: MinLength(value=1),
-    F[Config].database.port: Gt(value=0),
+    dature.F[Config].database.host: MinLength(value=1),
+    dature.F[Config].database.port: Gt(value=0),
 }
 ```
 

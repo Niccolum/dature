@@ -2,7 +2,7 @@
 
 ## Core
 
-### `load()`
+### `dature.load()`
 
 ```python
 --8<-- "src/dature/main.py:load"
@@ -13,16 +13,13 @@ Main entry point. Two calling patterns:
 **Function mode** — pass `dataclass_`, get an instance back:
 
 ```python
-config = load(Source(file="config.yaml"), Config)
+--8<-- "examples/docs/api_reference/api_reference_function_mode.py"
 ```
 
 **Decorator mode** — omit `dataclass_`, get a decorator:
 
 ```python
-@load(Source(file="config.yaml"))
-@dataclass
-class Config:
-    host: str
+--8<-- "examples/docs/api_reference/api_reference_decorator_mode.py"
 ```
 
 **Parameters:**
@@ -98,7 +95,7 @@ See [Introduction — Source Reference](introduction.md#source-reference) for pa
 --8<-- "src/dature/metadata.py:field-group"
 ```
 
-Usage: `FieldGroup(F[Config].host, F[Config].port)`
+Usage: `dature.FieldGroup(dature.F[Config].host, dature.F[Config].port)`
 
 ---
 
@@ -109,9 +106,7 @@ Usage: `FieldGroup(F[Config].host, F[Config].port)`
 Factory for building field paths with validation:
 
 ```python
-F[Config].host           # FieldPath with eager validation
-F[Config].database.host  # nested path
-F["Config"].host         # string-based, no validation (for decorator mode)
+--8<-- "examples/docs/api_reference/api_reference_field_path.py"
 ```
 
 ---

@@ -123,7 +123,7 @@ Override auto-detection with the `loader` parameter:
 ```python
 from dature.sources_loader.yaml_ import Yaml11Loader
 
-Source(file="config.yaml", loader=Yaml11Loader)
+dature.Source(file="config.yaml", loader=Yaml11Loader)
 ```
 
 ## Source Reference

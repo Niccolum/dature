@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Merge, MergeStrategy, Source, load
+import dature
 
 SHARED_DIR = Path(__file__).parents[2] / "shared"
 
@@ -15,20 +15,20 @@ class Config:
     tags: list[str]
 
 
-last_wins = load(
-    Merge(
-        Source(file=SHARED_DIR / "common_defaults.yaml"),
-        Source(file=SHARED_DIR / "common_overrides.yaml"),
-        strategy=MergeStrategy.LAST_WINS,
+last_wins = dature.load(
+    dature.Merge(
+        dature.Source(file=SHARED_DIR / "common_defaults.yaml"),
+        dature.Source(file=SHARED_DIR / "common_overrides.yaml"),
+        strategy=dature.MergeStrategy.LAST_WINS,
     ),
     Config,
 )
 
-first_wins = load(
-    Merge(
-        Source(file=SHARED_DIR / "common_defaults.yaml"),
-        Source(file=SHARED_DIR / "common_overrides.yaml"),
-        strategy=MergeStrategy.FIRST_WINS,
+first_wins = dature.load(
+    dature.Merge(
+        dature.Source(file=SHARED_DIR / "common_defaults.yaml"),
+        dature.Source(file=SHARED_DIR / "common_overrides.yaml"),
+        strategy=dature.MergeStrategy.FIRST_WINS,
     ),
     Config,
 )

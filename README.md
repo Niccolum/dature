@@ -44,7 +44,8 @@ pip install dature[secure]  # Secret detection heuristics
 
 ```python
 from dataclasses import dataclass
-from dature import Source, load
+
+import dature
 
 @dataclass
 class Config:
@@ -52,7 +53,7 @@ class Config:
     port: int
     debug: bool = False
 
-config = load(Source(file="config.yaml"), Config)
+config = dature.load(dature.Source(file="config.yaml"), Config)
 ```
 
 ## Key Features
@@ -65,7 +66,7 @@ config = load(Source(file="config.yaml"), Config)
 - **ENV expansion** — `$VAR`, `${VAR:-default}` substitution in all file formats
 - **Special types** — `SecretStr`, `ByteSize`, `PaymentCardNumber`, `URL`, `Base64UrlStr`
 - **Debug report** — `debug=True` shows which source provided each field value
-- **Decorator mode** — `@load(meta)` auto-loads config on dataclass instantiation with caching
+- **Decorator mode** — `@dature.load(meta)` auto-loads config on dataclass instantiation with caching
 
 See the **[documentation](https://dature.readthedocs.io/)** for detailed guides and API reference.
 

@@ -1,11 +1,11 @@
-"""Load from TOML file."""
+"""Function mode — pass dataclass_, get an instance back."""
 
 from dataclasses import dataclass
 from pathlib import Path
 
 import dature
 
-SOURCES_DIR = Path(__file__).parent / "sources"
+SHARED_DIR = Path(__file__).parents[1] / "shared"
 
 
 @dataclass
@@ -15,7 +15,7 @@ class Config:
     debug: bool = False
 
 
-config = dature.load(dature.Source(file=SOURCES_DIR / "intro_app.toml"), Config)
+config = dature.load(dature.Source(file=SHARED_DIR / "common_app.yaml"), Config)
 
 assert config.host == "localhost"
 assert config.port == 8080

@@ -1,13 +1,14 @@
-"""Load from TOML file."""
+"""Decorator mode — omit dataclass_, get a decorator."""
 
 from dataclasses import dataclass
 from pathlib import Path
 
 import dature
 
-SOURCES_DIR = Path(__file__).parent / "sources"
+SHARED_DIR = Path(__file__).parents[1] / "shared"
 
 
+@dature.load(dature.Source(file=SHARED_DIR / "common_app.yaml"))
 @dataclass
 class Config:
     host: str
@@ -15,7 +16,7 @@ class Config:
     debug: bool = False
 
 
-config = dature.load(dature.Source(file=SOURCES_DIR / "intro_app.toml"), Config)
+config = Config()
 
 assert config.host == "localhost"
 assert config.port == 8080

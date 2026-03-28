@@ -48,7 +48,7 @@ Explicit field renaming using `F` objects. Takes priority over `name_style`:
 A field can have multiple aliases — the first matching key in the source wins:
 
 ```python
-field_mapping={F[Config].name: ("fullName", "userName")}
+field_mapping={dature.F[Config].name: ("fullName", "userName")}
 ```
 
 ### Nested Fields

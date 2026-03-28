@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from dature import Source, load
+import dature
 from dature.errors.exceptions import DatureConfigError
 from dature.validators.number import Gt, Lt
 from dature.validators.root import RootValidator
@@ -25,8 +25,8 @@ def check_debug_port(config: Config) -> bool:
 
 
 try:
-    load(
-        Source(
+    dature.load(
+        dature.Source(
             file=SOURCES_DIR / "dynaconf_root_validators_invalid.toml",
             root_validators=(
                 RootValidator(

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import F, FieldMergeStrategy, Merge, MergeRule, MergeStrategy, Source, load
+import dature
 
 SHARED_DIR = Path(__file__).parents[2] / "shared"
 
@@ -15,15 +15,15 @@ class Config:
     tags: list[str]
 
 
-config = load(
-    Merge(
-        Source(file=SHARED_DIR / "common_defaults.yaml"),
-        Source(file=SHARED_DIR / "common_overrides.yaml"),
-        strategy=MergeStrategy.RAISE_ON_CONFLICT,
+config = dature.load(
+    dature.Merge(
+        dature.Source(file=SHARED_DIR / "common_defaults.yaml"),
+        dature.Source(file=SHARED_DIR / "common_overrides.yaml"),
+        strategy=dature.MergeStrategy.RAISE_ON_CONFLICT,
         field_merges=(
-            MergeRule(F[Config].host, FieldMergeStrategy.LAST_WINS),
-            MergeRule(F[Config].port, FieldMergeStrategy.LAST_WINS),
-            MergeRule(F[Config].tags, FieldMergeStrategy.APPEND_UNIQUE),
+            dature.MergeRule(dature.F[Config].host, dature.FieldMergeStrategy.LAST_WINS),
+            dature.MergeRule(dature.F[Config].port, dature.FieldMergeStrategy.LAST_WINS),
+            dature.MergeRule(dature.F[Config].tags, dature.FieldMergeStrategy.APPEND_UNIQUE),
         ),
     ),
     Config,

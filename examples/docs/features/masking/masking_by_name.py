@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from dature import Source, load
+import dature
 from dature.errors.exceptions import DatureConfigError
 
 SOURCES_DIR = Path(__file__).parent / "sources"
@@ -17,7 +17,7 @@ class Config:
 
 
 try:
-    load(Source(file=SOURCES_DIR / "masking_by_name.yaml"), Config)
+    dature.load(dature.Source(file=SOURCES_DIR / "masking_by_name.yaml"), Config)
 except DatureConfigError as exc:
     source = str(SOURCES_DIR / "masking_by_name.yaml")
     assert str(exc) == "Config loading errors (1)"

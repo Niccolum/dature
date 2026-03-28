@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -16,7 +16,7 @@ class Config:
     debug: bool = False
 
 
-config = load(Source(file=SOURCES_DIR / "pydantic_settings_basic.yaml"), Config)
+config = dature.load(dature.Source(file=SOURCES_DIR / "pydantic_settings_basic.yaml"), Config)
 # config.hostt → AttributeError immediately
 # config.port is always int — guaranteed
 # --8<-- [end:basic]

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -14,7 +14,7 @@ class Database:
     port: int
 
 
-db = load(Source(file=SOURCES_DIR / "naming_prefix_nested.yaml", prefix="app.database"), Database)
+db = dature.load(dature.Source(file=SOURCES_DIR / "naming_prefix_nested.yaml", prefix="app.database"), Database)
 
 assert db.host == "localhost"
 assert db.port == 5432

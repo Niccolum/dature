@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Merge, Source, TypeLoader, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -26,11 +26,11 @@ class AppConfig:
     color: Rgb
 
 
-config = load(
-    Merge(
-        Source(file=SOURCES_DIR / "custom_type_common.yaml"),
-        Source(file=SOURCES_DIR / "custom_type_merge_override.yaml"),
-        type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
+config = dature.load(
+    dature.Merge(
+        dature.Source(file=SOURCES_DIR / "custom_type_common.yaml"),
+        dature.Source(file=SOURCES_DIR / "custom_type_merge_override.yaml"),
+        type_loaders=(dature.TypeLoader(type_=Rgb, func=rgb_from_string),),
     ),
     AppConfig,
 )

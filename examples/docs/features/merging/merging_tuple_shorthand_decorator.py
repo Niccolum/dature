@@ -4,17 +4,17 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
+import dature
 
 SHARED_DIR = Path(__file__).parents[2] / "shared"
 
 os.environ["APP_HOST"] = "env_localhost"
 
 
-@load(
+@dature.load(
     (
-        Source(file=SHARED_DIR / "common_defaults.yaml"),
-        Source(prefix="APP_"),
+        dature.Source(file=SHARED_DIR / "common_defaults.yaml"),
+        dature.Source(prefix="APP_"),
     ),
 )
 @dataclass

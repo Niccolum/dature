@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import F, FieldGroup, Merge, Source, load
+import dature
 
 SHARED_DIR = Path(__file__).parents[2] / "shared"
 
@@ -17,11 +17,11 @@ class Config:
     password: str
 
 
-config = load(
-    Merge(
-        Source(file=SHARED_DIR / "common_field_groups_defaults.yaml"),
-        Source(file=SHARED_DIR / "common_field_groups_overrides.yaml"),
-        field_groups=(FieldGroup(F[Config].host, F[Config].port),),
+config = dature.load(
+    dature.Merge(
+        dature.Source(file=SHARED_DIR / "common_field_groups_defaults.yaml"),
+        dature.Source(file=SHARED_DIR / "common_field_groups_overrides.yaml"),
+        field_groups=(dature.FieldGroup(dature.F[Config].host, dature.F[Config].port),),
     ),
     Config,
 )

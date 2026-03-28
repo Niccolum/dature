@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -18,8 +18,8 @@ class Config:
     port: int
 
 
-config = load(
-    Source(file="$DATURE_SOURCES_DIR/config.$DATURE_APP_ENV.yaml"),
+config = dature.load(
+    dature.Source(file="$DATURE_SOURCES_DIR/config.$DATURE_APP_ENV.yaml"),
     Config,
 )
 

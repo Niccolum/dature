@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import F, FieldMergeStrategy, Merge, MergeRule, Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -13,11 +13,11 @@ class Config:
     tags: list[str]
 
 
-config = load(
-    Merge(
-        Source(file=SOURCES_DIR / "merging_field_base.yaml"),
-        Source(file=SOURCES_DIR / "merging_field_override.yaml"),
-        field_merges=(MergeRule(F[Config].tags, FieldMergeStrategy.PREPEND),),
+config = dature.load(
+    dature.Merge(
+        dature.Source(file=SOURCES_DIR / "merging_field_base.yaml"),
+        dature.Source(file=SOURCES_DIR / "merging_field_override.yaml"),
+        field_merges=(dature.MergeRule(dature.F[Config].tags, dature.FieldMergeStrategy.PREPEND),),
     ),
     Config,
 )

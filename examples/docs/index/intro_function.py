@@ -3,7 +3,7 @@
 import os
 from dataclasses import dataclass
 
-from dature import Source, load
+import dature
 
 os.environ["APP_HOST"] = "0.0.0.0"
 os.environ["APP_PORT"] = "8080"
@@ -17,7 +17,7 @@ class AppConfig:
     debug: bool = False
 
 
-config = load(Source(prefix="APP_"), AppConfig)
+config = dature.load(dature.Source(prefix="APP_"), AppConfig)
 
 assert config.host == "0.0.0.0"
 assert config.port == 8080

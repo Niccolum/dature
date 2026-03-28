@@ -86,7 +86,7 @@ Each strategy produces a different result:
     --8<-- "examples/docs/advanced/merge_rules/merging_field_prepend_unique.py"
     ```
 
-Nested fields are supported: `F[Config].database.host`.
+Nested fields are supported: `dature.F[Config].database.host`.
 
 Per-field strategies work with `RAISE_ON_CONFLICT` — fields with an explicit strategy are excluded from conflict detection.
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from textwrap import dedent
 
-from dature import F, FieldGroup, Merge, Source, load
+import dature
 from dature.errors.exceptions import FieldGroupError
 
 SOURCES_DIR = Path(__file__).parent / "sources"
@@ -23,14 +23,14 @@ class Config:
     database: Database
 
 
-# FieldGroup(F[Config].database, F[Config].port)
+# dature.FieldGroup(dature.F[Config].database, dature.F[Config].port)
 # expands to (database.host, database.port, port)
 try:
-    load(
-        Merge(
-            Source(file=SOURCES_DIR / "field_groups_nested_defaults.yaml"),
-            Source(file=SOURCES_DIR / "advanced_field_groups_expansion_error_overrides.yaml"),
-            field_groups=(FieldGroup(F[Config].database, F[Config].port),),
+    dature.load(
+        dature.Merge(
+            dature.Source(file=SOURCES_DIR / "field_groups_nested_defaults.yaml"),
+            dature.Source(file=SOURCES_DIR / "advanced_field_groups_expansion_error_overrides.yaml"),
+            field_groups=(dature.FieldGroup(dature.F[Config].database, dature.F[Config].port),),
         ),
         Config,
     )

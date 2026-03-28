@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Merge, Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 SHARED_DIR = Path(__file__).parents[2] / "shared"
@@ -16,14 +16,14 @@ class Config:
     tags: list[str]
 
 
-config = load(
-    Merge(
-        Source(file=SHARED_DIR / "common_defaults.yaml"),  # uses global
-        Source(
+config = dature.load(
+    dature.Merge(
+        dature.Source(file=SHARED_DIR / "common_defaults.yaml"),  # uses global
+        dature.Source(
             file=SOURCES_DIR / "optional.yaml",
             skip_if_broken=True,
         ),  # always skip if broken
-        Source(
+        dature.Source(
             file=SHARED_DIR / "common_overrides.yaml",
             skip_if_broken=False,
         ),  # never skip, even if global is True

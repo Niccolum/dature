@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
+import dature
 from dature.errors.exceptions import DatureConfigError
 from dature.fields.payment_card import PaymentCardNumber
 from dature.fields.secret_str import SecretStr
@@ -19,8 +19,8 @@ class Config:
 
 
 try:
-    config = load(
-        Source(file=SOURCES_DIR / "masking_secret_str.yaml"),
+    config = dature.load(
+        dature.Source(file=SOURCES_DIR / "masking_secret_str.yaml"),
         Config,
     )
 except DatureConfigError as exc:

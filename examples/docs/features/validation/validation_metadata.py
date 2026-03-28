@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import F, Source, load
+import dature
 from dature.errors.exceptions import DatureConfigError
 from dature.validators.number import Ge, Lt
 from dature.validators.string import MinLength
@@ -19,12 +19,12 @@ class Config:
 
 
 try:
-    load(
-        Source(
+    dature.load(
+        dature.Source(
             file=SOURCES_DIR / "validation_metadata_invalid.yaml",
             validators={
-                F[Config].host: MinLength(value=1),
-                F[Config].port: (Ge(value=1), Lt(value=65536)),
+                dature.F[Config].host: MinLength(value=1),
+                dature.F[Config].port: (Ge(value=1), Lt(value=65536)),
             },
         ),
         Config,

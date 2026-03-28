@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Merge, Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -15,11 +15,11 @@ class Config:
 
 
 # --8<-- [start:merge]
-config = load(
-    Merge(
-        Source(file=SOURCES_DIR / "pydantic_settings_merge_defaults.yaml"),
-        Source(file=SOURCES_DIR / "pydantic_settings_merge_local.yaml", skip_if_broken=True),
-        Source(prefix="APP_"),
+config = dature.load(
+    dature.Merge(
+        dature.Source(file=SOURCES_DIR / "pydantic_settings_merge_defaults.yaml"),
+        dature.Source(file=SOURCES_DIR / "pydantic_settings_merge_local.yaml", skip_if_broken=True),
+        dature.Source(prefix="APP_"),
     ),
     Config,
 )
