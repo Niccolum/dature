@@ -81,29 +81,26 @@ def load(  # noqa: PLR0913
     if debug is None:
         debug = config.loading.debug
 
+    _validate_sources(sources)
+
     if len(sources) > 1:
-        merge_meta = _MergeConfig(
+        return _load_multi(
             sources=sources,
+            dataclass_=dataclass_,
+            cache=cache,
+            debug=debug,
             strategy=strategy,
             field_merges=field_merges,
             field_groups=field_groups,
             skip_broken_sources=skip_broken_sources,
             skip_invalid_fields=skip_invalid_fields,
-            expand_env_vars=expand_env_vars or "default",
+            expand_env_vars=expand_env_vars,
             secret_field_names=secret_field_names,
             mask_secrets=mask_secrets,
             type_loaders=type_loaders,
             nested_resolve_strategy=nested_resolve_strategy,
             nested_resolve=nested_resolve,
         )
-        merge_type_loaders = (merge_meta.type_loaders or ()) + config.type_loaders
-        if dataclass_ is not None:
-            return merge_load_as_function(merge_meta, dataclass_, debug=debug, type_loaders=merge_type_loaders)
-        return merge_make_decorator(merge_meta, cache=cache, debug=debug, type_loaders=merge_type_loaders)
-
-    if not sources:
-        msg = "load() requires at least one Source"
-        raise TypeError(msg)
 
     metadata = sources[0]
 
@@ -140,3 +137,52 @@ def load(  # noqa: PLR0913
         cache=cache,
         debug=debug,
     )
+
+
+def _validate_sources(sources: tuple[Source, ...]) -> None:
+    for source in sources:
+        if not isinstance(source, Source):
+            msg = f"load() positional arguments must be Source instances, got {source!r}"
+            raise TypeError(msg)
+
+    if not sources:
+        msg = "load() requires at least one Source"
+        raise TypeError(msg)
+
+
+def _load_multi(  # noqa: PLR0913
+    *,
+    sources: tuple[Source, ...],
+    dataclass_: type[DataclassInstance] | None,
+    cache: bool,
+    debug: bool,
+    strategy: MergeStrategy,
+    field_merges: tuple[MergeRule, ...],
+    field_groups: tuple[FieldGroup, ...],
+    skip_broken_sources: bool,
+    skip_invalid_fields: bool,
+    expand_env_vars: ExpandEnvVarsMode | None,
+    secret_field_names: tuple[str, ...] | None,
+    mask_secrets: bool | None,
+    type_loaders: tuple[TypeLoader, ...] | None,
+    nested_resolve_strategy: NestedResolveStrategy | None,
+    nested_resolve: NestedResolve | None,
+) -> DataclassInstance | Callable[[type[DataclassInstance]], type[DataclassInstance]]:
+    merge_meta = _MergeConfig(
+        sources=sources,
+        strategy=strategy,
+        field_merges=field_merges,
+        field_groups=field_groups,
+        skip_broken_sources=skip_broken_sources,
+        skip_invalid_fields=skip_invalid_fields,
+        expand_env_vars=expand_env_vars or "default",
+        secret_field_names=secret_field_names,
+        mask_secrets=mask_secrets,
+        type_loaders=type_loaders,
+        nested_resolve_strategy=nested_resolve_strategy,
+        nested_resolve=nested_resolve,
+    )
+    merge_type_loaders = (merge_meta.type_loaders or ()) + config.type_loaders
+    if dataclass_ is not None:
+        return merge_load_as_function(merge_meta, dataclass_, debug=debug, type_loaders=merge_type_loaders)
+    return merge_make_decorator(merge_meta, cache=cache, debug=debug, type_loaders=merge_type_loaders)
