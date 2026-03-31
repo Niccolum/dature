@@ -171,4 +171,3 @@ def configure(
     )
     if type_loaders is not None:
         config.set_type_loaders(type_loaders)
-        config.set_type_loaders(type_loaders)

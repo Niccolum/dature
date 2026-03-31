@@ -453,3 +453,87 @@ class TestSecretMaskingIntegration:
             f"   │   {' ' * caret_pos}{'^^^^^^^^^^^^'}\n"
             f"   └── FILE '{json_file}', line 1"
         )
+
+
+@pytest.mark.usefixtures("_reset_config")
+class TestLoadLevelMaskingParams:
+    def test_load_level_mask_secrets(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text(f'{{"password": "{_SECRET_VALUE}", "host": "{_PUBLIC_VALUE}"}}')
+
+        @dataclass
+        class Cfg:
+            password: str
+            host: str
+
+        result = load(Source(file=json_file), schema=Cfg, debug=True, mask_secrets=True)
+
+        report = get_load_report(result)
+        assert report is not None
+        assert report.merged_data == {"password": _MASKED_SECRET, "host": _PUBLIC_VALUE}
+
+    def test_load_level_secret_field_names(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text(f'{{"my_token": "{_SECRET_VALUE}", "host": "{_PUBLIC_VALUE}"}}')
+
+        @dataclass
+        class Cfg:
+            my_token: str
+            host: str
+
+        result = load(
+            Source(file=json_file),
+            schema=Cfg,
+            debug=True,
+            mask_secrets=True,
+            secret_field_names=("my_token",),
+        )
+
+        report = get_load_report(result)
+        assert report is not None
+        assert report.merged_data == {"my_token": _MASKED_SECRET, "host": _PUBLIC_VALUE}
+
+    def test_source_mask_secrets_overrides_load_level(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text(f'{{"password": "{_SECRET_VALUE}", "host": "{_PUBLIC_VALUE}"}}')
+
+        @dataclass
+        class Cfg:
+            password: str
+            host: str
+
+        result = load(
+            Source(file=json_file, mask_secrets=False),
+            schema=Cfg,
+            debug=True,
+            mask_secrets=True,
+        )
+
+        report = get_load_report(result)
+        assert report is not None
+        assert report.merged_data == {"password": _SECRET_VALUE, "host": _PUBLIC_VALUE}
+
+    def test_source_secret_field_names_overrides_load_level(self, tmp_path: Path):
+        json_file = tmp_path / "config.json"
+        json_file.write_text(
+            f'{{"nickname": "{_SECRET_VALUE}", "label": "{_SECRET_VALUE}", "host": "{_PUBLIC_VALUE}"}}',
+        )
+
+        @dataclass
+        class Cfg:
+            nickname: str
+            label: str
+            host: str
+
+        result = load(
+            Source(file=json_file, secret_field_names=("label",)),
+            schema=Cfg,
+            debug=True,
+            mask_secrets=True,
+            secret_field_names=("nickname",),
+        )
+
+        report = get_load_report(result)
+        assert report is not None
+        assert report.merged_data["label"] == _MASKED_SECRET
+        assert report.merged_data["nickname"] == _SECRET_VALUE

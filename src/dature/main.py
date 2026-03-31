@@ -96,8 +96,6 @@ def load(  # noqa: PLR0913
         or field_groups != ()
         or skip_broken_sources
         or skip_invalid_fields
-        or secret_field_names is not None
-        or mask_secrets is not None
     ):
         logger.warning("Merge-related parameters have no effect with a single source")
 
@@ -146,6 +144,8 @@ def load(  # noqa: PLR0913
             schema=schema,
             metadata=metadata,
             debug=debug,
+            secret_field_names=secret_field_names,
+            mask_secrets=mask_secrets,
         )
 
     return make_decorator(
@@ -154,6 +154,8 @@ def load(  # noqa: PLR0913
         metadata=metadata,
         cache=cache,
         debug=debug,
+        secret_field_names=secret_field_names,
+        mask_secrets=mask_secrets,
     )
 
 

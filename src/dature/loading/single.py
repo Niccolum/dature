@@ -30,9 +30,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger("dature")
 
 
-def _resolve_single_mask_secrets(metadata: Source) -> bool:
+def _resolve_single_mask_secrets(metadata: Source, *, load_level: bool | None = None) -> bool:
     if metadata.mask_secrets is not None:
         return metadata.mask_secrets
+    if load_level is not None:
+        return load_level
     return config.masking.mask_secrets
 
 
@@ -102,7 +104,7 @@ def _build_single_source_report(
 
 
 class _PatchContext:
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         *,
         loader_instance: LoaderProtocol,
@@ -111,6 +113,8 @@ class _PatchContext:
         metadata: Source,
         cache: bool,
         debug: bool,
+        secret_field_names: tuple[str, ...] | None = None,
+        mask_secrets: bool | None = None,
     ) -> None:
         ensure_retort(loader_instance, cls)
         validating_retort = loader_instance.create_validating_retort(cls)
@@ -132,17 +136,17 @@ class _PatchContext:
         loader_class = resolve_loader_class(metadata.loader, metadata.file)
         self.loader_type = loader_class.display_name
 
-        mask_secrets = _resolve_single_mask_secrets(metadata)
+        resolved_mask_secrets = _resolve_single_mask_secrets(metadata, load_level=mask_secrets)
         self.secret_paths: frozenset[str] = frozenset()
-        if mask_secrets:
-            extra_patterns = metadata.secret_field_names or ()
+        if resolved_mask_secrets:
+            extra_patterns = metadata.secret_field_names or secret_field_names or ()
             self.secret_paths = build_secret_paths(cls, extra_patterns=extra_patterns)
 
         self.error_ctx = build_error_ctx(
             metadata,
             cls.__name__,
             secret_paths=self.secret_paths,
-            mask_secrets=mask_secrets,
+            mask_secrets=resolved_mask_secrets,
         )
 
         # probe_retort is created early so adaptix sees the original signature
@@ -250,23 +254,30 @@ def _make_new_init(ctx: _PatchContext) -> Callable[..., None]:
     return new_init
 
 
-def load_as_function(  # noqa: C901, PLR0912
+def load_as_function(  # noqa: C901, PLR0912, PLR0913
     *,
     loader_instance: LoaderProtocol,
     file_path: FileOrStream,
     schema: type[DataclassInstance],
     metadata: Source,
     debug: bool,
+    secret_field_names: tuple[str, ...] | None = None,
+    mask_secrets: bool | None = None,
 ) -> DataclassInstance:
     loader_class = resolve_loader_class(metadata.loader, metadata.file)
     display_name = loader_class.display_name
 
     secret_paths: frozenset[str] = frozenset()
-    mask_secrets = _resolve_single_mask_secrets(metadata)
-    if mask_secrets:
-        extra_patterns = metadata.secret_field_names or ()
+    resolved_mask_secrets = _resolve_single_mask_secrets(metadata, load_level=mask_secrets)
+    if resolved_mask_secrets:
+        extra_patterns = metadata.secret_field_names or secret_field_names or ()
         secret_paths = build_secret_paths(schema, extra_patterns=extra_patterns)
-    error_ctx = build_error_ctx(metadata, schema.__name__, secret_paths=secret_paths, mask_secrets=mask_secrets)
+    error_ctx = build_error_ctx(
+        metadata,
+        schema.__name__,
+        secret_paths=secret_paths,
+        mask_secrets=resolved_mask_secrets,
+    )
 
     load_result = handle_load_errors(
         func=lambda: loader_instance.load_raw(file_path),
@@ -279,7 +290,7 @@ def load_as_function(  # noqa: C901, PLR0912
             metadata,
             schema.__name__,
             secret_paths=secret_paths,
-            mask_secrets=mask_secrets,
+            mask_secrets=resolved_mask_secrets,
             nested_conflicts=load_result.nested_conflicts,
         )
 
@@ -357,13 +368,15 @@ def load_as_function(  # noqa: C901, PLR0912
     return result
 
 
-def make_decorator(
+def make_decorator(  # noqa: PLR0913
     *,
     loader_instance: LoaderProtocol,
     file_path: FileOrStream,
     metadata: Source,
     cache: bool,
     debug: bool,
+    secret_field_names: tuple[str, ...] | None = None,
+    mask_secrets: bool | None = None,
 ) -> Callable[[type[DataclassInstance]], type[DataclassInstance]]:
     def decorator(cls: type[DataclassInstance]) -> type[DataclassInstance]:
         if not is_dataclass(cls):
@@ -377,6 +390,8 @@ def make_decorator(
             metadata=metadata,
             cache=cache,
             debug=debug,
+            secret_field_names=secret_field_names,
+            mask_secrets=mask_secrets,
         )
         cls.__init__ = _make_new_init(ctx)  # type: ignore[method-assign]
         cls.__post_init__ = make_validating_post_init(ctx)  # type: ignore[attr-defined]

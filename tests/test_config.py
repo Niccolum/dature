@@ -107,6 +107,51 @@ class TestConfigure:
 
 
 @pytest.mark.usefixtures("_reset_config")
+class TestConfigureEmptyDictReset:
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("group", "override", "expected_default"),
+        [
+            (
+                "masking",
+                {"mask": "*****", "visible_prefix": 2, "visible_suffix": 2},
+                MaskingConfig(),
+            ),
+            (
+                "error_display",
+                {"max_visible_lines": 10, "max_line_length": 200},
+                ErrorDisplayConfig(),
+            ),
+            (
+                "loading",
+                {"cache": False, "debug": True},
+                LoadingConfig(),
+            ),
+        ],
+        ids=["masking", "error_display", "loading"],
+    )
+    def test_empty_dict_resets_group_to_defaults(
+        group: str,
+        override: dict[str, Any],
+        expected_default: MaskingConfig | ErrorDisplayConfig | LoadingConfig,
+    ) -> None:
+        configure(**{group: override})
+        assert getattr(config, group) != expected_default
+
+        configure(**{group: {}})
+        assert getattr(config, group) == expected_default
+
+    @staticmethod
+    def test_empty_dict_preserves_other_groups() -> None:
+        configure(masking={"mask": "*****"}, error_display={"max_visible_lines": 10})
+
+        configure(masking={})
+
+        assert config.masking == MaskingConfig()
+        assert config.error_display.max_visible_lines == 10
+
+
+@pytest.mark.usefixtures("_reset_config")
 class TestEnvLoading:
     @staticmethod
     @pytest.mark.parametrize(
