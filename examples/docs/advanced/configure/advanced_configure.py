@@ -27,8 +27,8 @@ config = dature.load(dature.Source(file=SHARED_DIR / "common_app.yaml"), schema=
 report = dature.get_load_report(config)
 assert report is not None
 
-# 3. Reset to defaults — debug is off again
-dature.configure(loading={})
+# 3. Disable debug globally via dature.configure()
+dature.configure(loading={"debug": False})
 
 config = dature.load(dature.Source(file=SHARED_DIR / "common_app.yaml"), schema=Config)
 report = dature.get_load_report(config)
