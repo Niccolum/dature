@@ -156,7 +156,7 @@ dature.Source(file="config.yaml", loader=Yaml11Loader)
 `file` accepts file-like objects (`StringIO`, `BytesIO`, and any `TextIOBase`/`BufferedIOBase`/`RawIOBase` subclass). The `loader` parameter is required since there is no file extension to auto-detect from:
 
 ```python
---8<-- "examples/docs/introduction/intro_filelike.py"
+--8<-- "examples/docs/introduction/intro_file_like.py"
 ```
 
 !!! note
