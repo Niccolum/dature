@@ -1,9 +1,13 @@
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from typing import Annotated, Any, ClassVar, TypedDict, cast
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, TypedDict, TypeVar, cast
 
 from dature.types import NestedResolveStrategy, TypeLoaderMap
 from dature.validators.number import Ge
 from dature.validators.string import MinLength
+
+if TYPE_CHECKING:
+    from dature.protocols import DataclassInstance
 
 
 # --8<-- [start:masking-config]
@@ -134,6 +138,16 @@ class _ConfigProxy:
 
 config: _ConfigProxy = _ConfigProxy()
 
+_D = TypeVar("_D", bound="DataclassInstance")
+
+
+def _merge_group(current: _D, options: Mapping[str, Any] | None, cls: type[_D]) -> _D:
+    if options is None:
+        return current
+    if not options:
+        return cls()
+    return cls(**cast("dict[str, Any]", asdict(current) | dict(options)))
+
 
 # --8<-- [start:configure]
 def configure(
@@ -146,21 +160,9 @@ def configure(
     # --8<-- [end:configure]
     current = config.ensure_loaded()
 
-    merged_masking = (
-        MaskingConfig(**cast("dict[str, Any]", asdict(current.masking) | masking))
-        if masking is not None
-        else current.masking
-    )
-    merged_error = (
-        ErrorDisplayConfig(**cast("dict[str, Any]", asdict(current.error_display) | error_display))
-        if error_display is not None
-        else current.error_display
-    )
-    merged_loading = (
-        LoadingConfig(**cast("dict[str, Any]", asdict(current.loading) | loading))
-        if loading is not None
-        else current.loading
-    )
+    merged_masking = _merge_group(current.masking, masking, MaskingConfig)
+    merged_error = _merge_group(current.error_display, error_display, ErrorDisplayConfig)
+    merged_loading = _merge_group(current.loading, loading, LoadingConfig)
 
     config.set_instance(
         DatureConfig(
