@@ -139,7 +139,7 @@ class _PatchContext:
         resolved_mask_secrets = _resolve_single_mask_secrets(metadata, load_level=mask_secrets)
         self.secret_paths: frozenset[str] = frozenset()
         if resolved_mask_secrets:
-            extra_patterns = metadata.secret_field_names or secret_field_names or ()
+            extra_patterns = (metadata.secret_field_names or ()) + (secret_field_names or ())
             self.secret_paths = build_secret_paths(cls, extra_patterns=extra_patterns)
 
         self.error_ctx = build_error_ctx(
@@ -270,7 +270,7 @@ def load_as_function(  # noqa: C901, PLR0912, PLR0913
     secret_paths: frozenset[str] = frozenset()
     resolved_mask_secrets = _resolve_single_mask_secrets(metadata, load_level=mask_secrets)
     if resolved_mask_secrets:
-        extra_patterns = metadata.secret_field_names or secret_field_names or ()
+        extra_patterns = (metadata.secret_field_names or ()) + (secret_field_names or ())
         secret_paths = build_secret_paths(schema, extra_patterns=extra_patterns)
     error_ctx = build_error_ctx(
         metadata,

@@ -513,7 +513,7 @@ class TestLoadLevelMaskingParams:
         assert report is not None
         assert report.merged_data == {"password": _SECRET_VALUE, "host": _PUBLIC_VALUE}
 
-    def test_source_secret_field_names_overrides_load_level(self, tmp_path: Path):
+    def test_source_and_load_secret_field_names_combined(self, tmp_path: Path):
         json_file = tmp_path / "config.json"
         json_file.write_text(
             f'{{"nickname": "{_SECRET_VALUE}", "label": "{_SECRET_VALUE}", "host": "{_PUBLIC_VALUE}"}}',
@@ -536,4 +536,5 @@ class TestLoadLevelMaskingParams:
         report = get_load_report(result)
         assert report is not None
         assert report.merged_data["label"] == _MASKED_SECRET
-        assert report.merged_data["nickname"] == _SECRET_VALUE
+        assert report.merged_data["nickname"] == _MASKED_SECRET
+        assert report.merged_data["host"] == _PUBLIC_VALUE
