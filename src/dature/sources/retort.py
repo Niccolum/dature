@@ -1,6 +1,6 @@
 from dataclasses import fields
 from datetime import timedelta
-from typing import TYPE_CHECKING, cast, get_type_hints
+from typing import TYPE_CHECKING, Any, cast, get_type_hints
 
 from adaptix import NameStyle as AdaptixNameStyle
 from adaptix import Retort, loader, name_mapping
@@ -198,6 +198,14 @@ def create_validating_retort[T](
     )
 
 
+def _retort_cache_key(
+    schema: type,
+    resolved_type_loaders: "TypeLoaderMap | None",
+) -> tuple[type, frozenset[tuple[type, Any]]]:
+    loaders_key = frozenset(resolved_type_loaders.items()) if resolved_type_loaders is not None else frozenset()
+    return (schema, loaders_key)
+
+
 def transform_to_dataclass[T](
     source: "Source",
     data: "JSONValue",
@@ -205,9 +213,10 @@ def transform_to_dataclass[T](
     *,
     resolved_type_loaders: "TypeLoaderMap | None" = None,
 ) -> T:
-    if schema not in source.retorts:
-        source.retorts[schema] = create_retort(source, resolved_type_loaders=resolved_type_loaders)
-    return source.retorts[schema].load(data, schema)
+    key = _retort_cache_key(schema, resolved_type_loaders)
+    if key not in source.retorts:
+        source.retorts[key] = create_retort(source, resolved_type_loaders=resolved_type_loaders)
+    return source.retorts[key].load(data, schema)
 
 
 def ensure_retort(
@@ -216,6 +225,7 @@ def ensure_retort(
     *,
     resolved_type_loaders: "TypeLoaderMap | None" = None,
 ) -> None:
-    if cls not in source.retorts:
-        source.retorts[cls] = create_retort(source, resolved_type_loaders=resolved_type_loaders)
-    source.retorts[cls].get_loader(cls)
+    key = _retort_cache_key(cls, resolved_type_loaders)
+    if key not in source.retorts:
+        source.retorts[key] = create_retort(source, resolved_type_loaders=resolved_type_loaders)
+    source.retorts[key].get_loader(cls)

@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime, time
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from adaptix import Retort, loader
 from adaptix.provider import Provider
@@ -85,7 +85,11 @@ class Source(abc.ABC):
     location_label: ClassVar[str]
     path_finder_class: ClassVar[type[PathFinder] | None] = None
 
-    retorts: dict[type, Retort] = field(default_factory=dict, init=False, repr=False)
+    retorts: dict[tuple[type, frozenset[tuple[type, Any]]], Retort] = field(
+        default_factory=dict,
+        init=False,
+        repr=False,
+    )
 
     def __repr__(self) -> str:
         return self.format_name
@@ -306,7 +310,7 @@ class FileSource(FileFieldMixin, Source, abc.ABC):
 @dataclass(kw_only=True, repr=False)
 class FlatKeySource(Source, abc.ABC):
     split_symbols: str = "__"
-    nested_resolve_strategy: NestedResolveStrategy = "flat"
+    nested_resolve_strategy: "NestedResolveStrategy | None" = None
     nested_resolve: NestedResolve | None = None
     # --8<-- [end:flat-key-source]
 
@@ -396,7 +400,7 @@ class FlatKeySource(Source, abc.ABC):
         self,
         *,
         resolved_expand: ExpandEnvVarsMode = "default",
-        resolved_nested_strategy: NestedResolveStrategy | None = None,
+        resolved_nested_strategy: NestedResolveStrategy = "flat",
         resolved_nested_resolve: NestedResolve | None = None,
     ) -> LoadRawResult:
         data = self._load()
@@ -404,20 +408,14 @@ class FlatKeySource(Source, abc.ABC):
         result: dict[str, JSONValue] = {}
         conflicts: NestedConflicts = {}
 
-        effective_nested_strategy: NestedResolveStrategy = self.nested_resolve_strategy
-        if self.nested_resolve_strategy == "flat" and resolved_nested_strategy is not None:
-            effective_nested_strategy = resolved_nested_strategy
-
-        effective_nested_resolve = self.nested_resolve if self.nested_resolve is not None else resolved_nested_resolve
-
         for key, value in data_dict.items():
             self._pre_process_row(
                 key=key,
                 value=value,
                 result=result,
                 conflicts=conflicts,
-                resolved_nested_strategy=effective_nested_strategy,
-                resolved_nested_resolve=effective_nested_resolve,
+                resolved_nested_strategy=resolved_nested_strategy,
+                resolved_nested_resolve=resolved_nested_resolve,
             )
 
         expanded = expand_env_vars(result, mode=resolved_expand)

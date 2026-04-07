@@ -19,7 +19,7 @@ from dature.loading.context import (
 )
 from dature.sources.env_ import EnvSource
 from dature.sources.json_ import JsonSource
-from dature.sources.retort import ensure_retort
+from dature.sources.retort import _retort_cache_key, ensure_retort
 
 
 class TestMergeFields:
@@ -232,14 +232,15 @@ class TestEnsureRetort:
             name: str
 
         source = JsonSource(file=json_file)
-        assert Cfg not in source.retorts
+        key = _retort_cache_key(Cfg, None)
+        assert key not in source.retorts
 
         ensure_retort(source, Cfg)
-        assert Cfg in source.retorts
+        assert key in source.retorts
 
-        first = source.retorts[Cfg]
+        first = source.retorts[key]
         ensure_retort(source, Cfg)
-        assert source.retorts[Cfg] is first
+        assert source.retorts[key] is first
 
 
 class TestMakeValidatingPostInit:

@@ -15,6 +15,7 @@ from dature.loading.source_loading import (
     resolve_mask_secrets,
     resolve_secret_field_names,
     resolve_skip_invalid,
+    resolve_source_params,
     should_skip_broken,
 )
 from dature.sources.env_ import EnvSource
@@ -553,3 +554,33 @@ class TestApplyMergeSkipInvalid:
 
         assert result.cleaned_dict == raw
         assert result.skipped_paths == []
+
+
+class TestResolveSourceParamsNestedStrategy:
+    @pytest.mark.parametrize(
+        ("source_strategy", "load_strategy", "expected"),
+        [
+            (None, "json", "json"),
+            ("flat", "json", "flat"),
+            ("json", "flat", "json"),
+            (None, None, "flat"),
+        ],
+        ids=[
+            "source-none-uses-load-level",
+            "source-explicit-flat-overrides-load-level",
+            "source-explicit-json-overrides-load-level",
+            "source-none-no-load-level-uses-config-default",
+        ],
+    )
+    def test_resolve(
+        self,
+        source_strategy: str | None,
+        load_strategy: str | None,
+        expected: str,
+    ):
+        kwargs = {} if source_strategy is None else {"nested_resolve_strategy": source_strategy}
+        source = EnvSource(**kwargs)
+
+        resolved = resolve_source_params(source, load_nested_resolve_strategy=load_strategy)
+
+        assert resolved.nested_resolve_strategy == expected

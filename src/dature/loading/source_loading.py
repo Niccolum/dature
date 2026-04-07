@@ -66,7 +66,7 @@ def resolve_source_params(
     resolved_type_loaders = merged_loaders or None
 
     resolved_nested_strategy: NestedResolveStrategy = config.loading.nested_resolve_strategy
-    if isinstance(source, FlatKeySource) and source.nested_resolve_strategy != "flat":
+    if isinstance(source, FlatKeySource) and source.nested_resolve_strategy is not None:
         resolved_nested_strategy = source.nested_resolve_strategy
     elif load_nested_resolve_strategy is not None:
         resolved_nested_strategy = load_nested_resolve_strategy
