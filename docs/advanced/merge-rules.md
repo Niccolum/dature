@@ -23,16 +23,16 @@ graph TD
 
 Override the global strategy for individual fields using `field_merges`.
 
-All available `FieldMergeStrategy` values:
+Available field merge strategies:
 
 | Strategy | Behavior |
 |----------|----------|
-| `FIRST_WINS` | Keep the value from the first source |
-| `LAST_WINS` | Keep the value from the last source |
-| `APPEND` | Concatenate lists: `base + override` |
-| `APPEND_UNIQUE` | Concatenate lists, removing duplicates |
-| `PREPEND` | Concatenate lists: `override + base` |
-| `PREPEND_UNIQUE` | Concatenate lists in reverse order, removing duplicates |
+| `"first_wins"` | Keep the value from the first source |
+| `"last_wins"` | Keep the value from the last source |
+| `"append"` | Concatenate lists: `base + override` |
+| `"append_unique"` | Concatenate lists, removing duplicates |
+| `"prepend"` | Concatenate lists: `override + base` |
+| `"prepend_unique"` | Concatenate lists in reverse order, removing duplicates |
 
 Given two sources with overlapping `tags`:
 
@@ -50,47 +50,47 @@ Given two sources with overlapping `tags`:
 
 Each strategy produces a different result:
 
-=== "FIRST_WINS"
+=== "first_wins"
 
     ```python
     --8<-- "examples/docs/advanced/merge_rules/merging_field_first_wins.py"
     ```
 
-=== "LAST_WINS"
+=== "last_wins"
 
     ```python
     --8<-- "examples/docs/advanced/merge_rules/merging_field_last_wins.py"
     ```
 
-=== "APPEND"
+=== "append"
 
     ```python
     --8<-- "examples/docs/advanced/merge_rules/merging_field_append.py"
     ```
 
-=== "APPEND_UNIQUE"
+=== "append_unique"
 
     ```python
     --8<-- "examples/docs/advanced/merge_rules/merging_field_append_unique.py"
     ```
 
-=== "PREPEND"
+=== "prepend"
 
     ```python
     --8<-- "examples/docs/advanced/merge_rules/merging_field_prepend.py"
     ```
 
-=== "PREPEND_UNIQUE"
+=== "prepend_unique"
 
     ```python
     --8<-- "examples/docs/advanced/merge_rules/merging_field_prepend_unique.py"
     ```
 
-Nested fields are supported: `F[Config].database.host`.
+Nested fields are supported: `dature.F[Config].database.host`.
 
-Per-field strategies work with `RAISE_ON_CONFLICT` — fields with an explicit strategy are excluded from conflict detection.
+Per-field strategies work with `"raise_on_conflict"` — fields with an explicit strategy are excluded from conflict detection.
 
-## With RAISE_ON_CONFLICT
+## With raise_on_conflict
 
 Fields with an explicit strategy are excluded from conflict detection:
 
@@ -135,40 +135,6 @@ You can also pass a callable as the strategy:
     ```
 
 The callable receives a `list[JSONValue]` (one value per source) and returns the merged value.
-
-## Field Groups
-
-Ensure that related fields are always overridden together. If a source changes some fields in a group but not others, `FieldGroupError` is raised:
-
-=== "Python"
-
-    ```python
-    --8<-- "examples/docs/advanced/merge_rules/merging_field_groups.py"
-    ```
-
-=== "common_field_groups_defaults.yaml"
-
-    ```yaml
-    --8<-- "examples/docs/shared/common_field_groups_defaults.yaml"
-    ```
-
-=== "common_field_groups_overrides.yaml"
-
-    ```yaml
-    --8<-- "examples/docs/shared/common_field_groups_overrides.yaml"
-    ```
-
-If `overrides.yaml` changes `host` and `port` together, the group constraint is satisfied. If it changed only `host` but not `port`, loading would fail:
-
-```
-Config field group errors (1)
-
-  Field group (host, port) partially overridden in source 1
-    changed:   host (from source yaml 'overrides.yaml')
-    unchanged: port (from source yaml 'defaults.yaml')
-```
-
-For nested dataclass expansion and multiple groups, see [Field Groups](field-groups.md).
 
 ## Skipping Broken Sources
 

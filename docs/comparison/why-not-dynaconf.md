@@ -15,7 +15,7 @@ The trade-off is **how** it covers it: Dynaconf is powerful and battle-tested, b
 | **Validation** | Separate `Validator` objects | Both: `Annotated` inline validators + separate root/custom validators |
 | **Formats** | YAML, TOML, JSON, INI, `.env`, Python files | YAML (1.1/1.2), JSON, JSON5, TOML (1.0/1.1), INI, `.env`, env vars, Docker secrets |
 | **Remote sources** | Vault, Redis + community plugins | Not yet (planned) |
-| **Merging** | Layered override + `dynaconf_merge` | 4 strategies + per-field rules (`APPEND`, `PREPEND`, field groups, etc.) |
+| **Merging** | Layered override + `dynaconf_merge` | 4 strategies + per-field rules (`"append"`, `"prepend"`, field groups, etc.) |
 | **Dynamic variables** | `@format`, `@jinja` templates with lazy evaluation | `${VAR:-default}` env expansion in all formats + file paths |
 | **CLI** | `dynaconf list`, `inspect`, `write`, `validate`, etc. | No CLI |
 | **Per-environment files** | Built-in (`[development]`, `[production]` sections) | Manual via multiple `Source` objects |
@@ -76,13 +76,21 @@ This gives flexibility — validators can be defined in a different module, reus
 dature supports **both approaches**. Inline validators live with the type:
 
 ```python
---8<-- "examples/docs/comparison/why-not-dynaconf/dynaconf_validators.py:validators"
+--8<-- "examples/docs/comparison/why-not-dynaconf/dynaconf_validators.py"
+```
+
+```title="Error"
+--8<-- "examples/docs/comparison/why-not-dynaconf/dynaconf_validators.stderr"
 ```
 
 And separate validators when you need cross-field checks or decoupled validation logic:
 
 ```python
---8<-- "examples/docs/comparison/why-not-dynaconf/dynaconf_root_validators.py:root-validators"
+--8<-- "examples/docs/comparison/why-not-dynaconf/dynaconf_root_validators.py"
+```
+
+```title="Error"
+--8<-- "examples/docs/comparison/why-not-dynaconf/dynaconf_root_validators.stderr"
 ```
 
 You choose the style that fits — or mix them.

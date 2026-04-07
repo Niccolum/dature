@@ -3,7 +3,6 @@ import logging
 from collections.abc import Callable
 from dataclasses import Field, asdict, fields, is_dataclass
 from enum import Flag
-from pathlib import Path
 from typing import Any, Protocol, cast, get_type_hints, runtime_checkable
 
 from adaptix import Retort
@@ -11,23 +10,23 @@ from adaptix import Retort
 from dature.errors.formatter import handle_load_errors
 from dature.errors.location import ErrorContext
 from dature.field_path import FieldPath
-from dature.loading.resolver import resolve_loader_class
 from dature.merging.predicate import extract_field_path
-from dature.metadata import Source
-from dature.protocols import DataclassInstance, LoaderProtocol
+from dature.protocols import DataclassInstance
 from dature.skip_field_provider import FilterResult, filter_invalid_fields
-from dature.types import FILE_LIKE_TYPES, JSONValue, NestedConflicts
+from dature.sources.base import FlatKeySource, Source
+from dature.sources.retort import create_probe_retort
+from dature.types import JSONValue, NestedConflicts
 
 logger = logging.getLogger("dature")
 
 
-def coerce_flag_fields[T](data: JSONValue, dataclass_: type[T]) -> JSONValue:
-    if not isinstance(data, dict) or not is_dataclass(dataclass_):
+def coerce_flag_fields[T](data: JSONValue, schema: type[T]) -> JSONValue:
+    if not isinstance(data, dict) or not is_dataclass(schema):
         return data
 
-    type_hints = get_type_hints(dataclass_)
+    type_hints = get_type_hints(schema)
     coerced = dict(data)
-    for field in fields(cast("type[DataclassInstance]", dataclass_)):
+    for field in fields(cast("type[DataclassInstance]", schema)):
         hint = type_hints.get(field.name)
         if hint is None:
             continue
@@ -49,19 +48,15 @@ def build_error_ctx(
     mask_secrets: bool = False,
     nested_conflicts: NestedConflicts | None = None,
 ) -> ErrorContext:
-    loader_class = resolve_loader_class(metadata.loader, metadata.file_)
-    if isinstance(metadata.file_, FILE_LIKE_TYPES):
-        error_file_path = None
-    elif metadata.file_ is not None:
-        error_file_path = Path(metadata.file_)
-    else:
-        error_file_path = None
+    error_file_path = metadata.file_path_for_errors()
+
+    split_symbols = metadata.split_symbols if isinstance(metadata, FlatKeySource) else None
     return ErrorContext(
         dataclass_name=dataclass_name,
-        loader_class=loader_class,
+        source_class=type(metadata),
         file_path=error_file_path,
         prefix=metadata.prefix,
-        split_symbols=metadata.split_symbols,
+        split_symbols=split_symbols,
         secret_paths=secret_paths,
         mask_secrets=mask_secrets,
         nested_conflicts=nested_conflicts,
@@ -71,12 +66,12 @@ def build_error_ctx(
 def get_allowed_fields(
     *,
     skip_value: bool | tuple[FieldPath, ...],
-    dataclass_: type[DataclassInstance] | None = None,
+    schema: type[DataclassInstance] | None = None,
 ) -> set[str] | None:
     if skip_value is True:
         return None
     if isinstance(skip_value, tuple):
-        return {extract_field_path(fp, dataclass_) for fp in skip_value}
+        return {extract_field_path(field_path, schema) for field_path in skip_value}
     return None
 
 
@@ -84,20 +79,20 @@ def apply_skip_invalid(
     *,
     raw: JSONValue,
     skip_if_invalid: bool | tuple[FieldPath, ...] | None,
-    loader_instance: LoaderProtocol,
-    dataclass_: type[DataclassInstance],
+    source: Source,
+    schema: type[DataclassInstance],
     log_prefix: str,
     probe_retort: Retort | None = None,
 ) -> FilterResult:
     if not skip_if_invalid:
         return FilterResult(cleaned_dict=raw, skipped_paths=[])
 
-    allowed_fields = get_allowed_fields(skip_value=skip_if_invalid, dataclass_=dataclass_)
+    allowed_fields = get_allowed_fields(skip_value=skip_if_invalid, schema=schema)
 
     if probe_retort is None:
-        probe_retort = loader_instance.create_probe_retort()
+        probe_retort = create_probe_retort(source)
 
-    result = filter_invalid_fields(raw, probe_retort, dataclass_, allowed_fields)
+    result = filter_invalid_fields(raw, probe_retort, schema, allowed_fields)
     for path in result.skipped_paths:
         logger.warning(
             "%s Skipped invalid field '%s'",
@@ -124,13 +119,6 @@ def merge_fields(
             complete_kwargs[field.name] = getattr(loaded_data, field.name)
 
     return complete_kwargs
-
-
-def ensure_retort(loader_instance: LoaderProtocol, cls: type[DataclassInstance]) -> None:
-    """Creates a replacement response to __init__ so that Adaptix sees the original signature."""
-    if cls not in loader_instance.retorts:
-        loader_instance.retorts[cls] = loader_instance.create_retort()
-    loader_instance.retorts[cls].get_loader(cls)
 
 
 @runtime_checkable

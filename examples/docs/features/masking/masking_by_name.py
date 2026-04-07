@@ -4,8 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
-from dature import Source, load
-from dature.errors.exceptions import DatureConfigError
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -16,17 +15,4 @@ class Config:
     host: str
 
 
-try:
-    load(Source(file_=SOURCES_DIR / "masking_by_name.yaml"), Config)
-except DatureConfigError as exc:
-    source = str(SOURCES_DIR / "masking_by_name.yaml")
-    assert str(exc) == "Config loading errors (1)"
-    assert len(exc.exceptions) == 1
-    assert str(exc.exceptions[0]) == (
-        f"  [password]  Invalid variant: '<REDACTED>'\n"
-        f'   ├── password: "<REDACTED>"\n'
-        f"   │              ^^^^^^^^^^\n"
-        f"   └── FILE '{source}', line 1"
-    )
-else:
-    raise AssertionError("Expected DatureConfigError")
+dature.load(dature.Yaml12Source(file=SOURCES_DIR / "masking_by_name.yaml"), schema=Config)

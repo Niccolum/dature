@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -16,9 +16,9 @@ class ApiConfig:
     base_url: str
 
 
-config = load(
-    Source(file_=SOURCES_DIR / "naming_name_style.yaml", name_style="lower_camel"),
-    ApiConfig,
+config = dature.load(
+    dature.Yaml12Source(file=SOURCES_DIR / "naming_name_style.yaml", name_style="lower_camel"),
+    schema=ApiConfig,
 )
 
 assert config.user_name == "admin"

@@ -5,14 +5,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from dature import Source, load
-from dature.errors.exceptions import DatureConfigError
+import dature
 from dature.validators.number import Ge
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(frozen=True, slots=True)
 class Divisible:
     value: int
     error_message: str = "Value must be divisible by {value}"
@@ -32,21 +31,10 @@ class ServiceConfig:
     port: int
     name: str
     tags: list[str]
-    workers: Annotated[int, Ge(value=1), Divisible(value=2)]
+    workers: Annotated[int, Ge(1), Divisible(2)]
 
 
-try:
-    load(
-        Source(file_=SOURCES_DIR / "validation_custom_invalid.json5"),
-        ServiceConfig,
-    )
-except DatureConfigError as exc:
-    source = str(SOURCES_DIR / "validation_custom_invalid.json5")
-    assert str(exc) == "ServiceConfig loading errors (1)"
-    assert len(exc.exceptions) == 1
-    assert str(exc.exceptions[0]) == (
-        f"  [workers]  Value must be divisible by 2\n"
-        f"   ├── workers: 3,\n"
-        f"   │            ^\n"
-        f"   └── FILE '{source}', line 5"
-    )
+dature.load(
+    dature.Json5Source(file=SOURCES_DIR / "validation_custom_invalid.json5"),
+    schema=ServiceConfig,
+)

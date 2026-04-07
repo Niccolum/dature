@@ -13,7 +13,7 @@ The trade-off is scope: Hydra is a **framework** that takes over your entry poin
 | **Formats** | YAML only | YAML (1.1/1.2), JSON, JSON5, TOML (1.0/1.1), INI, `.env`, env vars, Docker secrets |
 | **Env variables** | `oc.env` resolver; no `.env` support | First-class: env vars, `.env` files, `${VAR:-default}` expansion in all formats + file paths |
 | **CLI overrides** | Built-in: `python app.py db.port=3306` + tab completion | No CLI |
-| **Composition** | Config groups, defaults list, package overrides | Multi-source `Merge` with explicit strategies |
+| **Composition** | Config groups, defaults list, package overrides | Multi-source merge with explicit strategies |
 | **Parameter sweeps** | Built-in multirun + sweeper plugins (Ax, Optuna, etc.) | No — not a use case |
 | **Object instantiation** | `instantiate()` — creates objects from config with DI | No — config loading only |
 | **Variable interpolation** | OmegaConf `${path.to.key}` + custom resolvers | `${VAR:-default}` env expansion in all formats + file paths |
@@ -22,7 +22,7 @@ The trade-off is scope: Hydra is a **framework** that takes over your entry poin
 | **Error messages** | OmegaConf exceptions | Human-readable: source file, line number, context snippet |
 | **Secret masking** | No | Auto-masks secrets in errors and logs |
 | **Debug / audit** | Output dir with saved config + logs | `debug=True` — which source provided each value |
-| **Plugin system** | Sweepers, launchers, config sources, search path | Custom loaders via `BaseLoader` subclass |
+| **Plugin system** | Sweepers, launchers, config sources, search path | Custom loaders via `Source` subclass |
 | **Dependencies** | `hydra-core` + `omegaconf` + `antlr4-runtime` | `adaptix` (pure Python) |
 | **Config result** | `OmegaConf.DictConfig` (dict-like wrapper) | Your actual `@dataclass` instance |
 | **Maintenance** | Last release: Dec 2022. [Acknowledged as unmaintained](https://github.com/facebookresearch/xformers/issues/848) by other Meta teams | Active development |
@@ -36,7 +36,7 @@ Hydra reads YAML exclusively. You can reference env vars via OmegaConf's `${oc.e
 - **JSON / JSON5** — common in web services and JavaScript-adjacent tooling. Not supported.
 - **INI** — legacy format still common in enterprise. Not supported.
 
-dature handles all of these out of the box, with auto-detection from file extension:
+dature handles all of these out of the box:
 
 ```python
 --8<-- "examples/docs/comparison/why-not-hydra/hydra_merge.py:merge"
@@ -89,7 +89,11 @@ class Config:
 dature uses `Annotated` validators:
 
 ```python
---8<-- "examples/docs/comparison/why-not-hydra/hydra_validators.py:validators"
+--8<-- "examples/docs/comparison/why-not-hydra/hydra_validators.py"
+```
+
+```title="Error"
+--8<-- "examples/docs/comparison/why-not-hydra/hydra_validators.stderr"
 ```
 
 Plus root validators for cross-field checks, custom validators, and standard `__post_init__`.

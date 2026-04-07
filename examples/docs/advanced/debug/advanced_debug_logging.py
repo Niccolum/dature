@@ -5,7 +5,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Merge, Source, load
+import dature
 
 log_stream = io.StringIO()
 handler = logging.StreamHandler(log_stream)
@@ -23,12 +23,10 @@ class Config:
     tags: list[str]
 
 
-config = load(
-    Merge(
-        Source(file_=SHARED_DIR / "common_defaults.yaml"),
-        Source(file_=SHARED_DIR / "common_overrides.yaml"),
-    ),
-    Config,
+config = dature.load(
+    dature.Yaml12Source(file=SHARED_DIR / "common_defaults.yaml"),
+    dature.Yaml12Source(file=SHARED_DIR / "common_overrides.yaml"),
+    schema=Config,
 )
 
 log_lines = [line for line in log_stream.getvalue().splitlines() if "[Config]" in line]

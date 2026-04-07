@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -17,9 +17,9 @@ class Config:
     port: int
 
 
-config = load(
-    Source(file_=str(SOURCES_DIR / "config.$DATURE_APP_ENV.yaml")),
-    Config,
+config = dature.load(
+    dature.Yaml12Source(file=str(SOURCES_DIR / "config.$DATURE_APP_ENV.yaml")),
+    schema=Config,
 )
 
 assert config.host == "prod.example.com"

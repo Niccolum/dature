@@ -3,8 +3,7 @@
 import os
 from dataclasses import dataclass
 
-from dature import Source, load
-from dature.sources_loader.env_ import EnvLoader
+import dature
 
 # Only JSON form, no flat keys
 os.environ["APP__DATABASE"] = '{"host": "json-host", "port": "5432"}'
@@ -26,9 +25,9 @@ class Config:
 
 
 # Even with strategy="flat", JSON is parsed because there are no flat keys
-config = load(
-    Source(loader=EnvLoader, prefix="APP__", nested_resolve_strategy="flat"),
-    Config,
+config = dature.load(
+    dature.EnvSource(prefix="APP__", nested_resolve_strategy="flat"),
+    schema=Config,
 )
 
 assert config.database.host == "json-host"

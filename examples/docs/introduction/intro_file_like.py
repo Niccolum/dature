@@ -3,8 +3,7 @@
 from dataclasses import dataclass
 from io import BytesIO, StringIO
 
-from dature import Source, load
-from dature.sources_loader.json_ import JsonLoader
+import dature
 
 
 @dataclass
@@ -16,14 +15,14 @@ class Config:
 
 # From StringIO
 text_stream = StringIO('{"host": "localhost", "port": 8080, "debug": true}')
-config = load(Source(file_=text_stream, loader=JsonLoader), Config)
+config = dature.load(dature.JsonSource(file=text_stream), schema=Config)
 
 assert config.host == "localhost"
 assert config.port == 8080
 
 # From BytesIO
 binary_stream = BytesIO(b'{"host": "0.0.0.0", "port": 3000}')
-config = load(Source(file_=binary_stream, loader=JsonLoader), Config)
+config = dature.load(dature.JsonSource(file=binary_stream), schema=Config)
 
 assert config.host == "0.0.0.0"
 assert config.port == 3000

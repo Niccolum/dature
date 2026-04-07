@@ -3,8 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
-from dature.sources_loader.env_ import EnvFileLoader
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -20,14 +19,13 @@ class Config:
     database: Database
 
 
-config = load(
-    Source(
-        file_=SOURCES_DIR / "nested_resolve.env",
-        loader=EnvFileLoader,
+config = dature.load(
+    dature.EnvFileSource(
+        file=SOURCES_DIR / "nested_resolve.env",
         prefix="APP__",
         nested_resolve_strategy="json",
     ),
-    Config,
+    schema=Config,
 )
 
 assert config.database.host == "json-host"

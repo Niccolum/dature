@@ -186,7 +186,7 @@ def enrich_skipped_errors(
             updated.append(exc)
             continue
 
-        source_reprs = ", ".join(repr(s.metadata) for s in sources)
+        source_reprs = ", ".join(repr(s.source) for s in sources)
         locations = [
             loc for s in sources for loc in resolve_source_location(exc.field_path, s.error_ctx, s.file_content)
         ]

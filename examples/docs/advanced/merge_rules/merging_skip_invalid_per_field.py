@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import F, Merge, Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -15,15 +15,13 @@ class Config:
     timeout: int
 
 
-config = load(
-    Merge(
-        Source(file_=SOURCES_DIR / "merging_skip_invalid_per_field_defaults.yaml"),
-        Source(
-            file_=SOURCES_DIR / "merging_skip_invalid_per_field_overrides.yaml",
-            skip_if_invalid=(F[Config].port, F[Config].timeout),
-        ),
+config = dature.load(
+    dature.Yaml12Source(file=SOURCES_DIR / "merging_skip_invalid_per_field_defaults.yaml"),
+    dature.Yaml12Source(
+        file=SOURCES_DIR / "merging_skip_invalid_per_field_overrides.yaml",
+        skip_if_invalid=(dature.F[Config].port, dature.F[Config].timeout),
     ),
-    Config,
+    schema=Config,
 )
 
 assert config.host == "production.example.com"

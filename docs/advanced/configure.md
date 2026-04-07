@@ -42,7 +42,7 @@ Customize defaults for the entire application — programmatically or via enviro
 
 ### type_loaders
 
-Register global custom type loaders that apply to all `load()` calls. See [Custom Types & Loaders](custom_types.md#per-source-vs-global).
+Register global custom type loaders that apply to all `dature.load()` calls. See [Custom Types & Loaders](custom_types.md#per-source-vs-global).
 
 ## Environment Variables
 

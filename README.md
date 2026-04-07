@@ -1,8 +1,8 @@
-# dature
+<div align="center">
+
+<img src="docs/assets/img/logo.svg" alt="dature" width="400">
 
 ---
-
-<div align="center">
 
 [![PyPI](https://img.shields.io/pypi/v/dature)](https://pypi.org/project/dature/)
 [![Supported Python versions](https://img.shields.io/pypi/pyversions/dature)](https://pypi.org/project/dature/)
@@ -44,7 +44,8 @@ pip install dature[secure]  # Secret detection heuristics
 
 ```python
 from dataclasses import dataclass
-from dature import Source, load
+
+import dature
 
 @dataclass
 class Config:
@@ -52,20 +53,20 @@ class Config:
     port: int
     debug: bool = False
 
-config = load(Source(file_="config.yaml"), Config)
+config = dature.load(dature.Yaml12Source(file="config.yaml"), Config)
 ```
 
 ## Key Features
 
 - **Multiple formats** — YAML, JSON, JSON5, TOML, INI, ENV, environment variables, Docker secrets
-- **Merging** — combine multiple sources with configurable strategies (`LAST_WINS`, `FIRST_WINS`, `RAISE_ON_CONFLICT`)
+- **Merging** — combine multiple sources with configurable strategies (`"last_wins"`, `"first_wins"`, `"raise_on_conflict"`)
 - **Validation** — `Annotated` field validators, root validators, `__post_init__` support
 - **Naming** — automatic field name mapping (`snake_case` ↔ `camelCase` ↔ `UPPER_SNAKE` etc.)
 - **Secret masking** — automatic masking in error messages and logs by field type, name, or heuristic
 - **ENV expansion** — `$VAR`, `${VAR:-default}` substitution in all file formats
 - **Special types** — `SecretStr`, `ByteSize`, `PaymentCardNumber`, `URL`, `Base64UrlStr`
 - **Debug report** — `debug=True` shows which source provided each field value
-- **Decorator mode** — `@load(meta)` auto-loads config on dataclass instantiation with caching
+- **Decorator mode** — `@dature.load(meta)` auto-loads config on dataclass instantiation with caching
 
 See the **[documentation](https://dature.readthedocs.io/)** for detailed guides and API reference.
 

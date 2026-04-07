@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -15,9 +15,9 @@ class Config:
     debug: bool = False
 
 
-config = load(
-    Source(file_=SOURCES_DIR / "intro_app_docker_secrets"),
-    Config,
+config = dature.load(
+    dature.DockerSecretsSource(dir_=SOURCES_DIR / "intro_app_docker_secrets"),
+    schema=Config,
 )
 
 assert config.host == "localhost"

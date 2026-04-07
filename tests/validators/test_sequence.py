@@ -4,8 +4,8 @@ from typing import Annotated
 
 import pytest
 
-from dature import Source, load
-from dature.errors.exceptions import DatureConfigError
+from dature import JsonSource, load
+from dature.errors import DatureConfigError
 from dature.validators.sequence import MaxItems, MinItems, UniqueItems
 
 
@@ -13,29 +13,29 @@ class TestMinItems:
     def test_success(self, tmp_path: Path):
         @dataclass
         class Config:
-            tags: Annotated[list[str], MinItems(value=2)]
+            tags: Annotated[list[str], MinItems(2)]
 
         json_file = tmp_path / "config.json"
         json_file.write_text('{"tags": ["python", "typing"]}')
 
-        metadata = Source(file_=json_file)
-        result = load(metadata, Config)
+        metadata = JsonSource(file=json_file)
+        result = load(metadata, schema=Config)
 
         assert result.tags == ["python", "typing"]
 
     def test_failure(self, tmp_path: Path):
         @dataclass
         class Config:
-            tags: Annotated[list[str], MinItems(value=3)]
+            tags: Annotated[list[str], MinItems(3)]
 
         json_file = tmp_path / "config.json"
         content = '{"tags": ["python"]}'
         json_file.write_text(content)
 
-        metadata = Source(file_=json_file)
+        metadata = JsonSource(file=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -52,29 +52,29 @@ class TestMaxItems:
     def test_success(self, tmp_path: Path):
         @dataclass
         class Config:
-            tags: Annotated[list[str], MaxItems(value=5)]
+            tags: Annotated[list[str], MaxItems(5)]
 
         json_file = tmp_path / "config.json"
         json_file.write_text('{"tags": ["python", "typing"]}')
 
-        metadata = Source(file_=json_file)
-        result = load(metadata, Config)
+        metadata = JsonSource(file=json_file)
+        result = load(metadata, schema=Config)
 
         assert result.tags == ["python", "typing"]
 
     def test_failure(self, tmp_path: Path):
         @dataclass
         class Config:
-            tags: Annotated[list[str], MaxItems(value=2)]
+            tags: Annotated[list[str], MaxItems(2)]
 
         json_file = tmp_path / "config.json"
         content = '{"tags": ["python", "typing", "validation"]}'
         json_file.write_text(content)
 
-        metadata = Source(file_=json_file)
+        metadata = JsonSource(file=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -96,8 +96,8 @@ class TestUniqueItems:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"tags": ["python", "typing", "validation"]}')
 
-        metadata = Source(file_=json_file)
-        result = load(metadata, Config)
+        metadata = JsonSource(file=json_file)
+        result = load(metadata, schema=Config)
 
         assert result.tags == ["python", "typing", "validation"]
 
@@ -110,10 +110,10 @@ class TestUniqueItems:
         content = '{"tags": ["python", "typing", "python"]}'
         json_file.write_text(content)
 
-        metadata = Source(file_=json_file)
+        metadata = JsonSource(file=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -130,29 +130,29 @@ class TestCombined:
     def test_combined_list_validators(self, tmp_path: Path):
         @dataclass
         class Config:
-            tags: Annotated[list[str], MinItems(value=2), MaxItems(value=5), UniqueItems()]
+            tags: Annotated[list[str], MinItems(2), MaxItems(5), UniqueItems()]
 
         json_file = tmp_path / "config.json"
         json_file.write_text('{"tags": ["python", "typing", "validation"]}')
 
-        metadata = Source(file_=json_file)
-        result = load(metadata, Config)
+        metadata = JsonSource(file=json_file)
+        result = load(metadata, schema=Config)
 
         assert result.tags == ["python", "typing", "validation"]
 
     def test_combined_list_validators_failure(self, tmp_path: Path):
         @dataclass
         class Config:
-            tags: Annotated[list[str], MinItems(value=2), MaxItems(value=5), UniqueItems()]
+            tags: Annotated[list[str], MinItems(2), MaxItems(5), UniqueItems()]
 
         json_file = tmp_path / "config.json"
         content = '{"tags": ["python", "typing", "validation", "testing", "coding", "extra"]}'
         json_file.write_text(content)
 
-        metadata = Source(file_=json_file)
+        metadata = JsonSource(file=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1

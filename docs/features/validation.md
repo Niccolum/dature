@@ -18,38 +18,43 @@ Declare validators using `typing.Annotated`:
     --8<-- "examples/docs/features/validation/sources/validation_annotated_invalid.json5"
     ```
 
+=== "Error"
+
+    ```
+    --8<-- "examples/docs/features/validation/validation_annotated.stderr"
+    ```
+
 ### Available Validators
 
 **Numbers** (`dature.validators.number`):
 
 | Validator | Description |
 |-----------|-------------|
-| `Gt(value=N)` | Greater than N |
-| `Ge(value=N)` | Greater than or equal to N |
-| `Lt(value=N)` | Less than N |
-| `Le(value=N)` | Less than or equal to N |
+| `Gt(N)` | Greater than N |
+| `Ge(N)` | Greater than or equal to N |
+| `Lt(N)` | Less than N |
+| `Le(N)` | Less than or equal to N |
 
 **Strings** (`dature.validators.string`):
 
 | Validator | Description |
 |-----------|-------------|
-| `MinLength(value=N)` | Minimum string length |
-| `MaxLength(value=N)` | Maximum string length |
-| `RegexPattern(pattern=r"...")` | Match regex pattern |
+| `MinLength(N)` | Minimum string length |
+| `MaxLength(N)` | Maximum string length |
+| `RegexPattern(r"...")` | Match regex pattern |
 
 **Sequences** (`dature.validators.sequence`):
 
 | Validator | Description |
 |-----------|-------------|
-| `MinItems(value=N)` | Minimum number of items |
-| `MaxItems(value=N)` | Maximum number of items |
+| `MinItems(N)` | Minimum number of items |
+| `MaxItems(N)` | Maximum number of items |
 | `UniqueItems()` | All items must be unique |
 
 Multiple validators can be combined:
 
 ```python
-port: Annotated[int, Ge(value=1), Le(value=65535)]
-tags: Annotated[list[str], MinItems(value=1), MaxItems(value=10), UniqueItems()]
+--8<-- "examples/docs/features/validation/validation_annotated_combined.py:combined"
 ```
 
 ## Root Validators
@@ -66,6 +71,12 @@ Validate the entire object after loading:
 
     ```yaml
     --8<-- "examples/docs/features/validation/sources/validation_root_invalid.yaml"
+    ```
+
+=== "Error"
+
+    ```
+    --8<-- "examples/docs/features/validation/validation_root.stderr"
     ```
 
 Root validators receive the fully constructed dataclass instance and return `True` if valid.
@@ -86,22 +97,22 @@ Field validators can be specified in `Source` using the `validators` parameter. 
     --8<-- "examples/docs/features/validation/sources/validation_metadata_invalid.yaml"
     ```
 
+=== "Error"
+
+    ```
+    --8<-- "examples/docs/features/validation/validation_metadata.stderr"
+    ```
+
 A single validator can be passed directly. Multiple validators require a tuple:
 
 ```python
-validators={
-    F[Config].port: (Gt(value=0), Lt(value=65536)),  # tuple for multiple
-    F[Config].host: MinLength(value=1),               # single, no tuple needed
-}
+--8<-- "examples/docs/features/validation/validation_metadata_syntax.py:syntax"
 ```
 
 Nested fields are supported:
 
 ```python
-validators={
-    F[Config].database.host: MinLength(value=1),
-    F[Config].database.port: Gt(value=0),
-}
+--8<-- "examples/docs/features/validation/validation_metadata_nested.py:nested"
 ```
 
 ## Custom Validators
@@ -120,6 +131,12 @@ Create your own validators by implementing `get_validator_func()` and `get_error
     --8<-- "examples/docs/features/validation/sources/validation_custom_invalid.json5"
     ```
 
+=== "Error"
+
+    ```
+    --8<-- "examples/docs/features/validation/validation_custom.stderr"
+    ```
+
 Custom validators can be combined with built-in ones in `Annotated`.
 
 ## `__post_init__` and `@property`
@@ -136,6 +153,12 @@ Standard dataclass `__post_init__` and `@property` work as expected — dature p
 
     ```yaml
     --8<-- "examples/docs/features/validation/sources/validation_post_init_invalid.yaml"
+    ```
+
+=== "Error"
+
+    ```
+    --8<-- "examples/docs/features/validation/validation_post_init.stderr"
     ```
 
 Both approaches work in function mode and decorator mode.

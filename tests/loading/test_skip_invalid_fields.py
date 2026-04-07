@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from dature import F, Merge, MergeStrategy, Source, load
-from dature.errors.exceptions import DatureConfigError
+from dature import F, JsonSource, load
+from dature.errors import DatureConfigError
 
 
 class TestMergeSkipInvalidFields:
@@ -24,12 +24,10 @@ class TestMergeSkipInvalidFields:
             port: int
 
         result = load(
-            Merge(
-                Source(file_=source1),
-                Source(file_=source2),
-                skip_invalid_fields=True,
-            ),
-            Config,
+            JsonSource(file=source1),
+            JsonSource(file=source2),
+            schema=Config,
+            skip_invalid_fields=True,
         )
 
         assert result.host == "localhost"
@@ -48,12 +46,10 @@ class TestMergeSkipInvalidFields:
             port: int = 9090
 
         result = load(
-            Merge(
-                Source(file_=source1),
-                Source(file_=source2),
-                skip_invalid_fields=True,
-            ),
-            Config,
+            JsonSource(file=source1),
+            JsonSource(file=source2),
+            schema=Config,
+            skip_invalid_fields=True,
         )
 
         assert result.host == "localhost"
@@ -73,12 +69,10 @@ class TestMergeSkipInvalidFields:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                Merge(
-                    Source(file_=source1),
-                    Source(file_=source2),
-                    skip_invalid_fields=True,
-                ),
-                Config,
+                JsonSource(file=source1),
+                JsonSource(file=source2),
+                schema=Config,
+                skip_invalid_fields=True,
             )
 
         err = exc_info.value
@@ -109,12 +103,10 @@ class TestMergeSkipInvalidFields:
             db: Database
 
         result = load(
-            Merge(
-                Source(file_=source1),
-                Source(file_=source2),
-                skip_invalid_fields=True,
-            ),
-            Config,
+            JsonSource(file=source1),
+            JsonSource(file=source2),
+            schema=Config,
+            skip_invalid_fields=True,
         )
 
         assert result.db.host == "s2-host"
@@ -133,11 +125,9 @@ class TestMergeSkipInvalidFields:
             port: int
 
         result = load(
-            Merge(
-                Source(file_=source1, skip_if_invalid=True),
-                Source(file_=source2),
-            ),
-            Config,
+            JsonSource(file=source1, skip_if_invalid=True),
+            JsonSource(file=source2),
+            schema=Config,
         )
 
         assert result.host == "localhost"
@@ -156,12 +146,10 @@ class TestMergeSkipInvalidFields:
             port: int
 
         result = load(
-            Merge(
-                Source(file_=source1),
-                Source(file_=source2),
-                skip_invalid_fields=True,
-            ),
-            Config,
+            JsonSource(file=source1),
+            JsonSource(file=source2),
+            schema=Config,
+            skip_invalid_fields=True,
         )
 
         assert result.host == "localhost"
@@ -178,10 +166,8 @@ class TestMergeSkipInvalidFields:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                Merge(
-                    Source(file_=source1),
-                ),
-                Config,
+                JsonSource(file=source1),
+                schema=Config,
             )
 
         err = exc_info.value
@@ -207,13 +193,11 @@ class TestMergeSkipInvalidFields:
             port: int
 
         result = load(
-            Merge(
-                Source(file_=source1),
-                Source(file_=source2),
-                strategy=MergeStrategy.RAISE_ON_CONFLICT,
-                skip_invalid_fields=True,
-            ),
-            Config,
+            JsonSource(file=source1),
+            JsonSource(file=source2),
+            schema=Config,
+            strategy="raise_on_conflict",
+            skip_invalid_fields=True,
         )
 
         assert result.host == "localhost"
@@ -233,14 +217,12 @@ class TestMergeSkipInvalidFields:
             timeout: int = 30
 
         result = load(
-            Merge(
-                Source(
-                    file_=source1,
-                    skip_if_invalid=(F[Config].port, F[Config].timeout),
-                ),
-                Source(file_=source2),
+            JsonSource(
+                file=source1,
+                skip_if_invalid=(F[Config].port, F[Config].timeout),
             ),
-            Config,
+            JsonSource(file=source2),
+            schema=Config,
         )
 
         assert result.host == "localhost"
@@ -258,13 +240,11 @@ class TestMergeSkipInvalidFields:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                Merge(
-                    Source(
-                        file_=source1,
-                        skip_if_invalid=(F[Config].port,),
-                    ),
+                JsonSource(
+                    file=source1,
+                    skip_if_invalid=(F[Config].port,),
                 ),
-                Config,
+                schema=Config,
             )
 
         err = exc_info.value
@@ -296,12 +276,10 @@ class TestMergeSkipInvalidFields:
 
         with caplog.at_level(logging.WARNING, logger="dature"):
             load(
-                Merge(
-                    Source(file_=source1),
-                    Source(file_=source2),
-                    skip_invalid_fields=True,
-                ),
-                Config,
+                JsonSource(file=source1),
+                JsonSource(file=source2),
+                schema=Config,
+                skip_invalid_fields=True,
             )
 
         warning_messages = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
@@ -322,8 +300,8 @@ class TestSingleSourceSkipInvalidFields:
             port: int = 8080
 
         result = load(
-            Source(file_=json_file, skip_if_invalid=True),
-            Config,
+            JsonSource(file=json_file, skip_if_invalid=True),
+            schema=Config,
         )
 
         assert result.host == "localhost"
@@ -340,8 +318,8 @@ class TestSingleSourceSkipInvalidFields:
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
-                Source(file_=json_file, skip_if_invalid=True),
-                Config,
+                JsonSource(file=json_file, skip_if_invalid=True),
+                schema=Config,
             )
 
         err = exc_info.value
@@ -357,7 +335,7 @@ class TestSingleSourceSkipInvalidFields:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"host": "localhost", "port": "abc"}')
 
-        @load(Source(file_=json_file, skip_if_invalid=True))
+        @load(JsonSource(file=json_file, skip_if_invalid=True))
         @dataclass
         class Config:
             host: str
@@ -378,11 +356,11 @@ class TestSingleSourceSkipInvalidFields:
             timeout: int = 30
 
         result = load(
-            Source(
-                file_=json_file,
+            JsonSource(
+                file=json_file,
                 skip_if_invalid=(F[Config].port,),
             ),
-            Config,
+            schema=Config,
         )
 
         assert result.host == "localhost"
@@ -400,8 +378,8 @@ class TestSingleSourceSkipInvalidFields:
 
         with caplog.at_level(logging.WARNING, logger="dature"):
             load(
-                Source(file_=json_file, skip_if_invalid=True),
-                Config,
+                JsonSource(file=json_file, skip_if_invalid=True),
+                schema=Config,
             )
 
         warning_messages = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
@@ -423,11 +401,11 @@ class TestSkipInvalidSameFieldNameNested:
             inner: Inner = None  # type: ignore[assignment]
 
         result = load(
-            Source(
-                file_=source,
+            JsonSource(
+                file=source,
                 skip_if_invalid=(F[Config].port,),
             ),
-            Config,
+            schema=Config,
         )
 
         assert result.port == 3000
@@ -450,14 +428,12 @@ class TestSkipInvalidSameFieldNameNested:
             inner: Inner
 
         result = load(
-            Merge(
-                Source(
-                    file_=source1,
-                    skip_if_invalid=(F[Config].inner.port,),
-                ),
-                Source(file_=source2),
+            JsonSource(
+                file=source1,
+                skip_if_invalid=(F[Config].inner.port,),
             ),
-            Config,
+            JsonSource(file=source2),
+            schema=Config,
         )
 
         assert result.port == 8080
@@ -480,14 +456,12 @@ class TestSkipInvalidSameFieldNameNested:
             inner: Inner
 
         result = load(
-            Merge(
-                Source(
-                    file_=source1,
-                    skip_if_invalid=(F[Config].port, F[Config].inner.port),
-                ),
-                Source(file_=source2),
+            JsonSource(
+                file=source1,
+                skip_if_invalid=(F[Config].port, F[Config].inner.port),
             ),
-            Config,
+            JsonSource(file=source2),
+            schema=Config,
         )
 
         assert result.port == 8080

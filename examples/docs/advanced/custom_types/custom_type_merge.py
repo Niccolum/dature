@@ -1,9 +1,9 @@
-"""Per-merge type_loaders — set type_loaders on Merge for multi-source loads."""
+"""Per-merge type_loaders — set type_loaders on load() for multi-source loads."""
 
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Merge, Source, TypeLoader, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -26,13 +26,11 @@ class AppConfig:
     color: Rgb
 
 
-config = load(
-    Merge(
-        Source(file_=SOURCES_DIR / "custom_type_common.yaml"),
-        Source(file_=SOURCES_DIR / "custom_type_merge_override.yaml"),
-        type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
-    ),
-    AppConfig,
+config = dature.load(
+    dature.Yaml12Source(file=SOURCES_DIR / "custom_type_common.yaml"),
+    dature.Yaml12Source(file=SOURCES_DIR / "custom_type_merge_override.yaml"),
+    schema=AppConfig,
+    type_loaders={Rgb: rgb_from_string},
 )
 
 assert config == AppConfig(name="my-app", color=Rgb(r=100, g=200, b=50))

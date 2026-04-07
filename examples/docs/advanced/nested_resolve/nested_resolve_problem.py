@@ -3,8 +3,7 @@
 import os
 from dataclasses import dataclass
 
-from dature import Source, load
-from dature.sources_loader.env_ import EnvLoader
+import dature
 
 os.environ["APP__DATABASE"] = '{"host": "json-host", "port": "5432"}'
 os.environ["APP__DATABASE__HOST"] = "flat-host"
@@ -23,7 +22,7 @@ class Config:
 
 
 # Without nested_resolve_strategy, flat keys win by default
-config = load(Source(loader=EnvLoader, prefix="APP__"), Config)
+config = dature.load(dature.EnvSource(prefix="APP__"), schema=Config)
 
 assert config.database.host == "flat-host"
 assert config.database.port == 3306

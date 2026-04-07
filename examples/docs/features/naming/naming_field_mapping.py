@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import F, Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -15,16 +15,16 @@ class DbConfig:
     pool_size: int
 
 
-config = load(
-    Source(
-        file_=SOURCES_DIR / "naming_field_mapping.yaml",
+config = dature.load(
+    dature.Yaml12Source(
+        file=SOURCES_DIR / "naming_field_mapping.yaml",
         field_mapping={
-            F[DbConfig].database_url: "db_url",
-            F[DbConfig].secret_key: "key",
-            F[DbConfig].pool_size: "pool",
+            dature.F[DbConfig].database_url: "db_url",
+            dature.F[DbConfig].secret_key: "key",
+            dature.F[DbConfig].pool_size: "pool",
         },
     ),
-    DbConfig,
+    schema=DbConfig,
 )
 
 assert config.database_url == "postgresql://localhost:5432/mydb"

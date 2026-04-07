@@ -1,21 +1,22 @@
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Annotated
+from collections.abc import Mapping
+from dataclasses import asdict, dataclass
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, TypedDict, cast
 
-from dature.types import NestedResolveStrategy
+from dature.types import NestedResolveStrategy, TypeLoaderMap
 from dature.validators.number import Ge
 from dature.validators.string import MinLength
 
 if TYPE_CHECKING:
-    from dature.metadata import TypeLoader
+    from dature.protocols import DataclassInstance
 
 
 # --8<-- [start:masking-config]
 @dataclass(frozen=True, slots=True)
 class MaskingConfig:
-    mask: Annotated[str, MinLength(value=1)] = "<REDACTED>"
-    visible_prefix: Annotated[int, Ge(value=0)] = 0
-    visible_suffix: Annotated[int, Ge(value=0)] = 0
-    min_heuristic_length: Annotated[int, Ge(value=1)] = 8
+    mask: Annotated[str, MinLength(1)] = "<REDACTED>"
+    visible_prefix: Annotated[int, Ge(0)] = 0
+    visible_suffix: Annotated[int, Ge(0)] = 0
+    min_heuristic_length: Annotated[int, Ge(1)] = 8
     heuristic_threshold: float = 0.5
     secret_field_names: tuple[str, ...] = (
         "password",
@@ -39,8 +40,8 @@ class MaskingConfig:
 # --8<-- [start:error-display-config]
 @dataclass(frozen=True, slots=True)
 class ErrorDisplayConfig:
-    max_visible_lines: Annotated[int, Ge(value=1)] = 3
-    max_line_length: Annotated[int, Ge(value=1)] = 80
+    max_visible_lines: Annotated[int, Ge(1)] = 3
+    max_line_length: Annotated[int, Ge(1)] = 80
 
 
 # --8<-- [end:error-display-config]
@@ -66,15 +67,36 @@ class DatureConfig:
 
 def _load_config() -> DatureConfig:
     from dature.main import load  # noqa: PLC0415
-    from dature.metadata import Source  # noqa: PLC0415
+    from dature.sources.env_ import EnvSource  # noqa: PLC0415
 
-    return load(Source(prefix="DATURE_"), DatureConfig)
+    return load(EnvSource(prefix="DATURE_"), schema=DatureConfig)
+
+
+class MaskingOptions(TypedDict, total=False):
+    mask: str
+    visible_prefix: int
+    visible_suffix: int
+    min_heuristic_length: int
+    heuristic_threshold: float
+    secret_field_names: tuple[str, ...]
+    mask_secrets: bool
+
+
+class ErrorDisplayOptions(TypedDict, total=False):
+    max_visible_lines: int
+    max_line_length: int
+
+
+class LoadingOptions(TypedDict, total=False):
+    cache: bool
+    debug: bool
+    nested_resolve_strategy: NestedResolveStrategy
 
 
 class _ConfigProxy:
     _instance: DatureConfig | None = None
     _loading: bool = False
-    _type_loaders: "tuple[TypeLoader, ...]" = ()
+    _type_loaders: ClassVar[TypeLoaderMap] = {}
 
     @staticmethod
     def ensure_loaded() -> DatureConfig:
@@ -94,7 +116,7 @@ class _ConfigProxy:
         _ConfigProxy._instance = value
 
     @staticmethod
-    def set_type_loaders(value: "tuple[TypeLoader, ...]") -> None:
+    def set_type_loaders(value: TypeLoaderMap) -> None:
         _ConfigProxy._type_loaders = value
 
     @property
@@ -110,34 +132,41 @@ class _ConfigProxy:
         return self.ensure_loaded().loading
 
     @property
-    def type_loaders(self) -> "tuple[TypeLoader, ...]":
+    def type_loaders(self) -> TypeLoaderMap:
         return _ConfigProxy._type_loaders
 
 
 config: _ConfigProxy = _ConfigProxy()
 
 
+def _merge_group[D: DataclassInstance](current: D, options: Mapping[str, Any] | None, cls: type[D]) -> D:
+    if options is None:
+        return current
+    if not options:
+        return cls()
+    return cls(**cast("dict[str, Any]", asdict(current) | dict(options)))
+
+
 # --8<-- [start:configure]
 def configure(
     *,
-    masking: MaskingConfig | None = None,
-    error_display: ErrorDisplayConfig | None = None,
-    loading: LoadingConfig | None = None,
-    type_loaders: "tuple[TypeLoader, ...] | None" = None,
+    masking: MaskingOptions | None = None,
+    error_display: ErrorDisplayOptions | None = None,
+    loading: LoadingOptions | None = None,
+    type_loaders: TypeLoaderMap | None = None,
 ) -> None:
     # --8<-- [end:configure]
     current = config.ensure_loaded()
-    if masking is None:
-        masking = current.masking
-    if error_display is None:
-        error_display = current.error_display
-    if loading is None:
-        loading = current.loading
+
+    merged_masking = _merge_group(current.masking, masking, MaskingConfig)
+    merged_error = _merge_group(current.error_display, error_display, ErrorDisplayConfig)
+    merged_loading = _merge_group(current.loading, loading, LoadingConfig)
+
     config.set_instance(
         DatureConfig(
-            masking=masking,
-            error_display=error_display,
-            loading=loading,
+            masking=merged_masking,
+            error_display=merged_error,
+            loading=merged_loading,
         ),
     )
     if type_loaders is not None:

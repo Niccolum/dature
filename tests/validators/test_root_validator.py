@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from dature import Source, load
-from dature.errors.exceptions import DatureConfigError
+from dature import JsonSource, load
+from dature.errors import DatureConfigError
 from dature.validators.root import RootValidator
 
 
@@ -23,11 +23,11 @@ class TestRootValidator:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"port": 80, "user": "root"}')
 
-        metadata = Source(
-            file_=json_file,
-            root_validators=(RootValidator(func=validate_config),),
+        metadata = JsonSource(
+            file=json_file,
+            root_validators=(RootValidator(validate_config),),
         )
-        result = load(metadata, Config)
+        result = load(metadata, schema=Config)
 
         assert result.port == 80
         assert result.user == "root"
@@ -46,13 +46,13 @@ class TestRootValidator:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"port": 80, "user": "admin"}')
 
-        metadata = Source(
-            file_=json_file,
-            root_validators=(RootValidator(func=validate_config),),
+        metadata = JsonSource(
+            file=json_file,
+            root_validators=(RootValidator(validate_config),),
         )
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -75,14 +75,14 @@ class TestRootValidator:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"min_value": 10, "max_value": 100, "step": 5}')
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             root_validators=(
-                RootValidator(func=validate_min_max),
-                RootValidator(func=validate_step),
+                RootValidator(validate_min_max),
+                RootValidator(validate_step),
             ),
         )
-        result = load(metadata, Config)
+        result = load(metadata, schema=Config)
 
         assert result.min_value == 10
         assert result.max_value == 100
@@ -104,16 +104,16 @@ class TestRootValidator:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"min_value": 100, "max_value": 10, "step": -5}')
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             root_validators=(
-                RootValidator(func=validate_min_max),
-                RootValidator(func=validate_step),
+                RootValidator(validate_min_max),
+                RootValidator(validate_step),
             ),
         )
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -132,13 +132,13 @@ class TestRootValidator:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"port": 80, "host": "localhost"}')
 
-        metadata = Source(
-            file_=json_file,
-            root_validators=(RootValidator(func=validate_config),),
+        metadata = JsonSource(
+            file=json_file,
+            root_validators=(RootValidator(validate_config),),
         )
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -154,9 +154,9 @@ class TestRootValidator:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"username": "admin", "password": "short"}')
 
-        metadata = Source(
-            file_=json_file,
-            root_validators=(RootValidator(func=validate_credentials),),
+        metadata = JsonSource(
+            file=json_file,
+            root_validators=(RootValidator(validate_credentials),),
         )
 
         @load(metadata)
@@ -187,8 +187,8 @@ class TestRootValidator:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"port": 80, "user": "admin"}')
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             root_validators=(
                 RootValidator(
                     func=validate_config,
@@ -198,7 +198,7 @@ class TestRootValidator:
         )
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1

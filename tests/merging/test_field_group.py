@@ -2,12 +2,11 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from textwrap import dedent
 
 import pytest
 
-from dature import FieldGroup, FieldMergeStrategy, Merge, MergeRule, MergeStrategy, Source, load
-from dature.errors.exceptions import FieldGroupError
+from dature import JsonSource, load
+from dature.errors import FieldGroupError
 from dature.field_path import F
 
 
@@ -25,13 +24,11 @@ class TestFieldGroupAllChanged:
             port: int
 
         result = load(
-            Merge(
-                Source(file_=defaults),
-                Source(file_=overrides),
-                strategy=MergeStrategy.LAST_WINS,
-                field_groups=(FieldGroup(F[Config].host, F[Config].port),),
-            ),
-            Config,
+            JsonSource(file=defaults),
+            JsonSource(file=overrides),
+            schema=Config,
+            strategy="last_wins",
+            field_groups=((F[Config].host, F[Config].port),),
         )
 
         assert result.host == "remote"
@@ -50,13 +47,11 @@ class TestFieldGroupAllChanged:
             port: int
 
         result = load(
-            Merge(
-                Source(file_=first),
-                Source(file_=second),
-                strategy=MergeStrategy.FIRST_WINS,
-                field_groups=(FieldGroup(F[Config].host, F[Config].port),),
-            ),
-            Config,
+            JsonSource(file=first),
+            JsonSource(file=second),
+            schema=Config,
+            strategy="first_wins",
+            field_groups=((F[Config].host, F[Config].port),),
         )
 
         assert result.host == "first-host"
@@ -77,12 +72,10 @@ class TestFieldGroupNoneChanged:
             port: int
 
         result = load(
-            Merge(
-                Source(file_=defaults),
-                Source(file_=overrides),
-                field_groups=(FieldGroup(F[Config].host, F[Config].port),),
-            ),
-            Config,
+            JsonSource(file=defaults),
+            JsonSource(file=overrides),
+            schema=Config,
+            field_groups=((F[Config].host, F[Config].port),),
         )
 
         assert result.host == "localhost"
@@ -102,12 +95,10 @@ class TestFieldGroupNoneChanged:
             debug: bool
 
         result = load(
-            Merge(
-                Source(file_=defaults),
-                Source(file_=overrides),
-                field_groups=(FieldGroup(F[Config].host, F[Config].port),),
-            ),
-            Config,
+            JsonSource(file=defaults),
+            JsonSource(file=overrides),
+            schema=Config,
+            field_groups=((F[Config].host, F[Config].port),),
         )
 
         assert result.host == "localhost"
@@ -123,8 +114,8 @@ class TestFieldGroupPartialChange:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote"}')
 
-        defaults_meta = Source(file_=defaults)
-        overrides_meta = Source(file_=overrides)
+        defaults_meta = JsonSource(file=defaults)
+        overrides_meta = JsonSource(file=overrides)
 
         @dataclass
         class Config:
@@ -133,21 +124,18 @@ class TestFieldGroupPartialChange:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                Merge(
-                    defaults_meta,
-                    overrides_meta,
-                    field_groups=(FieldGroup(F[Config].host, F[Config].port),),
-                ),
-                Config,
+                defaults_meta,
+                overrides_meta,
+                schema=Config,
+                field_groups=((F[Config].host, F[Config].port),),
             )
 
-        assert str(exc_info.value) == dedent(f"""\
-            Config field group errors (1)
-
-              Field group (host, port) partially overridden in source 1
-                changed:   host (from source {overrides_meta!r})
-                unchanged: port (from source {defaults_meta!r})
-            """)
+        assert str(exc_info.value) == "Config field group errors (1)"
+        assert str(exc_info.value.exceptions[0]) == (
+            f"  Field group (host, port) partially overridden in source 1\n"
+            f"    changed:   host (from source {overrides_meta!r})\n"
+            f"    unchanged: port (from source {defaults_meta!r})"
+        )
 
     def test_partial_change_field_present_but_equal(self, tmp_path: Path):
         defaults = tmp_path / "defaults.json"
@@ -156,8 +144,8 @@ class TestFieldGroupPartialChange:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote", "port": 3000}')
 
-        defaults_meta = Source(file_=defaults)
-        overrides_meta = Source(file_=overrides)
+        defaults_meta = JsonSource(file=defaults)
+        overrides_meta = JsonSource(file=overrides)
 
         @dataclass
         class Config:
@@ -166,21 +154,18 @@ class TestFieldGroupPartialChange:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                Merge(
-                    defaults_meta,
-                    overrides_meta,
-                    field_groups=(FieldGroup(F[Config].host, F[Config].port),),
-                ),
-                Config,
+                defaults_meta,
+                overrides_meta,
+                schema=Config,
+                field_groups=((F[Config].host, F[Config].port),),
             )
 
-        assert str(exc_info.value) == dedent(f"""\
-            Config field group errors (1)
-
-              Field group (host, port) partially overridden in source 1
-                changed:   host (from source {overrides_meta!r})
-                unchanged: port (from source {defaults_meta!r})
-            """)
+        assert str(exc_info.value) == "Config field group errors (1)"
+        assert str(exc_info.value.exceptions[0]) == (
+            f"  Field group (host, port) partially overridden in source 1\n"
+            f"    changed:   host (from source {overrides_meta!r})\n"
+            f"    unchanged: port (from source {defaults_meta!r})"
+        )
 
     def test_partial_change_with_first_wins(self, tmp_path: Path):
         defaults = tmp_path / "defaults.json"
@@ -196,13 +181,11 @@ class TestFieldGroupPartialChange:
 
         with pytest.raises(FieldGroupError):
             load(
-                Merge(
-                    Source(file_=defaults),
-                    Source(file_=overrides),
-                    strategy=MergeStrategy.FIRST_WINS,
-                    field_groups=(FieldGroup(F[Config].host, F[Config].port),),
-                ),
-                Config,
+                JsonSource(file=defaults),
+                JsonSource(file=overrides),
+                schema=Config,
+                strategy="first_wins",
+                field_groups=((F[Config].host, F[Config].port),),
             )
 
     def test_partial_change_with_raise_on_conflict(self, tmp_path: Path):
@@ -219,13 +202,11 @@ class TestFieldGroupPartialChange:
 
         with pytest.raises(FieldGroupError):
             load(
-                Merge(
-                    Source(file_=defaults),
-                    Source(file_=overrides),
-                    strategy=MergeStrategy.RAISE_ON_CONFLICT,
-                    field_groups=(FieldGroup(F[Config].host, F[Config].port),),
-                ),
-                Config,
+                JsonSource(file=defaults),
+                JsonSource(file=overrides),
+                schema=Config,
+                strategy="raise_on_conflict",
+                field_groups=((F[Config].host, F[Config].port),),
             )
 
 
@@ -237,8 +218,8 @@ class TestFieldGroupAutoExpand:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"database": {"host": "remote"}}')
 
-        defaults_meta = Source(file_=defaults)
-        overrides_meta = Source(file_=overrides)
+        defaults_meta = JsonSource(file=defaults)
+        overrides_meta = JsonSource(file=overrides)
 
         @dataclass
         class Database:
@@ -251,21 +232,18 @@ class TestFieldGroupAutoExpand:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                Merge(
-                    defaults_meta,
-                    overrides_meta,
-                    field_groups=(FieldGroup(F[Config].database),),
-                ),
-                Config,
+                defaults_meta,
+                overrides_meta,
+                schema=Config,
+                field_groups=((F[Config].database,),),
             )
 
-        assert str(exc_info.value) == dedent(f"""\
-            Config field group errors (1)
-
-              Field group (database.host, database.port) partially overridden in source 1
-                changed:   database.host (from source {overrides_meta!r})
-                unchanged: database.port (from source {defaults_meta!r})
-            """)
+        assert str(exc_info.value) == "Config field group errors (1)"
+        assert str(exc_info.value.exceptions[0]) == (
+            f"  Field group (database.host, database.port) partially overridden in source 1\n"
+            f"    changed:   database.host (from source {overrides_meta!r})\n"
+            f"    unchanged: database.port (from source {defaults_meta!r})"
+        )
 
     def test_auto_expand_all_changed_ok(self, tmp_path: Path):
         defaults = tmp_path / "defaults.json"
@@ -284,12 +262,10 @@ class TestFieldGroupAutoExpand:
             database: Database
 
         result = load(
-            Merge(
-                Source(file_=defaults),
-                Source(file_=overrides),
-                field_groups=(FieldGroup(F[Config].database),),
-            ),
-            Config,
+            JsonSource(file=defaults),
+            JsonSource(file=overrides),
+            schema=Config,
+            field_groups=((F[Config].database,),),
         )
 
         assert result.database.host == "remote"
@@ -307,9 +283,9 @@ class TestFieldGroupThreeSources:
         c = tmp_path / "c.json"
         c.write_text('{"host": "c-host", "port": 3000}')
 
-        a_meta = Source(file_=a)
-        b_meta = Source(file_=b)
-        c_meta = Source(file_=c)
+        a_meta = JsonSource(file=a)
+        b_meta = JsonSource(file=b)
+        c_meta = JsonSource(file=c)
 
         @dataclass
         class Config:
@@ -318,22 +294,19 @@ class TestFieldGroupThreeSources:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                Merge(
-                    a_meta,
-                    b_meta,
-                    c_meta,
-                    field_groups=(FieldGroup(F[Config].host, F[Config].port),),
-                ),
-                Config,
+                a_meta,
+                b_meta,
+                c_meta,
+                schema=Config,
+                field_groups=((F[Config].host, F[Config].port),),
             )
 
-        assert str(exc_info.value) == dedent(f"""\
-            Config field group errors (1)
-
-              Field group (host, port) partially overridden in source 1
-                changed:   host (from source {b_meta!r})
-                unchanged: port (from source {a_meta!r})
-            """)
+        assert str(exc_info.value) == "Config field group errors (1)"
+        assert str(exc_info.value.exceptions[0]) == (
+            f"  Field group (host, port) partially overridden in source 1\n"
+            f"    changed:   host (from source {b_meta!r})\n"
+            f"    unchanged: port (from source {a_meta!r})"
+        )
 
     def test_three_sources_all_ok(self, tmp_path: Path):
         a = tmp_path / "a.json"
@@ -351,13 +324,11 @@ class TestFieldGroupThreeSources:
             port: int
 
         result = load(
-            Merge(
-                Source(file_=a),
-                Source(file_=b),
-                Source(file_=c),
-                field_groups=(FieldGroup(F[Config].host, F[Config].port),),
-            ),
-            Config,
+            JsonSource(file=a),
+            JsonSource(file=b),
+            JsonSource(file=c),
+            schema=Config,
+            field_groups=((F[Config].host, F[Config].port),),
         )
 
         assert result.host == "c-host"
@@ -372,8 +343,8 @@ class TestFieldGroupMultipleGroups:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote", "port": 9090, "user": "root"}')
 
-        defaults_meta = Source(file_=defaults)
-        overrides_meta = Source(file_=overrides)
+        defaults_meta = JsonSource(file=defaults)
+        overrides_meta = JsonSource(file=overrides)
 
         @dataclass
         class Config:
@@ -384,24 +355,21 @@ class TestFieldGroupMultipleGroups:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                Merge(
-                    defaults_meta,
-                    overrides_meta,
-                    field_groups=(
-                        FieldGroup(F[Config].host, F[Config].port),
-                        FieldGroup(F[Config].user, F[Config].password),
-                    ),
+                defaults_meta,
+                overrides_meta,
+                schema=Config,
+                field_groups=(
+                    (F[Config].host, F[Config].port),
+                    (F[Config].user, F[Config].password),
                 ),
-                Config,
             )
 
-        assert str(exc_info.value) == dedent(f"""\
-            Config field group errors (1)
-
-              Field group (user, password) partially overridden in source 1
-                changed:   user (from source {overrides_meta!r})
-                unchanged: password (from source {defaults_meta!r})
-            """)
+        assert str(exc_info.value) == "Config field group errors (1)"
+        assert str(exc_info.value.exceptions[0]) == (
+            f"  Field group (user, password) partially overridden in source 1\n"
+            f"    changed:   user (from source {overrides_meta!r})\n"
+            f"    unchanged: password (from source {defaults_meta!r})"
+        )
 
 
 class TestFieldGroupWithFieldMerges:
@@ -419,13 +387,11 @@ class TestFieldGroupWithFieldMerges:
             tags: list[str]
 
         result = load(
-            Merge(
-                Source(file_=defaults),
-                Source(file_=overrides),
-                field_merges=(MergeRule(F[Config].tags, FieldMergeStrategy.APPEND),),
-                field_groups=(FieldGroup(F[Config].host, F[Config].port),),
-            ),
-            Config,
+            JsonSource(file=defaults),
+            JsonSource(file=overrides),
+            schema=Config,
+            field_merges={F[Config].tags: "append"},
+            field_groups=((F[Config].host, F[Config].port),),
         )
 
         assert result.host == "remote"
@@ -441,13 +407,11 @@ class TestFieldGroupDecorator:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote", "port": 9090}')
 
-        meta = Merge(
-            Source(file_=defaults),
-            Source(file_=overrides),
-            field_groups=(FieldGroup(F["Config"].host, F["Config"].port),),
+        @load(
+            JsonSource(file=defaults),
+            JsonSource(file=overrides),
+            field_groups=((F["Config"].host, F["Config"].port),),
         )
-
-        @load(meta)
         @dataclass
         class Config:
             host: str
@@ -464,13 +428,11 @@ class TestFieldGroupDecorator:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote"}')
 
-        meta = Merge(
-            Source(file_=defaults),
-            Source(file_=overrides),
-            field_groups=(FieldGroup(F["Config"].host, F["Config"].port),),
+        @load(
+            JsonSource(file=defaults),
+            JsonSource(file=overrides),
+            field_groups=((F["Config"].host, F["Config"].port),),
         )
-
-        @load(meta)
         @dataclass
         class Config:
             host: str
@@ -488,8 +450,8 @@ class TestFieldGroupErrorFormat:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote", "debug": true}')
 
-        defaults_meta = Source(file_=defaults)
-        overrides_meta = Source(file_=overrides)
+        defaults_meta = JsonSource(file=defaults)
+        overrides_meta = JsonSource(file=overrides)
 
         @dataclass
         class Config:
@@ -499,21 +461,18 @@ class TestFieldGroupErrorFormat:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                Merge(
-                    defaults_meta,
-                    overrides_meta,
-                    field_groups=(FieldGroup(F[Config].host, F[Config].port),),
-                ),
-                Config,
+                defaults_meta,
+                overrides_meta,
+                schema=Config,
+                field_groups=((F[Config].host, F[Config].port),),
             )
 
-        assert str(exc_info.value) == dedent(f"""\
-            Config field group errors (1)
-
-              Field group (host, port) partially overridden in source 1
-                changed:   host (from source {overrides_meta!r})
-                unchanged: port (from source {defaults_meta!r})
-            """)
+        assert str(exc_info.value) == "Config field group errors (1)"
+        assert str(exc_info.value.exceptions[0]) == (
+            f"  Field group (host, port) partially overridden in source 1\n"
+            f"    changed:   host (from source {overrides_meta!r})\n"
+            f"    unchanged: port (from source {defaults_meta!r})"
+        )
 
     def test_multiple_violations_message(self, tmp_path: Path):
         defaults = tmp_path / "defaults.json"
@@ -522,8 +481,8 @@ class TestFieldGroupErrorFormat:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"host": "remote", "user": "root"}')
 
-        defaults_meta = Source(file_=defaults)
-        overrides_meta = Source(file_=overrides)
+        defaults_meta = JsonSource(file=defaults)
+        overrides_meta = JsonSource(file=overrides)
 
         @dataclass
         class Config:
@@ -534,28 +493,26 @@ class TestFieldGroupErrorFormat:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                Merge(
-                    defaults_meta,
-                    overrides_meta,
-                    field_groups=(
-                        FieldGroup(F[Config].host, F[Config].port),
-                        FieldGroup(F[Config].user, F[Config].password),
-                    ),
+                defaults_meta,
+                overrides_meta,
+                schema=Config,
+                field_groups=(
+                    (F[Config].host, F[Config].port),
+                    (F[Config].user, F[Config].password),
                 ),
-                Config,
             )
 
-        assert str(exc_info.value) == dedent(f"""\
-            Config field group errors (2)
-
-              Field group (host, port) partially overridden in source 1
-                changed:   host (from source {overrides_meta!r})
-                unchanged: port (from source {defaults_meta!r})
-
-              Field group (user, password) partially overridden in source 1
-                changed:   user (from source {overrides_meta!r})
-                unchanged: password (from source {defaults_meta!r})
-            """)
+        assert str(exc_info.value) == "Config field group errors (2)"
+        assert str(exc_info.value.exceptions[0]) == (
+            f"  Field group (host, port) partially overridden in source 1\n"
+            f"    changed:   host (from source {overrides_meta!r})\n"
+            f"    unchanged: port (from source {defaults_meta!r})"
+        )
+        assert str(exc_info.value.exceptions[1]) == (
+            f"  Field group (user, password) partially overridden in source 1\n"
+            f"    changed:   user (from source {overrides_meta!r})\n"
+            f"    unchanged: password (from source {defaults_meta!r})"
+        )
 
 
 class TestFieldGroupMixedExpandAndFlat:
@@ -581,12 +538,10 @@ class TestFieldGroupMixedExpandAndFlat:
             timeout: int
 
         result = load(
-            Merge(
-                Source(file_=defaults),
-                Source(file_=overrides),
-                field_groups=(FieldGroup(F[Config].database, F[Config].timeout),),
-            ),
-            Config,
+            JsonSource(file=defaults),
+            JsonSource(file=overrides),
+            schema=Config,
+            field_groups=((F[Config].database, F[Config].timeout),),
         )
 
         assert result.database.host == "remote"
@@ -615,12 +570,10 @@ class TestFieldGroupMixedExpandAndFlat:
             timeout: int
 
         result = load(
-            Merge(
-                Source(file_=defaults),
-                Source(file_=overrides),
-                field_groups=(FieldGroup(F[Config].database, F[Config].timeout),),
-            ),
-            Config,
+            JsonSource(file=defaults),
+            JsonSource(file=overrides),
+            schema=Config,
+            field_groups=((F[Config].database, F[Config].timeout),),
         )
 
         assert result.database.host == "localhost"
@@ -636,8 +589,8 @@ class TestFieldGroupMixedExpandAndFlat:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"timeout": 60}')
 
-        defaults_meta = Source(file_=defaults)
-        overrides_meta = Source(file_=overrides)
+        defaults_meta = JsonSource(file=defaults)
+        overrides_meta = JsonSource(file=overrides)
 
         @dataclass
         class Database:
@@ -651,21 +604,20 @@ class TestFieldGroupMixedExpandAndFlat:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                Merge(
-                    defaults_meta,
-                    overrides_meta,
-                    field_groups=(FieldGroup(F[Config].database, F[Config].timeout),),
-                ),
-                Config,
+                defaults_meta,
+                overrides_meta,
+                schema=Config,
+                field_groups=((F[Config].database, F[Config].timeout),),
             )
 
-        assert str(exc_info.value) == dedent(f"""\
-            Config field group errors (1)
-
-              Field group (database.host, database.port, timeout) partially overridden in source 1
-                changed:   timeout (from source {overrides_meta!r})
-                unchanged: database.host (from source {defaults_meta!r}), database.port (from source {defaults_meta!r})
-            """)
+        assert str(exc_info.value) == "Config field group errors (1)"
+        defaults_repr = repr(defaults_meta)
+        overrides_repr = repr(overrides_meta)
+        assert str(exc_info.value.exceptions[0]) == (
+            f"  Field group (database.host, database.port, timeout) partially overridden in source 1\n"
+            f"    changed:   timeout (from source {overrides_repr})\n"
+            f"    unchanged: database.host (from source {defaults_repr}), database.port (from source {defaults_repr})"
+        )
 
     def test_nested_partial_flat_not(self, tmp_path: Path):
         defaults = tmp_path / "defaults.json"
@@ -676,8 +628,8 @@ class TestFieldGroupMixedExpandAndFlat:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"database": {"host": "remote"}}')
 
-        defaults_meta = Source(file_=defaults)
-        overrides_meta = Source(file_=overrides)
+        defaults_meta = JsonSource(file=defaults)
+        overrides_meta = JsonSource(file=overrides)
 
         @dataclass
         class Database:
@@ -691,21 +643,18 @@ class TestFieldGroupMixedExpandAndFlat:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                Merge(
-                    defaults_meta,
-                    overrides_meta,
-                    field_groups=(FieldGroup(F[Config].database, F[Config].timeout),),
-                ),
-                Config,
+                defaults_meta,
+                overrides_meta,
+                schema=Config,
+                field_groups=((F[Config].database, F[Config].timeout),),
             )
 
-        assert str(exc_info.value) == dedent(f"""\
-            Config field group errors (1)
-
-              Field group (database.host, database.port, timeout) partially overridden in source 1
-                changed:   database.host (from source {overrides_meta!r})
-                unchanged: database.port (from source {defaults_meta!r}), timeout (from source {defaults_meta!r})
-            """)
+        assert str(exc_info.value) == "Config field group errors (1)"
+        assert str(exc_info.value.exceptions[0]) == (
+            f"  Field group (database.host, database.port, timeout) partially overridden in source 1\n"
+            f"    changed:   database.host (from source {overrides_meta!r})\n"
+            f"    unchanged: database.port (from source {defaults_meta!r}), timeout (from source {defaults_meta!r})"
+        )
 
     def test_nested_all_changed_flat_not(self, tmp_path: Path):
         defaults = tmp_path / "defaults.json"
@@ -716,10 +665,10 @@ class TestFieldGroupMixedExpandAndFlat:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"database": {"host": "remote", "port": 3306}}')
 
-        defaults_meta = Source(file_=defaults)
-        overrides_meta = Source(file_=overrides)
-        d = repr(defaults_meta)
-        o = repr(overrides_meta)
+        defaults_meta = JsonSource(file=defaults)
+        overrides_meta = JsonSource(file=overrides)
+        defaults_repr = repr(defaults_meta)
+        overrides_repr = repr(overrides_meta)
 
         @dataclass
         class Database:
@@ -733,21 +682,19 @@ class TestFieldGroupMixedExpandAndFlat:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                Merge(
-                    defaults_meta,
-                    overrides_meta,
-                    field_groups=(FieldGroup(F[Config].database, F[Config].timeout),),
-                ),
-                Config,
+                defaults_meta,
+                overrides_meta,
+                schema=Config,
+                field_groups=((F[Config].database, F[Config].timeout),),
             )
 
-        assert str(exc_info.value) == dedent(f"""\
-            Config field group errors (1)
-
-              Field group (database.host, database.port, timeout) partially overridden in source 1
-                changed:   database.host (from source {o}), database.port (from source {o})
-                unchanged: timeout (from source {d})
-            """)
+        assert str(exc_info.value) == "Config field group errors (1)"
+        changed = f"database.host (from source {overrides_repr}), database.port (from source {overrides_repr})"
+        assert str(exc_info.value.exceptions[0]) == (
+            f"  Field group (database.host, database.port, timeout) partially overridden in source 1\n"
+            f"    changed:   {changed}\n"
+            f"    unchanged: timeout (from source {defaults_repr})"
+        )
 
 
 class TestFieldGroupSameFieldNameNested:
@@ -772,12 +719,10 @@ class TestFieldGroupSameFieldNameNested:
             inner: Inner
 
         result = load(
-            Merge(
-                Source(file_=defaults),
-                Source(file_=overrides),
-                field_groups=(FieldGroup(F[Config].user_name, F[Config].inner.user_name),),
-            ),
-            Config,
+            JsonSource(file=defaults),
+            JsonSource(file=overrides),
+            schema=Config,
+            field_groups=((F[Config].user_name, F[Config].inner.user_name),),
         )
 
         assert result.user_name == "root-new"
@@ -792,8 +737,8 @@ class TestFieldGroupSameFieldNameNested:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"user_name": "root-new"}')
 
-        defaults_meta = Source(file_=defaults)
-        overrides_meta = Source(file_=overrides)
+        defaults_meta = JsonSource(file=defaults)
+        overrides_meta = JsonSource(file=overrides)
 
         @dataclass
         class Inner:
@@ -806,18 +751,15 @@ class TestFieldGroupSameFieldNameNested:
 
         with pytest.raises(FieldGroupError) as exc_info:
             load(
-                Merge(
-                    defaults_meta,
-                    overrides_meta,
-                    field_groups=(FieldGroup(F[Config].user_name, F[Config].inner.user_name),),
-                ),
-                Config,
+                defaults_meta,
+                overrides_meta,
+                schema=Config,
+                field_groups=((F[Config].user_name, F[Config].inner.user_name),),
             )
 
-        assert str(exc_info.value) == dedent(f"""\
-            Config field group errors (1)
-
-              Field group (user_name, inner.user_name) partially overridden in source 1
-                changed:   user_name (from source {overrides_meta!r})
-                unchanged: inner.user_name (from source {defaults_meta!r})
-            """)
+        assert str(exc_info.value) == "Config field group errors (1)"
+        assert str(exc_info.value.exceptions[0]) == (
+            f"  Field group (user_name, inner.user_name) partially overridden in source 1\n"
+            f"    changed:   user_name (from source {overrides_meta!r})\n"
+            f"    unchanged: inner.user_name (from source {defaults_meta!r})"
+        )

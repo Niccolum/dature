@@ -5,11 +5,11 @@ from typing import Annotated
 
 import pytest
 
-from dature import Source, load
-from dature.errors.exceptions import DatureConfigError
+from dature import JsonSource, load
+from dature.errors import DatureConfigError
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(frozen=True, slots=True)
 class Divisible:
     value: int
     error_message: str = "Value must be divisible by {value}"
@@ -24,7 +24,7 @@ class Divisible:
         return self.error_message.format(value=self.value)
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
+@dataclass(frozen=True, slots=True)
 class StartsWith:
     prefix: str
     error_message: str = "Value must start with '{prefix}'"
@@ -43,29 +43,29 @@ class TestCustomFieldValidator:
     def test_success(self, tmp_path: Path):
         @dataclass
         class Config:
-            count: Annotated[int, Divisible(value=5)]
+            count: Annotated[int, Divisible(5)]
 
         json_file = tmp_path / "config.json"
         json_file.write_text('{"count": 10}')
 
-        metadata = Source(file_=json_file)
-        result = load(metadata, Config)
+        metadata = JsonSource(file=json_file)
+        result = load(metadata, schema=Config)
 
         assert result.count == 10
 
     def test_failure(self, tmp_path: Path):
         @dataclass
         class Config:
-            count: Annotated[int, Divisible(value=5)]
+            count: Annotated[int, Divisible(5)]
 
         json_file = tmp_path / "config.json"
         content = '{"count": 7}'
         json_file.write_text(content)
 
-        metadata = Source(file_=json_file)
+        metadata = JsonSource(file=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -80,16 +80,16 @@ class TestCustomFieldValidator:
     def test_custom_error_message(self, tmp_path: Path):
         @dataclass
         class Config:
-            count: Annotated[int, Divisible(value=3, error_message="Must be a multiple of {value}")]
+            count: Annotated[int, Divisible(3, error_message="Must be a multiple of {value}")]
 
         json_file = tmp_path / "config.json"
         content = '{"count": 7}'
         json_file.write_text(content)
 
-        metadata = Source(file_=json_file)
+        metadata = JsonSource(file=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -106,29 +106,29 @@ class TestCustomStringValidator:
     def test_success(self, tmp_path: Path):
         @dataclass
         class Config:
-            url: Annotated[str, StartsWith(prefix="https://")]
+            url: Annotated[str, StartsWith("https://")]
 
         json_file = tmp_path / "config.json"
         json_file.write_text('{"url": "https://example.com"}')
 
-        metadata = Source(file_=json_file)
-        result = load(metadata, Config)
+        metadata = JsonSource(file=json_file)
+        result = load(metadata, schema=Config)
 
         assert result.url == "https://example.com"
 
     def test_failure(self, tmp_path: Path):
         @dataclass
         class Config:
-            url: Annotated[str, StartsWith(prefix="https://")]
+            url: Annotated[str, StartsWith("https://")]
 
         json_file = tmp_path / "config.json"
         content = '{"url": "http://example.com"}'
         json_file.write_text(content)
 
-        metadata = Source(file_=json_file)
+        metadata = JsonSource(file=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -146,10 +146,10 @@ class TestCustomValidatorWithDecorator:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"port": 8080}')
 
-        @load(Source(file_=json_file))
+        @load(JsonSource(file=json_file))
         @dataclass
         class Config:
-            port: Annotated[int, Divisible(value=10)]
+            port: Annotated[int, Divisible(10)]
 
         config = Config()
         assert config.port == 8080
@@ -159,10 +159,10 @@ class TestCustomValidatorWithDecorator:
         content = '{"port": 8081}'
         json_file.write_text(content)
 
-        @load(Source(file_=json_file))
+        @load(JsonSource(file=json_file))
         @dataclass
         class Config:
-            port: Annotated[int, Divisible(value=10)]
+            port: Annotated[int, Divisible(10)]
 
         with pytest.raises(DatureConfigError) as exc_info:
             Config()
@@ -182,10 +182,10 @@ class TestCustomValidatorWithDecorator:
         content = '{"port": 8080}'
         json_file.write_text(content)
 
-        @load(Source(file_=json_file))
+        @load(JsonSource(file=json_file))
         @dataclass
         class Config:
-            port: Annotated[int, Divisible(value=10)]
+            port: Annotated[int, Divisible(10)]
 
         with pytest.raises(DatureConfigError) as exc_info:
             Config(port=8081)
@@ -202,14 +202,14 @@ class TestMultipleCustomValidators:
     def test_combined_success(self, tmp_path: Path):
         @dataclass
         class Config:
-            count: Annotated[int, Divisible(value=5)]
-            url: Annotated[str, StartsWith(prefix="https://")]
+            count: Annotated[int, Divisible(5)]
+            url: Annotated[str, StartsWith("https://")]
 
         json_file = tmp_path / "config.json"
         json_file.write_text('{"count": 15, "url": "https://example.com"}')
 
-        metadata = Source(file_=json_file)
-        result = load(metadata, Config)
+        metadata = JsonSource(file=json_file)
+        result = load(metadata, schema=Config)
 
         assert result.count == 15
         assert result.url == "https://example.com"
@@ -217,17 +217,17 @@ class TestMultipleCustomValidators:
     def test_all_fail(self, tmp_path: Path):
         @dataclass
         class Config:
-            count: Annotated[int, Divisible(value=5)]
-            url: Annotated[str, StartsWith(prefix="https://")]
+            count: Annotated[int, Divisible(5)]
+            url: Annotated[str, StartsWith("https://")]
 
         json_file = tmp_path / "config.json"
         content = '{"count": 7, "url": "http://example.com"}'
         json_file.write_text(content)
 
-        metadata = Source(file_=json_file)
+        metadata = JsonSource(file=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 2

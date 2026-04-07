@@ -4,8 +4,8 @@ from typing import Annotated
 
 import pytest
 
-from dature import Source, load
-from dature.errors.exceptions import DatureConfigError
+from dature import JsonSource, load
+from dature.errors import DatureConfigError
 from dature.field_path import F
 from dature.validators.number import Ge, Gt, Lt
 from dature.validators.root import RootValidator
@@ -21,13 +21,13 @@ class TestMetadataValidatorsSuccess:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "Alice"}')
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].name: MinLength(value=3),
+                F[Config].name: MinLength(3),
             },
         )
-        result = load(metadata, Config)
+        result = load(metadata, schema=Config)
 
         assert result.name == "Alice"
 
@@ -39,13 +39,13 @@ class TestMetadataValidatorsSuccess:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"port": 8080}')
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].port: (Gt(value=0), Lt(value=65536)),
+                F[Config].port: (Gt(0), Lt(65536)),
             },
         )
-        result = load(metadata, Config)
+        result = load(metadata, schema=Config)
 
         assert result.port == 8080
 
@@ -58,14 +58,14 @@ class TestMetadataValidatorsSuccess:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "Alice", "port": 8080}')
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].name: MinLength(value=3),
-                F[Config].port: Gt(value=0),
+                F[Config].name: MinLength(3),
+                F[Config].port: Gt(0),
             },
         )
-        result = load(metadata, Config)
+        result = load(metadata, schema=Config)
 
         assert result.name == "Alice"
         assert result.port == 8080
@@ -81,15 +81,15 @@ class TestMetadataValidatorsFailure:
         content = '{"name": "Al"}'
         json_file.write_text(content)
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].name: MinLength(value=3),
+                F[Config].name: MinLength(3),
             },
         )
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -110,15 +110,15 @@ class TestMetadataValidatorsFailure:
         content = '{"port": -1}'
         json_file.write_text(content)
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].port: (Gt(value=0), Lt(value=65536)),
+                F[Config].port: (Gt(0), Lt(65536)),
             },
         )
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -145,14 +145,14 @@ class TestMetadataValidatorsNested:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"database": {"host": "localhost", "port": 5432}}')
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].database.host: MinLength(value=1),
-                F[Config].database.port: Gt(value=0),
+                F[Config].database.host: MinLength(1),
+                F[Config].database.port: Gt(0),
             },
         )
-        result = load(metadata, Config)
+        result = load(metadata, schema=Config)
 
         assert result.database.host == "localhost"
         assert result.database.port == 5432
@@ -171,15 +171,15 @@ class TestMetadataValidatorsNested:
         content = '{"database": {"host": "", "port": 5432}}'
         json_file.write_text(content)
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].database.host: MinLength(value=1),
+                F[Config].database.host: MinLength(1),
             },
         )
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -196,20 +196,20 @@ class TestMetadataValidatorsComplement:
     def test_metadata_validators_complement_annotated(self, tmp_path: Path):
         @dataclass
         class Config:
-            name: Annotated[str, MinLength(value=3)]
+            name: Annotated[str, MinLength(3)]
             port: int
 
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "Alice", "port": 8080}')
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].name: MaxLength(value=50),
-                F[Config].port: Gt(value=0),
+                F[Config].name: MaxLength(50),
+                F[Config].port: Gt(0),
             },
         )
-        result = load(metadata, Config)
+        result = load(metadata, schema=Config)
 
         assert result.name == "Alice"
         assert result.port == 8080
@@ -217,21 +217,21 @@ class TestMetadataValidatorsComplement:
     def test_annotated_still_validates(self, tmp_path: Path):
         @dataclass
         class Config:
-            name: Annotated[str, MinLength(value=5)]
+            name: Annotated[str, MinLength(5)]
 
         json_file = tmp_path / "config.json"
         content = '{"name": "Al"}'
         json_file.write_text(content)
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].name: MaxLength(value=50),
+                F[Config].name: MaxLength(50),
             },
         )
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -246,21 +246,21 @@ class TestMetadataValidatorsComplement:
     def test_metadata_validator_fails_with_annotated_present(self, tmp_path: Path):
         @dataclass
         class Config:
-            name: Annotated[str, MinLength(value=3)]
+            name: Annotated[str, MinLength(3)]
 
         json_file = tmp_path / "config.json"
         content = '{"name": "This is a very long name that exceeds the limit"}'
         json_file.write_text(content)
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].name: MaxLength(value=10),
+                F[Config].name: MaxLength(10),
             },
         )
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -275,39 +275,39 @@ class TestMetadataValidatorsComplement:
     def test_both_annotated_and_metadata_on_same_field_pass(self, tmp_path: Path):
         @dataclass
         class Config:
-            name: Annotated[str, MinLength(value=3)]
+            name: Annotated[str, MinLength(3)]
 
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "Alice"}')
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].name: MaxLength(value=10),
+                F[Config].name: MaxLength(10),
             },
         )
-        result = load(metadata, Config)
+        result = load(metadata, schema=Config)
 
         assert result.name == "Alice"
 
     def test_annotated_fails_while_metadata_would_pass(self, tmp_path: Path):
         @dataclass
         class Config:
-            name: Annotated[str, MinLength(value=5)]
+            name: Annotated[str, MinLength(5)]
 
         json_file = tmp_path / "config.json"
         content = '{"name": "AB"}'
         json_file.write_text(content)
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].name: MaxLength(value=50),
+                F[Config].name: MaxLength(50),
             },
         )
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -322,39 +322,39 @@ class TestMetadataValidatorsComplement:
     def test_same_validator_type_in_annotated_and_metadata(self, tmp_path: Path):
         @dataclass
         class Config:
-            port: Annotated[int, Ge(value=0)]
+            port: Annotated[int, Ge(0)]
 
         json_file = tmp_path / "config.json"
         json_file.write_text('{"port": 8080}')
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].port: Lt(value=65536),
+                F[Config].port: Lt(65536),
             },
         )
-        result = load(metadata, Config)
+        result = load(metadata, schema=Config)
 
         assert result.port == 8080
 
     def test_same_validator_type_in_annotated_and_metadata_fails(self, tmp_path: Path):
         @dataclass
         class Config:
-            port: Annotated[int, Ge(value=1024)]
+            port: Annotated[int, Ge(1024)]
 
         json_file = tmp_path / "config.json"
         content = '{"port": 80}'
         json_file.write_text(content)
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].port: Lt(value=65536),
+                F[Config].port: Lt(65536),
             },
         )
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -369,21 +369,21 @@ class TestMetadataValidatorsComplement:
     def test_metadata_fails_while_annotated_passes(self, tmp_path: Path):
         @dataclass
         class Config:
-            port: Annotated[int, Ge(value=0)]
+            port: Annotated[int, Ge(0)]
 
         json_file = tmp_path / "config.json"
         content = '{"port": 70000}'
         json_file.write_text(content)
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].port: Lt(value=65536),
+                F[Config].port: Lt(65536),
             },
         )
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -405,8 +405,8 @@ class TestMetadataValidatorsNone:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "Alice"}')
 
-        metadata = Source(file_=json_file)
-        result = load(metadata, Config)
+        metadata = JsonSource(file=json_file)
+        result = load(metadata, schema=Config)
 
         assert result.name == "Alice"
 
@@ -426,14 +426,14 @@ class TestMetadataValidatorsWithRootValidators:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"port": 8080, "user": "admin"}')
 
-        metadata = Source(
-            file_=json_file,
-            root_validators=(RootValidator(func=validate_config),),
+        metadata = JsonSource(
+            file=json_file,
+            root_validators=(RootValidator(validate_config),),
             validators={
-                F[Config].port: Ge(value=0),
+                F[Config].port: Ge(0),
             },
         )
-        result = load(metadata, Config)
+        result = load(metadata, schema=Config)
 
         assert result.port == 8080
         assert result.user == "admin"
@@ -449,11 +449,11 @@ class TestMetadataValidatorsDecorator:
             name: str
             age: int
 
-        metadata = Source(
-            file_=json_file,
+        metadata = JsonSource(
+            file=json_file,
             validators={
-                F[Config].name: MinLength(value=2),
-                F[Config].age: Ge(value=0),
+                F[Config].name: MinLength(2),
+                F[Config].age: Ge(0),
             },
         )
 

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import F, Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -20,17 +20,17 @@ class User:
     address: Address
 
 
-config = load(
-    Source(
-        file_=SOURCES_DIR / "naming_nested_fields.yaml",
+config = dature.load(
+    dature.Yaml12Source(
+        file=SOURCES_DIR / "naming_nested_fields.yaml",
         field_mapping={
-            F[User].name: "fullName",
-            F[User].address: "location",
-            F[Address].city: "cityName",
-            F[Address].street: "streetName",
+            dature.F[User].name: "fullName",
+            dature.F[User].address: "location",
+            dature.F[Address].city: "cityName",
+            dature.F[Address].street: "streetName",
         },
     ),
-    User,
+    schema=User,
 )
 
 assert config.name == "Alice"

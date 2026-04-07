@@ -3,7 +3,7 @@
 import os
 from dataclasses import dataclass
 
-from dature import Source, load
+import dature
 
 os.environ["NS_DB__HOST"] = "localhost"
 os.environ["NS_DB__PORT"] = "5432"
@@ -20,7 +20,7 @@ class Config:
     db: Database
 
 
-config = load(Source(prefix="NS_", split_symbols="__"), Config)
+config = dature.load(dature.EnvSource(prefix="NS_", split_symbols="__"), schema=Config)
 
 assert config.db.host == "localhost"
 assert config.db.port == 5432

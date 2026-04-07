@@ -4,7 +4,7 @@ Load configuration from multiple sources and merge them into one dataclass.
 
 ## Basic Merging
 
-Use `Merge` to combine sources:
+Pass multiple `Source` objects to `dature.load()`:
 
 === "Python"
 
@@ -24,9 +24,9 @@ Use `Merge` to combine sources:
     --8<-- "examples/docs/shared/common_overrides.yaml"
     ```
 
-## Tuple Shorthand
+## Multiple Sources
 
-Pass a tuple of `Source` directly — uses `LAST_WINS` by default:
+Multiple sources use `"last_wins"` by default:
 
 === "Python"
 
@@ -64,14 +64,14 @@ Works as a decorator too:
 
 | Strategy | Behavior |
 |----------|----------|
-| `LAST_WINS` | Last source overrides (default) |
-| `FIRST_WINS` | First source wins |
-| `FIRST_FOUND` | Uses the first source that loads successfully, skips broken sources automatically |
-| `RAISE_ON_CONFLICT` | Raises `MergeConflictError` if the same key appears in multiple sources with different values |
+| `"last_wins"` | Last source overrides (default) |
+| `"first_wins"` | First source wins |
+| `"first_found"` | Uses the first source that loads successfully, skips broken sources automatically |
+| `"raise_on_conflict"` | Raises `MergeConflictError` if the same key appears in multiple sources with different values |
 
 Nested dicts are merged recursively. Lists and scalars are replaced entirely according to the strategy.
 
-=== "LAST_WINS"
+=== "last_wins"
 
     Last source overrides earlier ones. This is the default strategy.
 
@@ -91,7 +91,7 @@ Nested dicts are merged recursively. Lists and scalars are replaced entirely acc
         --8<-- "examples/docs/shared/common_overrides.yaml"
         ```
 
-=== "FIRST_WINS"
+=== "first_wins"
 
     First source wins on conflict. Later sources only fill in missing keys.
 
@@ -111,7 +111,7 @@ Nested dicts are merged recursively. Lists and scalars are replaced entirely acc
         --8<-- "examples/docs/shared/common_overrides.yaml"
         ```
 
-=== "FIRST_FOUND"
+=== "first_found"
 
     Uses the first source that loads successfully and ignores the rest. Broken sources (missing file, parse error) are skipped automatically — no `skip_if_broken` needed. Type errors (wrong type, missing field) are **not** skipped.
 
@@ -125,7 +125,7 @@ Nested dicts are merged recursively. Lists and scalars are replaced entirely acc
         --8<-- "examples/docs/shared/common_defaults.yaml"
         ```
 
-=== "RAISE_ON_CONFLICT"
+=== "raise_on_conflict"
 
     Raises `MergeConflictError` if the same key appears in multiple sources with different values. Works best when sources have disjoint keys.
 
@@ -145,20 +145,17 @@ Nested dicts are merged recursively. Lists and scalars are replaced entirely acc
         --8<-- "examples/docs/shared/common_raise_on_conflict_b.yaml"
         ```
 
-For per-field strategy overrides, see [Per-Field Merge Strategies](../advanced/merge-rules.md#per-field-merge-strategies). To enforce that related fields are always overridden together, see [Field Groups](../advanced/merge-rules.md#field-groups).
+For per-field strategy overrides, see [Per-Field Merge Strategies](../advanced/merge-rules.md#per-field-merge-strategies). To enforce that related fields are always overridden together, see [Field Groups](../advanced/field-groups.md).
 
-## Merge Reference
+## Merge Parameters
 
-```python
---8<-- "src/dature/metadata.py:merge-metadata"
-```
+All merge-related parameters are passed directly to `dature.load()` as keyword arguments:
 
 | Parameter | Description |
 |-----------|-------------|
-| `sources` | Tuple of `Source` descriptors — one per source to merge |
-| `strategy` | Global merge strategy. Default: `LAST_WINS`. See [Merge Strategies](#merge-strategies) |
+| `strategy` | Global merge strategy. Default: `"last_wins"`. See [Merge Strategies](#merge-strategies) |
 | `field_merges` | Per-field merge strategy overrides. See [Per-Field Merge Strategies](../advanced/merge-rules.md#per-field-merge-strategies) |
-| `field_groups` | Enforce related fields are overridden together. See [Field Groups](../advanced/merge-rules.md#field-groups) |
+| `field_groups` | Enforce related fields are overridden together. See [Field Groups](../advanced/field-groups.md) |
 | `skip_broken_sources` | Skip sources that fail to load. See [Skipping Broken Sources](../advanced/merge-rules.md#skipping-broken-sources) |
 | `skip_invalid_fields` | Drop fields with invalid values. See [Skipping Invalid Fields](../advanced/merge-rules.md#skipping-invalid-fields) |
 | `expand_env_vars` | ENV variable expansion mode. See [ENV Expansion](../advanced/env-expansion.md) |

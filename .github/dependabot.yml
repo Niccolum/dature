@@ -3,8 +3,7 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "saturday"
+      interval: "monthly"
       time: "09:00"
       timezone: "Europe/Moscow"
     open-pull-requests-limit: 10
@@ -16,8 +15,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "saturday"
+      interval: "monthly"
       time: "09:00"
       timezone: "Europe/Moscow"
     labels:

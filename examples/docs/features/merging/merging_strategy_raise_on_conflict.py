@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Merge, MergeStrategy, Source, load
+import dature
 
 SHARED_DIR = Path(__file__).parents[2] / "shared"
 
@@ -15,13 +15,11 @@ class Config:
     debug: bool
 
 
-config = load(
-    Merge(
-        Source(file_=SHARED_DIR / "common_raise_on_conflict_a.yaml"),
-        Source(file_=SHARED_DIR / "common_raise_on_conflict_b.yaml"),
-        strategy=MergeStrategy.RAISE_ON_CONFLICT,
-    ),
-    Config,
+config = dature.load(
+    dature.Yaml12Source(file=SHARED_DIR / "common_raise_on_conflict_a.yaml"),
+    dature.Yaml12Source(file=SHARED_DIR / "common_raise_on_conflict_b.yaml"),
+    schema=Config,
+    strategy="raise_on_conflict",
 )
 
 # Disjoint keys — no conflict

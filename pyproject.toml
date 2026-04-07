@@ -83,7 +83,7 @@ ignore = [
     "S105",    # possible hardcoded password
     "FBT001",  # boolean argument in function definition
 ]
-"src/dature/sources_loader/loaders/*.py" = [
+"src/dature/loaders/*.py" = [
     "FBT001",  # loader functions accept bool as scalar value, not as a flag
 ]
 "docs/generate_*.py" = [
@@ -126,7 +126,7 @@ warn_unused_ignores = true
 warn_no_return = true
 strict_equality = true
 explicit_package_bases = true
-mypy_path = "src"
+mypy_path = "src:."
 plugins = ["dature.mypy_plugin"]
 
 [[tool.mypy.overrides]]
@@ -179,6 +179,11 @@ showcontent = true
 [[tool.towncrier.type]]
 directory = "doc"
 name = "Docs"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "refactor"
+name = "Refactoring"
 showcontent = true
 
 [[tool.towncrier.type]]

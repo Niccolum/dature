@@ -1,4 +1,4 @@
-"""Tests for TypeLoader — custom type loading via Source, configure(), and Merge."""
+"""Tests for TypeLoader — custom type loading via Source, configure(), and load()."""
 
 from collections.abc import Generator
 from dataclasses import dataclass
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from dature import Merge, Source, TypeLoader, configure, load
+from dature import Yaml12Source, configure, load
 from dature.config import _ConfigProxy
 
 
@@ -31,10 +31,10 @@ class ConfigWithRgb:
 @pytest.fixture
 def _reset_config() -> Generator[None]:
     _ConfigProxy.set_instance(None)
-    _ConfigProxy.set_type_loaders(())
+    _ConfigProxy.set_type_loaders({})
     yield
     _ConfigProxy.set_instance(None)
-    _ConfigProxy.set_type_loaders(())
+    _ConfigProxy.set_type_loaders({})
 
 
 @pytest.fixture
@@ -47,11 +47,11 @@ def yaml_with_rgb(tmp_path: Path) -> Path:
 class TestTypeLoadersInSource:
     def test_single_source_with_type_loader(self, yaml_with_rgb: Path) -> None:
         result = load(
-            Source(
-                file_=yaml_with_rgb,
-                type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
+            Yaml12Source(
+                file=yaml_with_rgb,
+                type_loaders={Rgb: rgb_from_string},
             ),
-            ConfigWithRgb,
+            schema=ConfigWithRgb,
         )
         assert result.name == "test"
         assert result.color == Rgb(r=255, g=128, b=0)
@@ -66,11 +66,11 @@ class TestTypeLoadersInSource:
         p.write_text("name: app\ncolor: '10,20,30'\n")
 
         result = load(
-            Source(
-                file_=p,
-                type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
+            Yaml12Source(
+                file=p,
+                type_loaders={Rgb: rgb_from_string},
             ),
-            ConfigWithRgb,
+            schema=ConfigWithRgb,
         )
         assert result.color == Rgb(r=10, g=20, b=30)
 
@@ -79,9 +79,9 @@ class TestTypeLoadersInConfigure:
     @pytest.mark.usefixtures("_reset_config")
     def test_global_type_loaders_via_configure(self, yaml_with_rgb: Path) -> None:
         configure(
-            type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
+            type_loaders={Rgb: rgb_from_string},
         )
-        result = load(Source(file_=yaml_with_rgb), ConfigWithRgb)
+        result = load(Yaml12Source(file=yaml_with_rgb), schema=ConfigWithRgb)
         assert result.color == Rgb(r=255, g=128, b=0)
 
 
@@ -93,12 +93,10 @@ class TestTypeLoadersInMerge:
         override.write_text("name: override\n")
 
         result = load(
-            Merge(
-                Source(file_=base),
-                Source(file_=override),
-                type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
-            ),
-            ConfigWithRgb,
+            Yaml12Source(file=base),
+            Yaml12Source(file=override),
+            schema=ConfigWithRgb,
+            type_loaders={Rgb: rgb_from_string},
         )
         assert result.name == "override"
         assert result.color == Rgb(r=1, g=2, b=3)
@@ -116,18 +114,18 @@ class TestTypeLoadersMergedFromBoth:
             return value.upper()
 
         configure(
-            type_loaders=(TypeLoader(type_=Rgb, func=rgb_from_string),),
+            type_loaders={Rgb: rgb_from_string},
         )
 
         p = tmp_path / "cfg.yaml"
         p.write_text("color: '10,20,30'\ntag: hello\n")
 
         result = load(
-            Source(
-                file_=p,
-                type_loaders=(TypeLoader(type_=str, func=tag_upper),),
+            Yaml12Source(
+                file=p,
+                type_loaders={str: tag_upper},
             ),
-            TwoCustom,
+            schema=TwoCustom,
         )
         assert result.color == Rgb(r=10, g=20, b=30)
         assert result.tag == "HELLO"

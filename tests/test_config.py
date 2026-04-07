@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from dature.config import (
@@ -8,7 +10,7 @@ from dature.config import (
     config,
     configure,
 )
-from dature.errors.exceptions import DatureConfigError
+from dature.errors import DatureConfigError
 
 
 @pytest.mark.usefixtures("_reset_config")
@@ -27,27 +29,27 @@ class TestConfigure:
         ("kwargs", "attr_path", "expected"),
         [
             (
-                {"masking": MaskingConfig(mask="[HIDDEN]")},
+                {"masking": {"mask": "[HIDDEN]"}},
                 ("masking", "mask"),
                 "[HIDDEN]",
             ),
             (
-                {"masking": MaskingConfig(visible_prefix=3)},
+                {"masking": {"visible_prefix": 3}},
                 ("masking", "visible_prefix"),
                 3,
             ),
             (
-                {"error_display": ErrorDisplayConfig(max_visible_lines=10)},
+                {"error_display": {"max_visible_lines": 10}},
                 ("error_display", "max_visible_lines"),
                 10,
             ),
             (
-                {"loading": LoadingConfig(cache=False, debug=True)},
+                {"loading": {"cache": False, "debug": True}},
                 ("loading", "cache"),
                 False,
             ),
             (
-                {"loading": LoadingConfig(cache=False, debug=True)},
+                {"loading": {"cache": False, "debug": True}},
                 ("loading", "debug"),
                 True,
             ),
@@ -61,7 +63,7 @@ class TestConfigure:
         ],
     )
     def test_configure_overrides(
-        kwargs: dict[str, MaskingConfig | ErrorDisplayConfig | LoadingConfig],
+        kwargs: dict[str, Any],
         attr_path: tuple[str, str],
         expected: str | int | bool,
     ) -> None:
@@ -74,17 +76,17 @@ class TestConfigure:
         ("kwargs", "unchanged_group", "expected_default"),
         [
             (
-                {"masking": MaskingConfig(mask="###")},
+                {"masking": {"mask": "###"}},
                 "error_display",
                 ErrorDisplayConfig(),
             ),
             (
-                {"masking": MaskingConfig(mask="###")},
+                {"masking": {"mask": "###"}},
                 "loading",
                 LoadingConfig(),
             ),
             (
-                {"error_display": ErrorDisplayConfig(max_visible_lines=10)},
+                {"error_display": {"max_visible_lines": 10}},
                 "masking",
                 MaskingConfig(),
             ),
@@ -96,12 +98,57 @@ class TestConfigure:
         ],
     )
     def test_configure_preserves_other_groups(
-        kwargs: dict[str, MaskingConfig | ErrorDisplayConfig | LoadingConfig],
+        kwargs: dict[str, Any],
         unchanged_group: str,
         expected_default: MaskingConfig | ErrorDisplayConfig | LoadingConfig,
     ) -> None:
         configure(**kwargs)
         assert getattr(config, unchanged_group) == expected_default
+
+
+@pytest.mark.usefixtures("_reset_config")
+class TestConfigureEmptyDictReset:
+    @staticmethod
+    @pytest.mark.parametrize(
+        ("group", "override", "expected_default"),
+        [
+            (
+                "masking",
+                {"mask": "*****", "visible_prefix": 2, "visible_suffix": 2},
+                MaskingConfig(),
+            ),
+            (
+                "error_display",
+                {"max_visible_lines": 10, "max_line_length": 200},
+                ErrorDisplayConfig(),
+            ),
+            (
+                "loading",
+                {"cache": False, "debug": True},
+                LoadingConfig(),
+            ),
+        ],
+        ids=["masking", "error_display", "loading"],
+    )
+    def test_empty_dict_resets_group_to_defaults(
+        group: str,
+        override: dict[str, Any],
+        expected_default: MaskingConfig | ErrorDisplayConfig | LoadingConfig,
+    ) -> None:
+        configure(**{group: override})
+        assert getattr(config, group) != expected_default
+
+        configure(**{group: {}})
+        assert getattr(config, group) == expected_default
+
+    @staticmethod
+    def test_empty_dict_preserves_other_groups() -> None:
+        configure(masking={"mask": "*****"}, error_display={"max_visible_lines": 10})
+
+        configure(masking={})
+
+        assert config.masking == MaskingConfig()
+        assert config.error_display.max_visible_lines == 10
 
 
 @pytest.mark.usefixtures("_reset_config")

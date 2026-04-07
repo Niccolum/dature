@@ -1,10 +1,10 @@
-"""Report on error — get_load_report() from the dataclass type after a failed load."""
+"""Report on error — dature.get_load_report() from the dataclass type after a failed load."""
 
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Merge, Source, get_load_report, load
-from dature.errors.exceptions import DatureConfigError
+import dature
+from dature.errors import DatureConfigError
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 SHARED_DIR = Path(__file__).parents[2] / "shared"
@@ -18,16 +18,14 @@ class Config:
 
 
 try:
-    config = load(
-        Merge(
-            Source(file_=SHARED_DIR / "common_overrides.yaml"),
-            Source(file_=SOURCES_DIR / "advanced_debug_error_defaults.yaml"),
-        ),
-        Config,
+    config = dature.load(
+        dature.Yaml12Source(file=SHARED_DIR / "common_overrides.yaml"),
+        dature.Yaml12Source(file=SOURCES_DIR / "advanced_debug_error_defaults.yaml"),
+        schema=Config,
         debug=True,
     )
 except DatureConfigError:
-    report = get_load_report(Config)
+    report = dature.get_load_report(Config)
     assert report is not None
 
     assert report.dataclass_name == "Config"

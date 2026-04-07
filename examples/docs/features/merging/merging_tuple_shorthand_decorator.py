@@ -1,21 +1,19 @@
-"""Tuple shorthand as a decorator — implicit LAST_WINS merge."""
+"""Multiple sources as a decorator — implicit LAST_WINS merge."""
 
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
+import dature
 
 SHARED_DIR = Path(__file__).parents[2] / "shared"
 
 os.environ["APP_HOST"] = "env_localhost"
 
 
-@load(
-    (
-        Source(file_=SHARED_DIR / "common_defaults.yaml"),
-        Source(prefix="APP_"),
-    ),
+@dature.load(
+    dature.Yaml12Source(file=SHARED_DIR / "common_defaults.yaml"),
+    dature.EnvSource(prefix="APP_"),
 )
 @dataclass
 class Config:

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -14,9 +14,9 @@ class Config:
     port: int = 3000
 
 
-config = load(
-    Source(file_=SOURCES_DIR / "merging_skip_invalid_defaults.yaml", skip_if_invalid=True),
-    Config,
+config = dature.load(
+    dature.Yaml12Source(file=SOURCES_DIR / "merging_skip_invalid_defaults.yaml", skip_if_invalid=True),
+    schema=Config,
 )
 
 assert config.host == "localhost"

@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Merge, MergeStrategy, Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -14,13 +14,11 @@ class Config:
     port: int
 
 
-config = load(
-    Merge(
-        Source(file_=SOURCES_DIR / "merging_first_found_primary.yaml"),
-        Source(file_=SOURCES_DIR / "merging_first_found_fallback.yaml"),
-        strategy=MergeStrategy.FIRST_FOUND,
-    ),
-    Config,
+config = dature.load(
+    dature.Yaml12Source(file=SOURCES_DIR / "merging_first_found_primary.yaml"),
+    dature.Yaml12Source(file=SOURCES_DIR / "merging_first_found_fallback.yaml"),
+    schema=Config,
+    strategy="first_found",
 )
 
 assert config.host == "production-host"

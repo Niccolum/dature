@@ -4,8 +4,8 @@ from typing import Annotated, Any
 
 import pytest
 
-from dature import Source, load
-from dature.errors.exceptions import DatureConfigError
+from dature import JsonSource, load
+from dature.errors import DatureConfigError
 from dature.validators.number import Ge, Le
 from dature.validators.sequence import MinItems, UniqueItems
 from dature.validators.string import MaxLength, MinLength, RegexPattern
@@ -15,15 +15,15 @@ class TestMultipleFields:
     def test_success(self, tmp_path: Path):
         @dataclass
         class Config:
-            name: Annotated[str, MinLength(value=3), MaxLength(value=50)]
-            age: Annotated[int, Ge(value=0), Le(value=150)]
-            tags: Annotated[list[str], MinItems(value=1), UniqueItems()]
+            name: Annotated[str, MinLength(3), MaxLength(50)]
+            age: Annotated[int, Ge(0), Le(150)]
+            tags: Annotated[list[str], MinItems(1), UniqueItems()]
 
         json_file = tmp_path / "config.json"
         json_file.write_text('{"name": "Alice", "age": 30, "tags": ["python", "coding"]}')
 
-        metadata = Source(file_=json_file)
-        result = load(metadata, Config)
+        metadata = JsonSource(file=json_file)
+        result = load(metadata, schema=Config)
 
         assert result.name == "Alice"
         assert result.age == 30
@@ -32,18 +32,18 @@ class TestMultipleFields:
     def test_all_invalid(self, tmp_path: Path):
         @dataclass
         class Config:
-            name: Annotated[str, MinLength(value=3), MaxLength(value=50)]
-            age: Annotated[int, Ge(value=0), Le(value=150)]
-            tags: Annotated[list[str], MinItems(value=1), UniqueItems()]
+            name: Annotated[str, MinLength(3), MaxLength(50)]
+            age: Annotated[int, Ge(0), Le(150)]
+            tags: Annotated[list[str], MinItems(1), UniqueItems()]
 
         json_file = tmp_path / "config.json"
         content = '{"name": "AB", "age": 200, "tags": []}'
         json_file.write_text(content)
 
-        metadata = Source(file_=json_file)
+        metadata = JsonSource(file=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 3
@@ -72,13 +72,13 @@ class TestNestedDataclass:
     def test_success(self, tmp_path: Path):
         @dataclass
         class Address:
-            city: Annotated[str, MinLength(value=2)]
-            zip_code: Annotated[str, RegexPattern(pattern=r"^\d{5}$")]
+            city: Annotated[str, MinLength(2)]
+            zip_code: Annotated[str, RegexPattern(r"^\d{5}$")]
 
         @dataclass
         class User:
-            name: Annotated[str, MinLength(value=3)]
-            age: Annotated[int, Ge(value=18)]
+            name: Annotated[str, MinLength(3)]
+            age: Annotated[int, Ge(18)]
             address: Address
 
         json_file = tmp_path / "config.json"
@@ -86,8 +86,8 @@ class TestNestedDataclass:
             '{"name": "Alice", "age": 30, "address": {"city": "NYC", "zip_code": "12345"}}',
         )
 
-        metadata = Source(file_=json_file)
-        result = load(metadata, User)
+        metadata = JsonSource(file=json_file)
+        result = load(metadata, schema=User)
 
         assert result.name == "Alice"
         assert result.age == 30
@@ -97,23 +97,23 @@ class TestNestedDataclass:
     def test_all_invalid(self, tmp_path: Path):
         @dataclass
         class Address:
-            city: Annotated[str, MinLength(value=2)]
-            zip_code: Annotated[str, RegexPattern(pattern=r"^\d{5}$")]
+            city: Annotated[str, MinLength(2)]
+            zip_code: Annotated[str, RegexPattern(r"^\d{5}$")]
 
         @dataclass
         class User:
-            name: Annotated[str, MinLength(value=3)]
-            age: Annotated[int, Ge(value=18)]
+            name: Annotated[str, MinLength(3)]
+            age: Annotated[int, Ge(18)]
             address: Address
 
         json_file = tmp_path / "config.json"
         content = '{"name": "Al", "age": 15, "address": {"city": "N", "zip_code": "ABCDE"}}'
         json_file.write_text(content)
 
-        metadata = Source(file_=json_file)
+        metadata = JsonSource(file=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, User)
+            load(metadata, schema=User)
 
         e = exc_info.value
         assert len(e.exceptions) == 4
@@ -148,16 +148,16 @@ class TestCustomErrorMessage:
     def test_custom_error_message(self, tmp_path: Path):
         @dataclass
         class Config:
-            age: Annotated[int, Ge(value=18, error_message="Age must be 18 or older")]
+            age: Annotated[int, Ge(18, error_message="Age must be 18 or older")]
 
         json_file = tmp_path / "config.json"
         content = '{"age": 15}'
         json_file.write_text(content)
 
-        metadata = Source(file_=json_file)
+        metadata = JsonSource(file=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -171,31 +171,31 @@ class TestDictListDict:
     def test_raw_dict_field_validator_success(self, tmp_path: Path):
         @dataclass
         class Config:
-            groups: Annotated[dict[str, list[dict[str, Any]]], MinItems(value=1)]
+            groups: Annotated[dict[str, list[dict[str, Any]]], MinItems(1)]
 
         json_file = tmp_path / "config.json"
         json_file.write_text(
             '{"groups": {"admins": [{"name": "Alice"}]}}',
         )
 
-        metadata = Source(file_=json_file)
-        result = load(metadata, Config)
+        metadata = JsonSource(file=json_file)
+        result = load(metadata, schema=Config)
 
         assert result.groups == {"admins": [{"name": "Alice"}]}
 
     def test_raw_dict_field_validator_failure(self, tmp_path: Path):
         @dataclass
         class Config:
-            groups: Annotated[dict[str, list[dict[str, Any]]], MinItems(value=1)]
+            groups: Annotated[dict[str, list[dict[str, Any]]], MinItems(1)]
 
         json_file = tmp_path / "config.json"
         content = '{"groups": {}}'
         json_file.write_text(content)
 
-        metadata = Source(file_=json_file)
+        metadata = JsonSource(file=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 1
@@ -210,8 +210,8 @@ class TestDictListDict:
     def test_nested_dataclass_in_dict_list_success(self, tmp_path: Path):
         @dataclass
         class Member:
-            name: Annotated[str, MinLength(value=2)]
-            role: Annotated[str, MinLength(value=3)]
+            name: Annotated[str, MinLength(2)]
+            role: Annotated[str, MinLength(3)]
 
         @dataclass
         class Config:
@@ -222,8 +222,8 @@ class TestDictListDict:
             '{"teams": {"backend": [{"name": "Alice", "role": "admin"}]}}',
         )
 
-        metadata = Source(file_=json_file)
-        result = load(metadata, Config)
+        metadata = JsonSource(file=json_file)
+        result = load(metadata, schema=Config)
 
         assert result.teams["backend"][0].name == "Alice"
         assert result.teams["backend"][0].role == "admin"
@@ -231,8 +231,8 @@ class TestDictListDict:
     def test_nested_dataclass_in_dict_list_validation_fails(self, tmp_path: Path):
         @dataclass
         class Member:
-            name: Annotated[str, MinLength(value=2)]
-            role: Annotated[str, MinLength(value=3)]
+            name: Annotated[str, MinLength(2)]
+            role: Annotated[str, MinLength(3)]
 
         @dataclass
         class Config:
@@ -242,10 +242,10 @@ class TestDictListDict:
         content = '{"teams": {"backend": [{"name": "A", "role": "ab"}]}}'
         json_file.write_text(content)
 
-        metadata = Source(file_=json_file)
+        metadata = JsonSource(file=json_file)
 
         with pytest.raises(DatureConfigError) as exc_info:
-            load(metadata, Config)
+            load(metadata, schema=Config)
 
         e = exc_info.value
         assert len(e.exceptions) == 2

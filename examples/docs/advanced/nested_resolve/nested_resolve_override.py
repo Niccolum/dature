@@ -3,8 +3,7 @@
 import os
 from dataclasses import dataclass
 
-from dature import F, Source, load
-from dature.sources_loader.env_ import EnvLoader
+import dature
 
 os.environ["APP__DATABASE"] = '{"host": "json-host", "port": "5432"}'
 os.environ["APP__DATABASE__HOST"] = "flat-host"
@@ -33,14 +32,13 @@ class Config:
 
 
 # Global: "flat" for everything, but database overridden to "json"
-config = load(
-    Source(
-        loader=EnvLoader,
+config = dature.load(
+    dature.EnvSource(
         prefix="APP__",
         nested_resolve_strategy="flat",
-        nested_resolve={"json": (F[Config].database,)},
+        nested_resolve={"json": (dature.F[Config].database,)},
     ),
-    Config,
+    schema=Config,
 )
 
 assert config.database.host == "json-host"  # per-field override wins

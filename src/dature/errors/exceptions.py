@@ -21,7 +21,7 @@ class LineRange:
 
 @dataclass(frozen=True, slots=True)
 class SourceLocation:
-    display_label: str
+    location_label: str
     file_path: Path | None
     line_range: LineRange | None
     line_content: list[str] | None
@@ -88,7 +88,7 @@ def _format_location(
     suffix = f" ({loc.annotation})" if loc.annotation is not None else ""
 
     if loc.env_var_name is not None and loc.file_path is None:
-        main = f"   {connector} {loc.display_label} '{loc.env_var_name}'"
+        main = f"   {connector} {loc.location_label} '{loc.env_var_name}'"
         if loc.env_var_value is not None:
             main += f" = '{loc.env_var_value}'"
         return [main + suffix]
@@ -105,23 +105,23 @@ def _format_location(
                 return [
                     *_format_content_lines(loc.line_content, prefix="   ├── "),
                     f"   │   {' ' * found.pos}{'^' * caret_len}",
-                    *_format_file_line(loc, connector="└──" if is_last else "├──", suffix=suffix),
+                    *_format_fileline(loc, connector="└──" if is_last else "├──", suffix=suffix),
                 ]
 
     if loc.line_content is not None:
         return [
             *_format_content_lines(loc.line_content, prefix="   ├── "),
-            *_format_file_line(loc, connector="└──" if is_last else "├──", suffix=suffix),
+            *_format_fileline(loc, connector="└──" if is_last else "├──", suffix=suffix),
         ]
 
-    return _format_file_line(loc, connector="└──" if is_last else "├──", suffix=suffix)
+    return _format_fileline(loc, connector="└──" if is_last else "├──", suffix=suffix)
 
 
-def _format_file_line(loc: SourceLocation, *, connector: str, suffix: str = "") -> list[str]:
-    file_main = f"   {connector} {loc.display_label} '{loc.file_path}'"
+def _format_fileline(loc: SourceLocation, *, connector: str, suffix: str = "") -> list[str]:
+    filemain = f"   {connector} {loc.location_label} '{loc.file_path}'"
     if loc.line_range is not None:
-        file_main += f", {loc.line_range!r}"
-    return [file_main + suffix]
+        filemain += f", {loc.line_range!r}"
+    return [filemain + suffix]
 
 
 def _format_path(field_path: list[str]) -> str:
@@ -344,8 +344,4 @@ class FieldGroupError(DatureConfigError):
         return super().__new__(cls, dataclass_name, errors)
 
     def __str__(self) -> str:
-        lines = [f"{self.dataclass_name} field group errors ({len(self.exceptions)})", ""]
-        for exc in self.exceptions:
-            lines.append(str(exc))
-            lines.append("")
-        return "\n".join(lines)
+        return f"{self.dataclass_name} field group errors ({len(self.exceptions)})"

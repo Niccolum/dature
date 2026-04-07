@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -17,9 +17,9 @@ class Config:
     fallback_url: str
 
 
-config = load(
-    Source(file_=SOURCES_DIR / "advanced_env_expansion_strict.yaml", expand_env_vars="strict"),
-    Config,
+config = dature.load(
+    dature.Yaml12Source(file=SOURCES_DIR / "advanced_env_expansion_strict.yaml", expand_env_vars="strict"),
+    schema=Config,
 )
 
 assert config.resolved_url == "https://api.example.com/api/v1"

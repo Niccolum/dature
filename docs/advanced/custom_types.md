@@ -4,19 +4,23 @@
 
 Use `type_loaders` to teach dature how to parse custom types from strings.
 
-Each `TypeLoader` maps a type to a conversion function:
+Pass `type_loaders` as a `dict[type, Callable]` mapping types to conversion functions:
 
-```python
---8<-- "examples/docs/advanced/custom_types/custom_type.py"
-```
+=== "Python"
 
-```yaml title="custom_type_common.yaml"
---8<-- "examples/docs/advanced/custom_types/sources/custom_type_common.yaml"
-```
+    ```python
+    --8<-- "examples/docs/advanced/custom_types/custom_type.py"
+    ```
+
+=== "custom_type_common.yaml"
+
+    ```yaml
+    --8<-- "examples/docs/advanced/custom_types/sources/custom_type_common.yaml"
+    ```
 
 ### Per-source vs Global
 
-`type_loaders` can be set per-source in `Source`, per-merge in `Merge`, or globally via `configure()`:
+`type_loaders` can be set per-source in `Source`, in `dature.load()` for merge mode, or globally via `configure()`:
 
 === "Per-source (Source)"
 
@@ -24,7 +28,7 @@ Each `TypeLoader` maps a type to a conversion function:
     --8<-- "examples/docs/advanced/custom_types/custom_type.py"
     ```
 
-=== "Per-merge (Merge)"
+=== "Per-merge (load)"
 
     ```python
     --8<-- "examples/docs/advanced/custom_types/custom_type_merge.py"
@@ -36,25 +40,46 @@ Each `TypeLoader` maps a type to a conversion function:
     --8<-- "examples/docs/advanced/custom_types/advanced_configure_type_loaders.py"
     ```
 
-When both per-source and global `type_loaders` are set, they merge — per-source loaders take priority (placed first in the recipe).
+When both per-source and global `type_loaders` are set, they merge — per-source loaders take priority.
 
-### TypeLoader Reference
+## Custom Source Classes
+
+For formats that dature doesn't support out of the box, you can create your own source by subclassing one of the base classes from `dature.sources.base`:
+
+### Choosing a base class
+
+| Base class | Use when | You implement | You get for free |
+|------------|----------|---------------|------------------|
+| [`Source`](../api-reference.md#source) | Non-file data (API, database, custom protocol) | `format_name`, `_load() -> JSONValue` | Prefix filtering, env var expansion, type coercion, validation, merge support |
+| [`FileSource`](../api-reference.md#filesourcesource) | File-based format (XML, CSV, HCL, …) | `format_name`, `_load_file(path: FileOrStream) -> JSONValue` | Everything from `Source` + `file` parameter, stream support, `file_display()`, `file_path_for_errors()`, `__repr__` |
+| [`FlatKeySource`](../api-reference.md#flatkeysourcesource) | Flat key=value data (custom env store, Consul KV, …) | `format_name`, `_load() -> JSONValue` (flat `dict[str, str]`) | Everything from `Source` + `split_symbols` nesting, `nested_resolve`, automatic string→type parsing (`int`, `bool`, `date`, …) |
+
+All base classes are in `dature.sources.base`:
 
 ```python
---8<-- "src/dature/metadata.py:type-loader"
+--8<-- "examples/docs/advanced/custom_types/custom_source_import.py"
 ```
 
-| Parameter | Description |
-|-----------|-------------|
-| `type_` | The target type to register a loader for |
-| `func` | A callable that converts the raw value to the target type |
+### Minimal interface
 
-## Custom Loaders
+Every custom source needs:
 
-For formats that dature doesn't support out of the box, subclass `BaseLoader` and implement two things:
+1. **`format_name`** — class-level string shown in `__repr__` and error messages (e.g. `"xml"`, `"consul"`)
+2. **A load method** — `_load()` for `Source`/`FlatKeySource`, or `_load_file(path)` for `FileSource`. Must return `JSONValue` (a nested dict).
 
-1. `display_name` — a class-level string shown in error messages
-2. `_load(path)` — returns `JSONValue` (a nested dict) from the source
+### Optional overrides
+
+| Method | Default | Override when |
+|--------|---------|---------------|
+| `additional_loaders()` | `[]` (FileSource) or string-value loaders (FlatKeySource) | Your format stores all values as strings and needs extra type parsers (e.g. `bool`, `float`). |
+| `file_display()` | `None` | Your source has a meaningful display path (shown in logs and errors). |
+| `file_path_for_errors()` | `None` | Your source points to a file on disk (used in error messages). |
+| `resolve_location(...)` | Empty `SourceLocation` | You want errors to show line numbers or variable names from your source. |
+| `location_label` | inherited | Change the label in error messages (e.g. `"FILE"`, `"ENV"`, `"API"`). |
+
+### Example: FileSource subclass
+
+The most common case — reading a file format:
 
 ```python
 --8<-- "examples/docs/advanced/custom_types/custom_loader.py"
@@ -64,4 +89,18 @@ For formats that dature doesn't support out of the box, subclass `BaseLoader` an
 --8<-- "examples/docs/advanced/custom_types/sources/custom_loader.xml"
 ```
 
-Pass your custom loader via the `loader` parameter in `Source`. All built-in features (type coercion, validation, prefix extraction, ENV expansion) work automatically.
+`FileSource` handles the `file` parameter, path expansion, and stream detection. Your `_load_file()` receives a `Path` or file-like object and returns a dict.
+
+### Example: Source subclass (non-file)
+
+For sources that don't read files — e.g. an API, a database, or an in-memory dict:
+
+```python
+--8<-- "examples/docs/advanced/custom_types/custom_dict_source.py"
+```
+
+### Tips
+
+- All built-in features (type coercion, validation, prefix extraction, ENV expansion, merge support) work automatically with any custom source.
+- Override `additional_loaders()` to return `_string_value_loaders()` from `dature.sources.base` if your format stores everything as strings (like INI or ENV).
+- Pass your custom source to `dature.load()` the same way as any built-in source.

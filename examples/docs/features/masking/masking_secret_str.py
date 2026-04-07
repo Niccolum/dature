@@ -3,8 +3,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Source, load
-from dature.errors.exceptions import DatureConfigError
+import dature
 from dature.fields.payment_card import PaymentCardNumber
 from dature.fields.secret_str import SecretStr
 
@@ -18,20 +17,7 @@ class Config:
     host: str
 
 
-try:
-    config = load(
-        Source(file_=SOURCES_DIR / "masking_secret_str.yaml"),
-        Config,
-    )
-except DatureConfigError as exc:
-    source = str(SOURCES_DIR / "masking_secret_str.yaml")
-    assert str(exc) == "Config loading errors (1)"
-    assert len(exc.exceptions) == 1
-    assert str(exc.exceptions[0]) == (
-        "  [card_number]  Card number must contain only digits\n"
-        f'   ├── card_number: "<REDACTED>"\n'
-        "   │                 ^^^^^^^^^^\n"
-        f"   └── FILE '{source}', line 2"
-    )
-else:
-    raise AssertionError("Expected DatureConfigError")
+dature.load(
+    dature.Yaml12Source(file=SOURCES_DIR / "masking_secret_str.yaml"),
+    schema=Config,
+)

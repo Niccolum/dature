@@ -8,8 +8,8 @@ from typing import Annotated
 
 import pytest
 
-from dature import Merge, MergeStrategy, Source, get_load_report, load
-from dature.errors.exceptions import DatureConfigError
+from dature import JsonSource, get_load_report, load
+from dature.errors import DatureConfigError
 from dature.load_report import FieldOrigin, LoadReport, SourceEntry
 from dature.validators.number import Ge
 
@@ -28,11 +28,9 @@ class TestGetLoadReportMergeFunction:
             port: int
 
         result = load(
-            Merge(
-                Source(file_=defaults),
-                Source(file_=overrides),
-            ),
-            Config,
+            JsonSource(file=defaults),
+            JsonSource(file=overrides),
+            schema=Config,
             debug=True,
         )
 
@@ -40,7 +38,7 @@ class TestGetLoadReportMergeFunction:
 
         expected = LoadReport(
             dataclass_name="Config",
-            strategy=MergeStrategy.LAST_WINS,
+            strategy="last_wins",
             sources=(
                 SourceEntry(
                     index=0,
@@ -88,12 +86,10 @@ class TestGetLoadReportMergeFunction:
             port: int
 
         result = load(
-            Merge(
-                Source(file_=first),
-                Source(file_=second),
-                strategy=MergeStrategy.FIRST_WINS,
-            ),
-            Config,
+            JsonSource(file=first),
+            JsonSource(file=second),
+            schema=Config,
+            strategy="first_wins",
             debug=True,
         )
 
@@ -101,7 +97,7 @@ class TestGetLoadReportMergeFunction:
 
         expected = LoadReport(
             dataclass_name="Config",
-            strategy=MergeStrategy.FIRST_WINS,
+            strategy="first_wins",
             sources=(
                 SourceEntry(
                     index=0,
@@ -153,11 +149,9 @@ class TestGetLoadReportMergeFunction:
             database: Database
 
         result = load(
-            Merge(
-                Source(file_=defaults),
-                Source(file_=overrides),
-            ),
-            Config,
+            JsonSource(file=defaults),
+            JsonSource(file=overrides),
+            schema=Config,
             debug=True,
         )
 
@@ -193,7 +187,7 @@ class TestGetLoadReportSingleSource:
             name: str
             port: int
 
-        result = load(Source(file_=json_file), Config, debug=True)
+        result = load(JsonSource(file=json_file), schema=Config, debug=True)
 
         report = get_load_report(result)
 
@@ -237,12 +231,7 @@ class TestGetLoadReportDecorator:
         overrides = tmp_path / "overrides.json"
         overrides.write_text('{"port": 9090}')
 
-        meta = Merge(
-            Source(file_=defaults),
-            Source(file_=overrides),
-        )
-
-        @load(meta, debug=True)
+        @load(JsonSource(file=defaults), JsonSource(file=overrides), debug=True)
         @dataclass
         class Config:
             host: str
@@ -251,14 +240,14 @@ class TestGetLoadReportDecorator:
         config = Config()
         report = get_load_report(config)
         assert report is not None
-        assert report.strategy == MergeStrategy.LAST_WINS
+        assert report.strategy == "last_wins"
         assert len(report.sources) == 2
 
     def test_single_source_decorator(self, tmp_path: Path):
         json_file = tmp_path / "config.json"
         json_file.write_text('{"host": "localhost", "port": 3000}')
 
-        @load(Source(file_=json_file), debug=True)
+        @load(JsonSource(file=json_file), debug=True)
         @dataclass
         class Config:
             host: str
@@ -290,7 +279,7 @@ class TestGetLoadReportWithoutDebug:
             host: str
             port: int
 
-        result = load(Source(file_=json_file), Config)
+        result = load(JsonSource(file=json_file), schema=Config)
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
@@ -316,21 +305,19 @@ class TestDebugLogging:
 
         with caplog.at_level(logging.DEBUG, logger="dature"):
             load(
-                Merge(
-                    Source(file_=defaults),
-                    Source(file_=overrides),
-                ),
-                Config,
+                JsonSource(file=defaults),
+                JsonSource(file=overrides),
+                schema=Config,
             )
 
         messages = [r.message for r in caplog.records if r.name == "dature"]
 
         expected = [
-            f"[JsonLoader] load_raw: path={defaults},"
+            f"[JsonSource] load_raw: source={defaults},"
             " raw_keys=['host', 'port'], after_preprocessing_keys=['host', 'port']",
             f"[Config] Source 0 loaded: loader=json, file={defaults}, keys=['host', 'port']",
             "[Config] Source 0 raw data: {'host': 'localhost', 'port': 3000}",
-            f"[JsonLoader] load_raw: path={overrides}, raw_keys=['port'], after_preprocessing_keys=['port']",
+            f"[JsonSource] load_raw: source={overrides}, raw_keys=['port'], after_preprocessing_keys=['port']",
             f"[Config] Source 1 loaded: loader=json, file={overrides}, keys=['port']",
             "[Config] Source 1 raw data: {'port': 8080}",
             "[Config] Merge step 0 (strategy=last_wins): added=['host', 'port'], overwritten=[]",
@@ -353,12 +340,12 @@ class TestDebugLogging:
             port: int
 
         with caplog.at_level(logging.DEBUG, logger="dature"):
-            load(Source(file_=json_file), Config)
+            load(JsonSource(file=json_file), schema=Config)
 
         messages = [r.message for r in caplog.records if r.name == "dature"]
 
         expected = [
-            f"[JsonLoader] load_raw: path={json_file},"
+            f"[JsonSource] load_raw: source={json_file},"
             " raw_keys=['host', 'port'], after_preprocessing_keys=['host', 'port']",
             f"[Config] Single-source load: loader=json, file={json_file}",
             "[Config] Loaded data: {'host': 'localhost', 'port': 3000}",
@@ -381,17 +368,15 @@ class TestLoadReportOnError:
 
         with pytest.raises(DatureConfigError):
             load(
-                Merge(
-                    Source(file_=a),
-                    Source(file_=b),
-                ),
-                Config,
+                JsonSource(file=a),
+                JsonSource(file=b),
+                schema=Config,
                 debug=True,
             )
 
         expected = LoadReport(
             dataclass_name="Config",
-            strategy=MergeStrategy.LAST_WINS,
+            strategy="last_wins",
             sources=(
                 SourceEntry(index=0, file_path=str(a), loader_type="json", raw_data={"host": "localhost"}),
                 SourceEntry(index=1, file_path=str(b), loader_type="json", raw_data={"host": "override"}),
@@ -419,21 +404,19 @@ class TestLoadReportOnError:
         @dataclass
         class Config:
             host: str
-            port: Annotated[int, Ge(value=0)]
+            port: Annotated[int, Ge(0)]
 
         with pytest.raises(DatureConfigError):
             load(
-                Merge(
-                    Source(file_=a),
-                    Source(file_=b),
-                ),
-                Config,
+                JsonSource(file=a),
+                JsonSource(file=b),
+                schema=Config,
                 debug=True,
             )
 
         expected = LoadReport(
             dataclass_name="Config",
-            strategy=MergeStrategy.LAST_WINS,
+            strategy="last_wins",
             sources=(
                 SourceEntry(index=0, file_path=str(a), loader_type="json", raw_data={"port": -5}),
                 SourceEntry(index=1, file_path=str(b), loader_type="json", raw_data={"host": "localhost"}),
@@ -462,7 +445,7 @@ class TestLoadReportOnError:
             port: int
 
         with pytest.raises(DatureConfigError):
-            load(Source(file_=json_file), Config, debug=True)
+            load(JsonSource(file=json_file), schema=Config, debug=True)
 
         expected = LoadReport(
             dataclass_name="Config",
@@ -489,10 +472,10 @@ class TestLoadReportOnError:
 
         @dataclass
         class Config:
-            port: Annotated[int, Ge(value=0)]
+            port: Annotated[int, Ge(0)]
 
         with pytest.raises(DatureConfigError):
-            load(Source(file_=json_file), Config, debug=True)
+            load(JsonSource(file=json_file), schema=Config, debug=True)
 
         expected = LoadReport(
             dataclass_name="Config",

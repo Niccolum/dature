@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from dature import Merge, Source, load
+import dature
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -21,14 +21,12 @@ class Config:
     disabled_unset_url: str
 
 
-config = load(
-    Merge(
-        Source(file_=SOURCES_DIR / "advanced_env_expansion_merge_default.yaml"),  # uses global "default"
-        Source(file_=SOURCES_DIR / "advanced_env_expansion_merge_empty.yaml", expand_env_vars="empty"),
-        Source(file_=SOURCES_DIR / "advanced_env_expansion_merge_disabled.yaml", expand_env_vars="disabled"),
-        expand_env_vars="default",  # global default for all sources
-    ),
-    Config,
+config = dature.load(
+    dature.Yaml12Source(file=SOURCES_DIR / "advanced_env_expansion_merge_default.yaml"),  # uses global "default"
+    dature.Yaml12Source(file=SOURCES_DIR / "advanced_env_expansion_merge_empty.yaml", expand_env_vars="empty"),
+    dature.Yaml12Source(file=SOURCES_DIR / "advanced_env_expansion_merge_disabled.yaml", expand_env_vars="disabled"),
+    schema=Config,
+    expand_env_vars="default",  # global default for all sources
 )
 
 assert config.default_set_url == "https://api.example.com/api"

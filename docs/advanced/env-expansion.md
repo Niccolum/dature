@@ -49,7 +49,7 @@ Set the mode on `Source`:
     --8<-- "examples/docs/advanced/env_expansion/sources/advanced_env_expansion_strict.yaml"
     ```
 
-For merge mode, set on `Merge` as default for all sources:
+For merge mode, pass `expand_env_vars` to `dature.load()` as default for all sources:
 
 === "Python"
 
@@ -131,7 +131,7 @@ The `${VAR:-default}` fallback syntax works in all modes.
 
 ## File Path Expansion
 
-Environment variables in `Source(file_=...)` are expanded automatically in `"strict"` mode — if a variable is missing, `EnvVarExpandError` is raised immediately at `Source` creation time.
+Environment variables in the `file=...` parameter of Source subclasses are expanded automatically in `"strict"` mode — if a variable is missing, `EnvVarExpandError` is raised immediately at Source creation time.
 
 This works for both directory paths and file names:
 
