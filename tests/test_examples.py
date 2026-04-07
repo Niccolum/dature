@@ -2,6 +2,7 @@ import os
 import pathlib
 import subprocess
 import sys
+import tempfile
 
 import pytest
 
@@ -15,15 +16,28 @@ def _run_example(script_path: pathlib.Path) -> subprocess.CompletedProcess[str]:
     project_root = pathlib.Path(__file__).parent.parent / "src"
     env["PYTHONPATH"] = str(project_root) + os.pathsep + env.get("PYTHONPATH", "")
 
-    # process_group=0 forces posix_spawn instead of fork on macOS,
-    # avoiding segfaults in subprocess._execute_child (CPython + macOS CI)
-    return subprocess.run(  # noqa: PLW1510, S603
-        [sys.executable, str(script_path)],
-        capture_output=True,
-        text=True,
-        env=env,
-        process_group=0,
-    )
+    # Redirect to temp files instead of pipes (capture_output=True).
+    # Pipes force CPython to use fork() instead of posix_spawn(),
+    # which causes segfaults on macOS CI (Python 3.12-3.14).
+    with (
+        tempfile.TemporaryFile(mode="w+") as stdout_f,
+        tempfile.TemporaryFile(mode="w+") as stderr_f,
+    ):
+        result = subprocess.run(  # noqa: PLW1510, S603
+            [sys.executable, str(script_path)],
+            stdout=stdout_f,
+            stderr=stderr_f,
+            text=True,
+            env=env,
+        )
+        stdout_f.seek(0)
+        stderr_f.seek(0)
+        return subprocess.CompletedProcess(
+            args=result.args,
+            returncode=result.returncode,
+            stdout=stdout_f.read(),
+            stderr=stderr_f.read(),
+        )
 
 
 def _resolve_stderr_placeholders(template: str, script_path: pathlib.Path) -> str:
