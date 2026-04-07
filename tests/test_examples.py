@@ -62,6 +62,7 @@ def _run_example(script_path: pathlib.Path) -> ScriptResult:
     project_root = pathlib.Path(__file__).parent.parent / "src"
     env = os.environ.copy()
     env["PYTHONPATH"] = str(project_root) + os.pathsep + env.get("PYTHONPATH", "")
+    env["PYTHONIOENCODING"] = "utf-8"
 
     if _IS_POSIX:
         return _run_via_posix_spawn(script_path, env)
