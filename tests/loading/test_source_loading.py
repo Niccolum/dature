@@ -380,11 +380,15 @@ class TestEnvVarExpandErrorFormat:
                 schema=StrictConfig,
             )
 
+        eq_pos = line_content.find("=")
+        caret_pos = eq_pos + 1 if eq_pos != -1 else 0
+        caret_len = len(line_content) - caret_pos
         assert str(exc_info.value) == dedent(f"""\
             StrictConfig env expand errors (1)
 
               [host]  Missing environment variable 'MISSING_HOST'
                ├── {line_content}
+               │   {" " * caret_pos}{"^" * caret_len}
                └── {source_label} '{file}', line {line}
         """)
 

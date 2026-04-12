@@ -1,3 +1,4 @@
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
@@ -53,12 +54,18 @@ class DockerSecretsSource(FlatKeySource):
         if prefix is not None:
             secret_name = prefix + secret_name
         secret_file = file_path / secret_name if file_path is not None else None
+        line_content: list[str] | None = None
+        if secret_file is not None:
+            with suppress(OSError):
+                raw = secret_file.read_text().strip()
+                if raw:
+                    line_content = [raw]
         return [
             SourceLocation(
                 location_label=cls.location_label,
                 file_path=secret_file,
                 line_range=None,
-                line_content=None,
+                line_content=line_content,
                 env_var_name=None,
             ),
         ]

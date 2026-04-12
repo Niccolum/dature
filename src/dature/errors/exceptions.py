@@ -68,9 +68,23 @@ def _build_candidates(input_value: JSONValue) -> list[str]:
     return [text, lower]
 
 
-def _find_value_position(line: str, *, input_value: JSONValue) -> _FoundValue | None:
+def _find_value_position(
+    line: str,
+    *,
+    input_value: JSONValue,
+    field_key: str | None = None,
+) -> _FoundValue | None:
     if input_value is None:
         return None
+    if field_key is not None:
+        key_marker = f'"{field_key}":'
+        key_pos = line.find(key_marker)
+        if key_pos != -1:
+            search_from = key_pos + len(key_marker)
+            for candidate in _build_candidates(input_value):
+                pos = line.find(candidate, search_from)
+                if pos != -1:
+                    return _FoundValue(pos=pos, length=len(candidate))
     for candidate in _build_candidates(input_value):
         pos = line.rfind(candidate)
         if pos != -1:
@@ -83,6 +97,7 @@ def _format_location(
     *,
     connector: str = "└──",
     input_value: JSONValue = None,
+    field_key: str | None = None,
     is_last: bool = True,
 ) -> list[str]:
     suffix = f" ({loc.annotation})" if loc.annotation is not None else ""
@@ -96,8 +111,17 @@ def _format_location(
     if loc.file_path is None:
         return []
 
-    if loc.line_content is not None and input_value is not None and len(loc.line_content) == 1:
-        found = _find_value_position(loc.line_content[0], input_value=input_value)
+    if loc.line_content is not None and len(loc.line_content) == 1:
+        if input_value is not None:
+            found = _find_value_position(loc.line_content[0], input_value=input_value, field_key=field_key)
+        else:
+            line = loc.line_content[0]
+            eq_pos = line.find("=")
+            if eq_pos != -1:
+                pos = eq_pos + 1
+                found = _FoundValue(pos=pos, length=len(line) - pos)
+            else:
+                found = _FoundValue(pos=0, length=len(line))
         if found is not None:
             max_visible = config.error_display.max_line_length - 3
             if found.pos < max_visible:
@@ -157,6 +181,7 @@ class FieldLoadError(DatureError):
                     loc,
                     connector=connector,
                     input_value=self.input_value,
+                    field_key=self.field_path[-1] if self.field_path else None,
                     is_last=is_last,
                 ),
             )

@@ -20,6 +20,42 @@ class TestResolveSourceLocation:
         assert locs[0].env_var_name == "APP_DATABASE__PORT"
         assert locs[0].file_path is None
 
+    def test_env_source_shows_value(self, monkeypatch):
+        monkeypatch.setenv("APP_PORT", "abc")
+        ctx = ErrorContext(
+            dataclass_name="Config",
+            source_class=EnvSource,
+            file_path=None,
+            prefix="APP_",
+            split_symbols="__",
+        )
+        locs = resolve_source_location(["port"], ctx, file_content=None)
+        assert locs[0].env_var_value == "abc"
+
+    def test_env_source_no_value_when_unset(self):
+        ctx = ErrorContext(
+            dataclass_name="Config",
+            source_class=EnvSource,
+            file_path=None,
+            prefix="APP_",
+            split_symbols="__",
+        )
+        locs = resolve_source_location(["port"], ctx, file_content=None)
+        assert locs[0].env_var_value is None
+
+    def test_env_source_secret_drops_value(self, monkeypatch):
+        monkeypatch.setenv("APP_TOKEN", "hunter2")
+        ctx = ErrorContext(
+            dataclass_name="Config",
+            source_class=EnvSource,
+            file_path=None,
+            prefix="APP_",
+            split_symbols="__",
+            secret_paths=frozenset({"token"}),
+        )
+        locs = resolve_source_location(["token"], ctx, file_content=None)
+        assert locs[0].env_var_value is None
+
     def test_env_source_no_prefix(self):
         ctx = ErrorContext(
             dataclass_name="Config",

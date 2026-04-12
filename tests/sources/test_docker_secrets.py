@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+import pytest
+
 from dature import DockerSecretsSource, load
 from examples.all_types_dataclass import EXPECTED_ALL_TYPES, AllPythonTypesCompact
 from tests.sources.checker import assert_all_types_equal
@@ -90,43 +92,27 @@ class TestDockerSecretsDisplayProperties:
 
 
 class TestDockerSecretsResolveLocation:
-    def test_resolve_builds_secret_path(self, tmp_path: Path):
+    @pytest.mark.parametrize(
+        ("field_path", "prefix", "expected_name"),
+        [
+            pytest.param(["db_password"], None, "db_password", id="simple"),
+            pytest.param(["password"], "APP_", "APP_password", id="prefix"),
+            pytest.param(["database", "host"], None, "database__host", id="nested"),
+        ],
+    )
+    def test_resolve_secret_path(self, tmp_path: Path, field_path: list[str], prefix: str | None, expected_name: str):
         locations = DockerSecretsSource.resolve_location(
-            field_path=["db_password"],
+            field_path=field_path,
             file_path=tmp_path,
             file_content=None,
-            prefix=None,
+            prefix=prefix,
             nested_conflict=None,
         )
 
         assert len(locations) == 1
-        assert locations[0].file_path == tmp_path / "db_password"
+        assert locations[0].file_path == tmp_path / expected_name
         assert locations[0].line_range is None
         assert locations[0].location_label == "SECRET FILE"
-
-    def test_resolve_with_prefix(self, tmp_path: Path):
-        locations = DockerSecretsSource.resolve_location(
-            field_path=["password"],
-            file_path=tmp_path,
-            file_content=None,
-            prefix="APP_",
-            nested_conflict=None,
-        )
-
-        assert len(locations) == 1
-        assert locations[0].file_path == tmp_path / "APP_password"
-
-    def test_resolve_nested_path(self, tmp_path: Path):
-        locations = DockerSecretsSource.resolve_location(
-            field_path=["database", "host"],
-            file_path=tmp_path,
-            file_content=None,
-            prefix=None,
-            nested_conflict=None,
-        )
-
-        assert len(locations) == 1
-        assert locations[0].file_path == tmp_path / "database__host"
 
     def test_resolve_file_path_none(self):
         locations = DockerSecretsSource.resolve_location(
@@ -139,3 +125,29 @@ class TestDockerSecretsResolveLocation:
 
         assert len(locations) == 1
         assert locations[0].file_path is None
+
+    @pytest.mark.parametrize(
+        ("file_content", "expected_line_content"),
+        [
+            pytest.param("abc", ["abc"], id="file_exists"),
+            pytest.param(None, None, id="file_missing"),
+        ],
+    )
+    def test_resolve_line_content(
+        self,
+        tmp_path: Path,
+        file_content: str | None,
+        expected_line_content: list[str] | None,
+    ):
+        if file_content is not None:
+            (tmp_path / "port").write_text(file_content)
+
+        locations = DockerSecretsSource.resolve_location(
+            field_path=["port"],
+            file_path=tmp_path,
+            file_content=None,
+            prefix=None,
+            nested_conflict=None,
+        )
+
+        assert locations[0].line_content == expected_line_content

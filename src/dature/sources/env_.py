@@ -44,6 +44,8 @@ class EnvSource(FlatKeySource):
             json_var = cls._resolve_var_name(field_path[:1], prefix, resolved_symbols, None)
             if nested_conflict.used_var == json_var:
                 env_var_value = nested_conflict.json_raw_value
+        else:
+            env_var_value = os.environ.get(var_name)
         return [
             SourceLocation(
                 location_label=cls.location_label,

@@ -2,7 +2,7 @@
 
 ## Commands
 
-- `prek run --all-files` (alias: `prek run -a`) — lint + type check (ruff + mypy)
+- `uv run prek run --all-files` (alias: `uv run prek run -a`) — lint + type check (ruff + mypy)
 - `uv run pytest -q` — run tests
 - `uv run pytest tests/path/to/test.py::TestClass::test_func -xvs` — single test
 - `uv build` — build package
@@ -23,3 +23,4 @@
 - **IMPORTANT:** never finish without running `/done` (prek + tests + changelog check)
 - **IMPORTANT:** every bugfix needs a regression test
 - **IMPORTANT:** every change to `src/` needs a `changes/` fragment for towncrier
+- **IMPORTANT:** tests that differ only in data must use `@pytest.mark.parametrize`, never separate methods

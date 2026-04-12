@@ -96,8 +96,10 @@ def _apply_masking(
                 prefix=ctx.prefix,
                 path_finder_class=ctx.source_class.path_finder_class,
             )
-        if should_mask and location.line_content is not None:
-            masked_lines = [mask_env_line(line) for line in location.line_content]
+        if should_mask and (location.line_content is not None or location.env_var_value is not None):
+            masked_lines = (
+                [mask_env_line(line) for line in location.line_content] if location.line_content is not None else None
+            )
             result.append(
                 SourceLocation(
                     location_label=location.location_label,
@@ -105,6 +107,7 @@ def _apply_masking(
                     line_range=location.line_range,
                     line_content=masked_lines,
                     env_var_name=location.env_var_name,
+                    # env_var_value intentionally omitted — drop it when masking
                 ),
             )
         else:

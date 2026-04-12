@@ -286,7 +286,7 @@ class TestLoadIntegrationErrors:
         assert len(err.exceptions) == 1
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
-            "  [timeout]  invalid literal for int() with base 10: 'abc'\n   └── ENV 'APP_TIMEOUT'"
+            "  [timeout]  invalid literal for int() with base 10: 'abc'\n   └── ENV 'APP_TIMEOUT' = 'abc'"
         )
 
     def test_toml_with_line_number(self, tmp_path: Path):
