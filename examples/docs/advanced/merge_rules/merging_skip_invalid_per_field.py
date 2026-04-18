@@ -16,7 +16,9 @@ class Config:
 
 
 config = dature.load(
-    dature.Yaml12Source(file=SOURCES_DIR / "merging_skip_invalid_per_field_defaults.yaml"),
+    dature.Yaml12Source(
+        file=SOURCES_DIR / "merging_skip_invalid_per_field_defaults.yaml",
+    ),
     dature.Yaml12Source(
         file=SOURCES_DIR / "merging_skip_invalid_per_field_overrides.yaml",
         skip_if_invalid=(dature.F[Config].port, dature.F[Config].timeout),

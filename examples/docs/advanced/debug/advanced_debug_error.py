@@ -1,4 +1,4 @@
-"""Report on error — dature.get_load_report() from the dataclass type after a failed load."""
+"""Report on error — get_load_report() from the type after a failed load."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,7 +20,9 @@ class Config:
 try:
     config = dature.load(
         dature.Yaml12Source(file=SHARED_DIR / "common_overrides.yaml"),
-        dature.Yaml12Source(file=SOURCES_DIR / "advanced_debug_error_defaults.yaml"),
+        dature.Yaml12Source(
+            file=SOURCES_DIR / "advanced_debug_error_defaults.yaml",
+        ),
         schema=Config,
         debug=True,
     )

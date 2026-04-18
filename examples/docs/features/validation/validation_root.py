@@ -28,7 +28,9 @@ dature.load(
         root_validators=(
             RootValidator(
                 func=check_debug_not_on_production,
-                error_message="debug=True is not allowed on non-localhost hosts",
+                error_message=(
+                    "debug=True is not allowed on non-localhost hosts"
+                ),
             ),
         ),
     ),
