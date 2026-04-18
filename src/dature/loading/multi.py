@@ -22,7 +22,11 @@ from dature.loading.context import (
     merge_fields,
 )
 from dature.loading.merge_config import MergeConfig
-from dature.loading.source_loading import ResolvedSourceParams, load_sources, resolve_source_params
+from dature.loading.source_loading import (
+    _apply_source_init_params,
+    _resolve_type_loaders,
+    load_sources,
+)
 from dature.masking.detection import build_secret_paths
 from dature.masking.masking import mask_field_origins, mask_json_value, mask_source_entries, mask_value
 from dature.merging.deep_merge import deep_merge, deep_merge_last_wins, raise_on_conflict
@@ -36,7 +40,7 @@ from dature.sources.retort import (
     ensure_retort,
     transform_to_dataclass,
 )
-from dature.types import FieldMergeCallable, JSONValue
+from dature.types import FieldMergeCallable, JSONValue, TypeLoaderMap
 
 logger = logging.getLogger("dature")
 
@@ -98,7 +102,7 @@ def _log_field_origins(
                 origin.key,
                 masked,
                 origin.source_index,
-                origin.source_file or "<env>",
+                origin.source_file,
             )
         else:
             logger.debug(
@@ -107,7 +111,7 @@ def _log_field_origins(
                 origin.key,
                 origin.value,
                 origin.source_index,
-                origin.source_file or "<env>",
+                origin.source_file,
             )
 
 
@@ -257,7 +261,7 @@ class _MergedData[T: DataclassInstance]:
     result: T
     merged_raw: JSONValue
     last_source: Source
-    last_resolved: ResolvedSourceParams
+    last_type_loaders: TypeLoaderMap | None
 
 
 def _load_and_merge[T: DataclassInstance](  # noqa: C901
@@ -348,7 +352,7 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901
             secret_paths=secret_paths,
         )
 
-    last_resolved = loaded.last_resolved
+    last_type_loaders = loaded.last_type_loaders
     last_error_ctx = loaded.source_ctxs[-1].error_ctx
     merged = coerce_flag_fields(merged, schema)
     try:
@@ -357,7 +361,7 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901
                 loaded.last_source,
                 merged,
                 schema,
-                resolved_type_loaders=last_resolved.type_loaders,
+                resolved_type_loaders=last_type_loaders,
             ),
             ctx=last_error_ctx,
         )
@@ -375,7 +379,7 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901
         result=result,
         merged_raw=merged,
         last_source=loaded.last_source,
-        last_resolved=loaded.last_resolved,
+        last_type_loaders=loaded.last_type_loaders,
     )
 
 
@@ -391,11 +395,11 @@ def merge_load_as_function[T: DataclassInstance](
         debug=debug,
     )
 
-    last_resolved = data.last_resolved
+    last_type_loaders = data.last_type_loaders
     validating_retort = create_validating_retort(
         data.last_source,
         schema,
-        resolved_type_loaders=last_resolved.type_loaders,
+        resolved_type_loaders=last_type_loaders,
     )
     validation_loader = validating_retort.get_loader(schema)
 
@@ -448,19 +452,13 @@ class _MergePatchContext:
         self.loading = False
         self.validating = False
 
-        last_source = merge_meta.sources[-1]
-        last_resolved = resolve_source_params(
-            last_source,
-            load_expand_env_vars=merge_meta.expand_env_vars,
-            load_type_loaders=merge_meta.type_loaders,
-            load_nested_resolve_strategy=merge_meta.nested_resolve_strategy,
-            load_nested_resolve=merge_meta.nested_resolve,
-        )
-        ensure_retort(last_source, cls, resolved_type_loaders=last_resolved.type_loaders)
+        last_source = _apply_source_init_params(merge_meta.sources[-1], merge_meta.source_params)
+        last_type_loaders = _resolve_type_loaders(last_source, merge_meta.type_loaders)
+        ensure_retort(last_source, cls, resolved_type_loaders=last_type_loaders)
         validating_retort = create_validating_retort(
             last_source,
             cls,
-            resolved_type_loaders=last_resolved.type_loaders,
+            resolved_type_loaders=last_type_loaders,
         )
         self.validation_loader: Callable[[JSONValue], DataclassInstance] = validating_retort.get_loader(cls)
 
@@ -484,15 +482,10 @@ class _MergePatchContext:
         merge_meta: MergeConfig,
         cls: type[DataclassInstance],
     ) -> None:
-        for source_item in merge_meta.sources:
-            resolved = resolve_source_params(
-                source_item,
-                load_expand_env_vars=merge_meta.expand_env_vars,
-                load_type_loaders=merge_meta.type_loaders,
-                load_nested_resolve_strategy=merge_meta.nested_resolve_strategy,
-                load_nested_resolve=merge_meta.nested_resolve,
-            )
-            ensure_retort(source_item, cls, resolved_type_loaders=resolved.type_loaders)
+        for raw_source in merge_meta.sources:
+            source_item = _apply_source_init_params(raw_source, merge_meta.source_params)
+            type_loaders = _resolve_type_loaders(source_item, merge_meta.type_loaders)
+            ensure_retort(source_item, cls, resolved_type_loaders=type_loaders)
 
 
 def _make_merge_new_init(ctx: _MergePatchContext) -> Callable[..., None]:

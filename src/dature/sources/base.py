@@ -100,6 +100,9 @@ class Source(abc.ABC):
     def file_path_for_errors(self) -> Path | None:
         return None
 
+    def display_name(self) -> str:
+        return self.file_display() or self.format_name
+
     def additional_loaders(self) -> list[Provider]:
         return []
 
@@ -153,13 +156,13 @@ class Source(abc.ABC):
         prefixed = self._apply_prefix(data)
         return expand_env_vars(prefixed, mode=resolved_expand)
 
-    def load_raw(self, *, resolved_expand: ExpandEnvVarsMode = "default") -> LoadRawResult:
+    def load_raw(self) -> LoadRawResult:
         data = self._load()
-        processed = self._pre_processing(data, resolved_expand=resolved_expand)
+        processed = self._pre_processing(data, resolved_expand=self.expand_env_vars)  # type: ignore[arg-type]
         logger.debug(
             "[%s] load_raw: source=%s, raw_keys=%s, after_preprocessing_keys=%s",
             type(self).__name__,
-            self.file_display() or "<env>",
+            self.display_name(),
             sorted(data.keys()) if isinstance(data, dict) else "<non-dict>",
             sorted(processed.keys()) if isinstance(processed, dict) else "<non-dict>",
         )
@@ -200,45 +203,84 @@ class Source(abc.ABC):
         min_indent = min(indents)
         return [line[min_indent:] for line in raw_lines]
 
-    @classmethod
+    @staticmethod
+    def _build_value_candidates(input_value: JSONValue) -> list[str]:
+        if isinstance(input_value, (list, dict)):
+            return [json.dumps(input_value, ensure_ascii=False)]
+        if isinstance(input_value, str) and input_value == "":
+            return ['""', "''"]
+        text = str(input_value)
+        lower = text.lower()
+        if lower == text:
+            return [text]
+        return [text, lower]
+
+    @staticmethod
+    def _find_value_in_line(
+        line: str,
+        *,
+        input_value: JSONValue,
+        field_key: str | None = None,
+        search_from: int = 0,
+    ) -> "tuple[int, int] | None":
+        candidates = Source._build_value_candidates(input_value)
+        if field_key is not None:
+            key_marker = f'"{field_key}":'
+            key_pos = line.find(key_marker)
+            if key_pos != -1:
+                after_key = key_pos + len(key_marker)
+                for candidate in candidates:
+                    pos = line.find(candidate, after_key)
+                    if pos != -1:
+                        return (pos, len(candidate))
+        for candidate in candidates:
+            pos = line.rfind(candidate, search_from)
+            if pos != -1:
+                return (pos, len(candidate))
+        return None
+
     def resolve_location(
-        cls,
+        self,
         *,
         field_path: list[str],
-        file_path: Path | None,
         file_content: str | None,
-        prefix: str | None,
-        nested_conflict: NestedConflict | None,  # noqa: ARG003
-        split_symbols: str | None = None,  # noqa: ARG003
+        nested_conflict: NestedConflict | None,  # noqa: ARG002
+        input_value: JSONValue = None,
     ) -> list[SourceLocation]:
+        file_path = self.file_path_for_errors()
         if file_content is None or not field_path:
-            return [cls._empty_location(cls.location_label, file_path)]
+            return [self._empty_location(self.location_label, file_path)]
 
-        if cls.path_finder_class is None:
-            return [cls._empty_location(cls.location_label, file_path)]
+        if self.path_finder_class is None:
+            return [self._empty_location(self.location_label, file_path)]
 
-        search_path = cls._build_search_path(field_path, prefix)
-        finder = cls.path_finder_class(file_content)
+        search_path = self._build_search_path(field_path, self.prefix)
+        finder = self.path_finder_class(file_content)
         line_range = finder.find_line_range(search_path)
         if line_range is None:
-            line_range = cls._find_parent_line_range(finder, search_path)
+            line_range = self._find_parent_line_range(finder, search_path)
         if line_range is None:
-            return [cls._empty_location(cls.location_label, file_path)]
+            return [self._empty_location(self.location_label, file_path)]
 
         lines = file_content.splitlines()
         content_lines: list[str] | None = None
+        caret: tuple[int, int] | None = None
         if 0 < line_range.start <= len(lines):
             end = min(line_range.end, len(lines))
             raw = lines[line_range.start - 1 : end]
-            content_lines = cls._strip_common_indent(raw)
+            content_lines = self._strip_common_indent(raw)
+            if len(content_lines) == 1 and input_value is not None:
+                field_key = field_path[-1] if field_path else None
+                caret = self._find_value_in_line(content_lines[0], input_value=input_value, field_key=field_key)
 
         return [
             SourceLocation(
-                location_label=cls.location_label,
+                location_label=self.location_label,
                 file_path=file_path,
                 line_range=line_range,
                 line_content=content_lines,
                 env_var_name=None,
+                caret=caret,
             ),
         ]
 
@@ -396,13 +438,7 @@ class FlatKeySource(Source, abc.ABC):
             resolved_nested_resolve=resolved_nested_resolve,
         )
 
-    def load_raw(
-        self,
-        *,
-        resolved_expand: ExpandEnvVarsMode = "default",
-        resolved_nested_strategy: NestedResolveStrategy = "flat",
-        resolved_nested_resolve: NestedResolve | None = None,
-    ) -> LoadRawResult:
+    def load_raw(self) -> LoadRawResult:
         data = self._load()
         data_dict = cast("dict[str, str]", data)
         result: dict[str, JSONValue] = {}
@@ -414,11 +450,11 @@ class FlatKeySource(Source, abc.ABC):
                 value=value,
                 result=result,
                 conflicts=conflicts,
-                resolved_nested_strategy=resolved_nested_strategy,
-                resolved_nested_resolve=resolved_nested_resolve,
+                resolved_nested_strategy=self.nested_resolve_strategy,  # type: ignore[arg-type]
+                resolved_nested_resolve=self.nested_resolve,
             )
 
-        expanded = expand_env_vars(result, mode=resolved_expand)
+        expanded = expand_env_vars(result, mode=self.expand_env_vars)  # type: ignore[arg-type]
         processed = self._parse_string_values(expanded)
         return LoadRawResult(data=processed, nested_conflicts=conflicts)
 

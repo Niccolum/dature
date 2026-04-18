@@ -159,7 +159,7 @@ class TestCoerceFlagFields:
 
 
 class TestBuildErrorCtx:
-    def test_file_source_no_split_symbols(self, tmp_path: Path):
+    def test_file_source(self, tmp_path: Path):
         json_file = tmp_path / "config.json"
         json_file.write_text("{}")
         source = JsonSource(file=json_file, prefix="app")
@@ -167,16 +167,14 @@ class TestBuildErrorCtx:
         ctx = build_error_ctx(source, "MyConfig")
 
         assert ctx.dataclass_name == "MyConfig"
-        assert ctx.source_class is JsonSource
-        assert ctx.prefix == "app"
-        assert ctx.split_symbols is None
+        assert ctx.source is source
 
-    def test_flat_key_source_has_split_symbols(self):
+    def test_flat_key_source(self):
         source = EnvSource(prefix="APP", split_symbols="__")
 
         ctx = build_error_ctx(source, "MyConfig")
 
-        assert ctx.split_symbols == "__"
+        assert ctx.source is source
 
 
 class TestGetAllowedFields:

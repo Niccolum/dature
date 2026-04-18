@@ -1,6 +1,7 @@
+import copy
+import dataclasses
 import logging
 from dataclasses import dataclass
-from functools import partial
 
 from dature.config import config
 from dature.errors import DatureConfigError, SourceLoadError, SourceLocation
@@ -9,96 +10,66 @@ from dature.errors.location import ErrorContext, read_file_content
 from dature.field_path import FieldPath
 from dature.load_report import SourceEntry
 from dature.loading.context import apply_skip_invalid, build_error_ctx
-from dature.loading.merge_config import MergeConfig
+from dature.loading.merge_config import MergeConfig, SourceParams
 from dature.masking.masking import mask_json_value
 from dature.merging.strategy import MergeStrategyEnum
 from dature.protocols import DataclassInstance
 from dature.skip_field_provider import FilterResult
-from dature.sources.base import FlatKeySource, Source
+from dature.sources.base import Source
 from dature.types import (
-    ExpandEnvVarsMode,
     JSONValue,
-    LoadRawResult,
-    NestedResolve,
-    NestedResolveStrategy,
     TypeLoaderMap,
 )
 
 logger = logging.getLogger("dature")
 
 
-def load_source_raw(source: Source, resolved: "ResolvedSourceParams") -> LoadRawResult:
-    if isinstance(source, FlatKeySource):
-        return source.load_raw(
-            resolved_expand=resolved.expand_env_vars,
-            resolved_nested_strategy=resolved.nested_resolve_strategy,
-            resolved_nested_resolve=resolved.nested_resolve,
-        )
-    return source.load_raw(resolved_expand=resolved.expand_env_vars)
+def _apply_source_init_params(source: Source, params: SourceParams) -> Source:
+    """Inject load-level params into source fields (source > load > config).
+
+    Iterates SourceParams fields by name and matches them against the source's
+    dataclass fields. For each matching field currently None: applies
+    load-level value, or falls back to config.loading.<same_name> if available.
+    """
+    source_field_names = {f.name for f in dataclasses.fields(source) if f.init}
+    overrides: dict[str, object] = {}
+
+    for f in dataclasses.fields(params):
+        name = f.name
+        if name not in source_field_names:
+            continue
+        if getattr(source, name, None) is not None:
+            continue  # source-level takes priority
+        load_val = getattr(params, name)
+        config_val = getattr(config.loading, name, None)
+        effective = load_val if load_val is not None else config_val
+        if effective is not None:
+            overrides[name] = effective
+
+    if not overrides:
+        return source
+
+    new_source = copy.copy(source)
+    vars(new_source).update(overrides)
+    return new_source
 
 
-@dataclass(frozen=True, slots=True)
-class ResolvedSourceParams:
-    expand_env_vars: ExpandEnvVarsMode
-    type_loaders: TypeLoaderMap | None
-    nested_resolve_strategy: NestedResolveStrategy
-    nested_resolve: NestedResolve | None
-
-
-def resolve_source_params(
+def _resolve_type_loaders(
     source: Source,
-    *,
-    load_expand_env_vars: ExpandEnvVarsMode | None = None,
-    load_type_loaders: TypeLoaderMap | None = None,
-    load_nested_resolve_strategy: NestedResolveStrategy | None = None,
-    load_nested_resolve: NestedResolve | None = None,
-) -> ResolvedSourceParams:
-    resolved_expand: ExpandEnvVarsMode = "default"
-    if source.expand_env_vars is not None:
-        resolved_expand = source.expand_env_vars
-    elif load_expand_env_vars is not None:
-        resolved_expand = load_expand_env_vars
-
-    source_loaders = source.type_loaders or {}
-    load_loaders = load_type_loaders or {}
-    config_loaders = config.type_loaders or {}
-    merged_loaders = {**config_loaders, **load_loaders, **source_loaders}
-    resolved_type_loaders = merged_loaders or None
-
-    resolved_nested_strategy: NestedResolveStrategy = config.loading.nested_resolve_strategy
-    if isinstance(source, FlatKeySource) and source.nested_resolve_strategy is not None:
-        resolved_nested_strategy = source.nested_resolve_strategy
-    elif load_nested_resolve_strategy is not None:
-        resolved_nested_strategy = load_nested_resolve_strategy
-
-    resolved_nested_resolve: NestedResolve | None = None
-    if isinstance(source, FlatKeySource) and source.nested_resolve is not None:
-        resolved_nested_resolve = source.nested_resolve
-    elif load_nested_resolve is not None:
-        resolved_nested_resolve = load_nested_resolve
-
-    return ResolvedSourceParams(
-        expand_env_vars=resolved_expand,
-        type_loaders=resolved_type_loaders,
-        nested_resolve_strategy=resolved_nested_strategy,
-        nested_resolve=resolved_nested_resolve,
-    )
+    load_type_loaders: TypeLoaderMap | None,
+) -> TypeLoaderMap | None:
+    merged = {**config.type_loaders, **(load_type_loaders or {}), **(source.type_loaders or {})}
+    return merged or None
 
 
 def should_skip_broken(source: Source, merge_meta: MergeConfig) -> bool:
     if source.skip_if_broken is not None:
         if source.file_display() is None:
             logger.warning(
-                "skip_if_broken has no effect on environment variable sources — they cannot be broken",
+                "skip_if_broken has no effect on non-file sources — they cannot be broken",
             )
         return source.skip_if_broken
     return merge_meta.skip_broken_sources
-
-
-def resolve_expand_env_vars(source: Source, merge_meta: MergeConfig) -> ExpandEnvVarsMode:
-    if source.expand_env_vars is not None:
-        return source.expand_env_vars
-    return merge_meta.expand_env_vars
 
 
 def resolve_skip_invalid(
@@ -164,7 +135,7 @@ class LoadedSources:
     source_ctxs: list[SourceContext]
     source_entries: list[SourceEntry]
     last_source: Source
-    last_resolved: ResolvedSourceParams
+    last_type_loaders: TypeLoaderMap | None
     skipped_fields: dict[str, list[SkippedFieldSource]]
 
 
@@ -180,22 +151,17 @@ def load_sources(  # noqa: C901, PLR0912, PLR0915
     source_ctxs: list[SourceContext] = []
     source_entries: list[SourceEntry] = []
     last_source: Source | None = None
-    last_resolved: ResolvedSourceParams | None = None
+    last_type_loaders: TypeLoaderMap | None = None
     skipped_fields: dict[str, list[SkippedFieldSource]] = {}
 
-    for i, source_item in enumerate(merge_meta.sources):
-        resolved = resolve_source_params(
-            source_item,
-            load_expand_env_vars=merge_meta.expand_env_vars,
-            load_type_loaders=merge_meta.type_loaders,
-            load_nested_resolve_strategy=merge_meta.nested_resolve_strategy,
-            load_nested_resolve=merge_meta.nested_resolve,
-        )
+    for i, raw_source in enumerate(merge_meta.sources):
+        source_item = _apply_source_init_params(raw_source, merge_meta.source_params)
+        type_loaders = _resolve_type_loaders(source_item, merge_meta.type_loaders)
         error_ctx = build_error_ctx(source_item, dataclass_name, secret_paths=secret_paths, mask_secrets=mask_secrets)
 
         try:
             load_result = handle_load_errors(
-                func=partial(load_source_raw, source_item, resolved),
+                func=source_item.load_raw,
                 ctx=error_ctx,
             )
         except (DatureConfigError, FileNotFoundError):
@@ -205,14 +171,14 @@ def load_sources(  # noqa: C901, PLR0912, PLR0915
                 "[%s] Source %d skipped (broken): file=%s",
                 dataclass_name,
                 i,
-                source_item.file_display() or "<env>",
+                source_item.display_name(),
             )
             continue
         except Exception as exc:
             if merge_meta.strategy != MergeStrategyEnum.FIRST_FOUND and not should_skip_broken(source_item, merge_meta):
                 location = SourceLocation(
-                    location_label=type(source_item).location_label,
-                    file_path=error_ctx.file_path,
+                    location_label=source_item.location_label,
+                    file_path=error_ctx.source.file_path_for_errors(),
                     line_range=None,
                     line_content=None,
                     env_var_name=None,
@@ -226,7 +192,7 @@ def load_sources(  # noqa: C901, PLR0912, PLR0915
                 "[%s] Source %d skipped (broken): file=%s",
                 dataclass_name,
                 i,
-                source_item.file_display() or "<env>",
+                source_item.display_name(),
             )
             continue
 
@@ -240,7 +206,7 @@ def load_sources(  # noqa: C901, PLR0912, PLR0915
                 nested_conflicts=load_result.nested_conflicts,
             )
 
-        file_content = read_file_content(error_ctx.file_path)
+        file_content = read_file_content(error_ctx.source.file_path_for_errors())
 
         filter_result = apply_merge_skip_invalid(
             raw=raw,
@@ -265,7 +231,7 @@ def load_sources(  # noqa: C901, PLR0912, PLR0915
             dataclass_name,
             i,
             format_name,
-            source_item.file_display() or "<env>",
+            source_item.display_name(),
             sorted(raw.keys()) if isinstance(raw, dict) else "<non-dict>",
         )
         if secret_paths:
@@ -282,7 +248,9 @@ def load_sources(  # noqa: C901, PLR0912, PLR0915
         source_entries.append(
             SourceEntry(
                 index=i,
-                file_path=str(src_path) if (src_path := source_item.file_path_for_errors()) is not None else None,
+                file_path=str(src_path)
+                if (src_path := source_item.file_path_for_errors()) is not None
+                else source_item.display_name(),
                 loader_type=format_name,
                 raw_data=raw,
             ),
@@ -290,12 +258,12 @@ def load_sources(  # noqa: C901, PLR0912, PLR0915
 
         source_ctxs.append(SourceContext(error_ctx=error_ctx, file_content=file_content))
         last_source = source_item
-        last_resolved = resolved
+        last_type_loaders = type_loaders
 
         if merge_meta.strategy == MergeStrategyEnum.FIRST_FOUND:
             break
 
-    if last_source is None or last_resolved is None:
+    if last_source is None:
         if merge_meta.sources:
             msg = f"All {len(merge_meta.sources)} source(s) failed to load"
         else:
@@ -308,6 +276,6 @@ def load_sources(  # noqa: C901, PLR0912, PLR0915
         source_ctxs=source_ctxs,
         source_entries=source_entries,
         last_source=last_source,
-        last_resolved=last_resolved,
+        last_type_loaders=last_type_loaders,
         skipped_fields=skipped_fields,
     )

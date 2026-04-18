@@ -7,6 +7,8 @@ import pytest
 from dature import JsonSource, Source, load
 from dature.errors import EnvVarExpandError
 from dature.field_path import F
+from dature.loading.merge_config import SourceParams
+from dature.loading.source_loading import _apply_source_init_params
 from dature.sources.base import FileFieldMixin, _string_value_loaders
 from dature.sources.retort import transform_to_dataclass
 from dature.types import JSONValue
@@ -520,7 +522,7 @@ class TestExpandEnvVars:
     def test_default_expands_existing(self, monkeypatch):
         monkeypatch.setenv("DATURE_TEST_HOST", "localhost")
         data = {"host": "$DATURE_TEST_HOST", "port": 8080}
-        loader = MockSource(test_data=data)
+        loader = _apply_source_init_params(MockSource(test_data=data), SourceParams())
 
         load_result = loader.load_raw()
         result = transform_to_dataclass(loader, load_result.data, dict)
@@ -530,7 +532,7 @@ class TestExpandEnvVars:
     def test_default_keeps_missing(self, monkeypatch):
         monkeypatch.delenv("DATURE_MISSING", raising=False)
         data = {"host": "$DATURE_MISSING", "port": 8080}
-        loader = MockSource(test_data=data)
+        loader = _apply_source_init_params(MockSource(test_data=data), SourceParams())
 
         load_result = loader.load_raw()
         result = transform_to_dataclass(loader, load_result.data, dict)
@@ -540,9 +542,9 @@ class TestExpandEnvVars:
     def test_disabled(self, monkeypatch):
         monkeypatch.setenv("DATURE_TEST_HOST", "localhost")
         data = {"host": "$DATURE_TEST_HOST", "port": 8080}
-        loader = MockSource(test_data=data)
+        loader = MockSource(test_data=data, expand_env_vars="disabled")
 
-        load_result = loader.load_raw(resolved_expand="disabled")
+        load_result = loader.load_raw()
         result = transform_to_dataclass(loader, load_result.data, dict)
 
         assert result == {"host": "$DATURE_TEST_HOST", "port": 8080}
@@ -550,9 +552,9 @@ class TestExpandEnvVars:
     def test_empty_replaces_missing_with_empty_string(self, monkeypatch):
         monkeypatch.delenv("DATURE_MISSING", raising=False)
         data = {"host": "$DATURE_MISSING", "port": 8080}
-        loader = MockSource(test_data=data)
+        loader = MockSource(test_data=data, expand_env_vars="empty")
 
-        load_result = loader.load_raw(resolved_expand="empty")
+        load_result = loader.load_raw()
         result = transform_to_dataclass(loader, load_result.data, dict)
 
         assert result == {"host": "", "port": 8080}
@@ -560,17 +562,17 @@ class TestExpandEnvVars:
     def test_strict_raises_on_missing(self, monkeypatch):
         monkeypatch.delenv("DATURE_MISSING", raising=False)
         data = {"host": "$DATURE_MISSING", "port": 8080}
-        loader = MockSource(test_data=data)
+        loader = MockSource(test_data=data, expand_env_vars="strict")
 
         with pytest.raises(EnvVarExpandError):
-            loader.load_raw(resolved_expand="strict")
+            loader.load_raw()
 
     def test_strict_expands_existing(self, monkeypatch):
         monkeypatch.setenv("DATURE_TEST_HOST", "localhost")
         data = {"host": "$DATURE_TEST_HOST", "port": 8080}
-        loader = MockSource(test_data=data)
+        loader = MockSource(test_data=data, expand_env_vars="strict")
 
-        load_result = loader.load_raw(resolved_expand="strict")
+        load_result = loader.load_raw()
         result = transform_to_dataclass(loader, load_result.data, dict)
 
         assert result == {"host": "localhost", "port": 8080}
@@ -739,11 +741,9 @@ class TestStringValueLoaders:
 
 class TestResolveLocation:
     def test_file_content_none_returns_empty(self):
-        locations = MockSource.resolve_location(
+        locations = MockSource().resolve_location(
             field_path=["name"],
-            file_path=Path("config.json"),
             file_content=None,
-            prefix=None,
             nested_conflict=None,
         )
 
@@ -752,11 +752,9 @@ class TestResolveLocation:
         assert locations[0].line_content is None
 
     def test_empty_field_path_returns_empty(self):
-        locations = MockSource.resolve_location(
+        locations = MockSource().resolve_location(
             field_path=[],
-            file_path=Path("config.json"),
             file_content='{"name": "test"}',
-            prefix=None,
             nested_conflict=None,
         )
 
@@ -764,11 +762,9 @@ class TestResolveLocation:
         assert locations[0].line_range is None
 
     def test_path_finder_none_returns_empty(self):
-        locations = MockSource.resolve_location(
+        locations = MockSource().resolve_location(
             field_path=["name"],
-            file_path=Path("config.json"),
             file_content='{"name": "test"}',
-            prefix=None,
             nested_conflict=None,
         )
 
@@ -778,11 +774,9 @@ class TestResolveLocation:
     def test_json_source_finds_line_range(self, tmp_path):
         content = '{\n  "name": "test",\n  "port": 8080\n}'
 
-        locations = JsonSource.resolve_location(
+        locations = JsonSource(file=tmp_path / "config.json").resolve_location(
             field_path=["name"],
-            file_path=tmp_path / "config.json",
             file_content=content,
-            prefix=None,
             nested_conflict=None,
         )
 
@@ -793,11 +787,9 @@ class TestResolveLocation:
     def test_json_source_with_prefix(self, tmp_path):
         content = '{\n  "app": {\n    "name": "test"\n  }\n}'
 
-        locations = JsonSource.resolve_location(
+        locations = JsonSource(file=tmp_path / "config.json", prefix="app").resolve_location(
             field_path=["name"],
-            file_path=tmp_path / "config.json",
             file_content=content,
-            prefix="app",
             nested_conflict=None,
         )
 
@@ -807,11 +799,9 @@ class TestResolveLocation:
     def test_json_source_field_not_found_returns_empty(self, tmp_path):
         content = '{\n  "name": "test"\n}'
 
-        locations = JsonSource.resolve_location(
+        locations = JsonSource(file=tmp_path / "config.json").resolve_location(
             field_path=["nonexistent"],
-            file_path=tmp_path / "config.json",
             file_content=content,
-            prefix=None,
             nested_conflict=None,
         )
 

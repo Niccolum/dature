@@ -2,7 +2,7 @@ from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, TypedDict, cast
 
-from dature.types import NestedResolveStrategy, TypeLoaderMap
+from dature.types import ExpandEnvVarsMode, NestedResolveStrategy, TypeLoaderMap
 from dature.validators.number import Ge
 from dature.validators.string import MinLength
 
@@ -53,6 +53,7 @@ class LoadingConfig:
     cache: bool = True
     debug: bool = False
     nested_resolve_strategy: NestedResolveStrategy = "flat"
+    expand_env_vars: ExpandEnvVarsMode = "default"
 
 
 # --8<-- [end:loading-config]
@@ -91,6 +92,7 @@ class LoadingOptions(TypedDict, total=False):
     cache: bool
     debug: bool
     nested_resolve_strategy: NestedResolveStrategy
+    expand_env_vars: ExpandEnvVarsMode
 
 
 class _ConfigProxy:

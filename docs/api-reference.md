@@ -92,7 +92,7 @@ Abstract base class for all sources. See [Introduction — Source Reference](int
 | `create_probe_retort()` | `Retort` | Retort that skips missing fields — used internally for partial loading in merge mode. |
 | `file_display()` | `str \| None` | Human-readable file identifier for logging. Returns `None` by default. |
 | `file_path_for_errors()` | `Path \| None` | File path used in error messages. Returns `None` by default. |
-| `resolve_location(...)` | `list[SourceLocation]` | Locate a field in the source content for error reporting. Class method. Returns `SourceLocation` with line range, env var name, etc. |
+| `resolve_location(...)` | `list[SourceLocation]` | Locate a field in the source content for error reporting. Returns `SourceLocation` with line range, env var name, etc. |
 
 ### `FileSource(Source)`
 
@@ -306,6 +306,7 @@ Frozen dataclass controlling load behavior defaults.
 | `cache` | `bool` | `True` | Default caching in decorator mode. |
 | `debug` | `bool` | `False` | Default debug mode (collect `LoadReport`). |
 | `nested_resolve_strategy` | `NestedResolveStrategy` | `"flat"` | Default nested resolve strategy for `FlatKeySource`. |
+| `expand_env_vars` | `ExpandEnvVarsMode` | `"default"` | Default env var expansion mode applied when neither source nor load-level value is set. |
 
 ---
 

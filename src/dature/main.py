@@ -3,7 +3,7 @@ from collections.abc import Callable
 from typing import Any, overload
 
 from dature.config import config
-from dature.loading.merge_config import MergeConfig
+from dature.loading.merge_config import MergeConfig, SourceParams
 from dature.loading.multi import merge_load_as_function, merge_make_decorator
 from dature.loading.single import load_as_function, make_decorator
 from dature.merging.strategy import MergeStrategyEnum
@@ -117,6 +117,12 @@ def load(  # noqa: PLR0913
 
     source = sources[0]
 
+    _source_params = SourceParams(
+        expand_env_vars=expand_env_vars,
+        nested_resolve_strategy=nested_resolve_strategy,
+        nested_resolve=nested_resolve,
+    )
+
     if schema is not None:
         return load_as_function(
             source=source,
@@ -124,10 +130,8 @@ def load(  # noqa: PLR0913
             debug=debug,
             secret_field_names=secret_field_names,
             mask_secrets=mask_secrets,
-            expand_env_vars=expand_env_vars,
+            source_params=_source_params,
             type_loaders=type_loaders,
-            nested_resolve_strategy=nested_resolve_strategy,
-            nested_resolve=nested_resolve,
         )
 
     return make_decorator(
@@ -136,10 +140,8 @@ def load(  # noqa: PLR0913
         debug=debug,
         secret_field_names=secret_field_names,
         mask_secrets=mask_secrets,
-        expand_env_vars=expand_env_vars,
+        source_params=_source_params,
         type_loaders=type_loaders,
-        nested_resolve_strategy=nested_resolve_strategy,
-        nested_resolve=nested_resolve,
     )
 
 
@@ -174,17 +176,19 @@ def _load_multi(  # noqa: PLR0913
 ) -> DataclassInstance | Callable[[type[DataclassInstance]], type[DataclassInstance]]:
     merge_meta = MergeConfig(
         sources=sources,
+        source_params=SourceParams(
+            expand_env_vars=expand_env_vars,
+            nested_resolve_strategy=nested_resolve_strategy,
+            nested_resolve=nested_resolve,
+        ),
         strategy=MergeStrategyEnum(strategy),
         field_merges=field_merges,
         field_groups=field_groups,
         skip_broken_sources=skip_broken_sources,
         skip_invalid_fields=skip_invalid_fields,
-        expand_env_vars=expand_env_vars or "default",
         secret_field_names=secret_field_names,
         mask_secrets=mask_secrets,
         type_loaders=type_loaders,
-        nested_resolve_strategy=nested_resolve_strategy,
-        nested_resolve=nested_resolve,
     )
     if schema is not None:
         return merge_load_as_function(merge_meta, schema, debug=debug)

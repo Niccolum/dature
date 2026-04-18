@@ -101,11 +101,9 @@ class TestDockerSecretsResolveLocation:
         ],
     )
     def test_resolve_secret_path(self, tmp_path: Path, field_path: list[str], prefix: str | None, expected_name: str):
-        locations = DockerSecretsSource.resolve_location(
+        locations = DockerSecretsSource(dir_=tmp_path, prefix=prefix).resolve_location(
             field_path=field_path,
-            file_path=tmp_path,
             file_content=None,
-            prefix=prefix,
             nested_conflict=None,
         )
 
@@ -113,18 +111,6 @@ class TestDockerSecretsResolveLocation:
         assert locations[0].file_path == tmp_path / expected_name
         assert locations[0].line_range is None
         assert locations[0].location_label == "SECRET FILE"
-
-    def test_resolve_file_path_none(self):
-        locations = DockerSecretsSource.resolve_location(
-            field_path=["secret"],
-            file_path=None,
-            file_content=None,
-            prefix=None,
-            nested_conflict=None,
-        )
-
-        assert len(locations) == 1
-        assert locations[0].file_path is None
 
     @pytest.mark.parametrize(
         ("file_content", "expected_line_content"),
@@ -142,11 +128,9 @@ class TestDockerSecretsResolveLocation:
         if file_content is not None:
             (tmp_path / "port").write_text(file_content)
 
-        locations = DockerSecretsSource.resolve_location(
+        locations = DockerSecretsSource(dir_=tmp_path).resolve_location(
             field_path=["port"],
-            file_path=tmp_path,
             file_content=None,
-            prefix=None,
             nested_conflict=None,
         )
 

@@ -317,11 +317,9 @@ class TestEnvFileSourceDisplayProperties:
 
 class TestEnvSourceResolveLocation:
     def test_resolve_returns_env_var_name(self):
-        locations = EnvSource.resolve_location(
+        locations = EnvSource().resolve_location(
             field_path=["host"],
-            file_path=None,
             file_content=None,
-            prefix=None,
             nested_conflict=None,
         )
 
@@ -331,11 +329,9 @@ class TestEnvSourceResolveLocation:
         assert locations[0].location_label == "ENV"
 
     def test_resolve_with_prefix(self):
-        locations = EnvSource.resolve_location(
+        locations = EnvSource(prefix="APP_").resolve_location(
             field_path=["host"],
-            file_path=None,
             file_content=None,
-            prefix="APP_",
             nested_conflict=None,
         )
 
@@ -343,11 +339,9 @@ class TestEnvSourceResolveLocation:
         assert locations[0].env_var_name == "APP_HOST"
 
     def test_resolve_nested_path(self):
-        locations = EnvSource.resolve_location(
+        locations = EnvSource().resolve_location(
             field_path=["database", "host"],
-            file_path=None,
             file_content=None,
-            prefix=None,
             nested_conflict=None,
         )
 
@@ -355,13 +349,10 @@ class TestEnvSourceResolveLocation:
         assert locations[0].env_var_name == "DATABASE__HOST"
 
     def test_resolve_with_custom_split_symbols(self):
-        locations = EnvSource.resolve_location(
+        locations = EnvSource(split_symbols=".").resolve_location(
             field_path=["database", "host"],
-            file_path=None,
             file_content=None,
-            prefix=None,
             nested_conflict=None,
-            split_symbols=".",
         )
 
         assert len(locations) == 1
@@ -372,11 +363,9 @@ class TestEnvFileSourceResolveLocation:
     def test_resolve_finds_line_in_content(self):
         content = "HOST=localhost\nPORT=8080"
 
-        locations = EnvFileSource.resolve_location(
+        locations = EnvFileSource(file=".env").resolve_location(
             field_path=["port"],
-            file_path=Path(".env"),
             file_content=content,
-            prefix=None,
             nested_conflict=None,
         )
 
@@ -386,11 +375,9 @@ class TestEnvFileSourceResolveLocation:
         assert locations[0].line_range.start == 2
 
     def test_resolve_no_content(self):
-        locations = EnvFileSource.resolve_location(
+        locations = EnvFileSource(file=".env").resolve_location(
             field_path=["host"],
-            file_path=Path(".env"),
             file_content=None,
-            prefix=None,
             nested_conflict=None,
         )
 

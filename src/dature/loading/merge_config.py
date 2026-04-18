@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from dature.merging.strategy import MergeStrategyEnum
@@ -15,17 +15,24 @@ if TYPE_CHECKING:
     )
 
 
+@dataclass(frozen=True, kw_only=True)
+class SourceParams:
+    """Load-level defaults applied to every Source before loading."""
+
+    expand_env_vars: "ExpandEnvVarsMode | None" = None
+    nested_resolve_strategy: "NestedResolveStrategy | None" = None
+    nested_resolve: "NestedResolve | None" = None
+
+
 @dataclass(slots=True, kw_only=True)
 class MergeConfig:
     sources: tuple[Source, ...]
+    source_params: SourceParams = field(default_factory=SourceParams)
     strategy: MergeStrategyEnum = MergeStrategyEnum.LAST_WINS
     field_merges: "FieldMergeMap | None" = None
     field_groups: "tuple[FieldGroupTuple, ...]" = ()
     skip_broken_sources: bool = False
     skip_invalid_fields: bool = False
-    expand_env_vars: "ExpandEnvVarsMode" = "default"
     secret_field_names: tuple[str, ...] | None = None
     mask_secrets: bool | None = None
     type_loaders: "TypeLoaderMap | None" = None
-    nested_resolve_strategy: "NestedResolveStrategy | None" = None
-    nested_resolve: "NestedResolve | None" = None

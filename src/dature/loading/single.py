@@ -15,11 +15,11 @@ from dature.loading.context import (
     make_validating_post_init,
     merge_fields,
 )
+from dature.loading.merge_config import SourceParams
 from dature.loading.source_loading import (
-    ResolvedSourceParams,
     SkippedFieldSource,
-    load_source_raw,
-    resolve_source_params,
+    _apply_source_init_params,
+    _resolve_type_loaders,
 )
 from dature.masking.detection import build_secret_paths
 from dature.masking.masking import mask_json_value
@@ -36,12 +36,7 @@ from dature.types import JSONValue
 if TYPE_CHECKING:
     from adaptix import Retort
 
-    from dature.types import (
-        ExpandEnvVarsMode,
-        NestedResolve,
-        NestedResolveStrategy,
-        TypeLoaderMap,
-    )
+    from dature.types import TypeLoaderMap
 
 logger = logging.getLogger("dature")
 
@@ -121,14 +116,14 @@ class _PatchContext:
         debug: bool,
         secret_field_names: tuple[str, ...] | None = None,
         mask_secrets: bool | None = None,
-        resolved: ResolvedSourceParams,
+        type_loaders: "TypeLoaderMap | None" = None,
     ) -> None:
-        self.resolved = resolved
-        ensure_retort(source, cls, resolved_type_loaders=self.resolved.type_loaders)
+        self.type_loaders = type_loaders
+        ensure_retort(source, cls, resolved_type_loaders=self.type_loaders)
         validating_retort = create_validating_retort(
             source,
             cls,
-            resolved_type_loaders=self.resolved.type_loaders,
+            resolved_type_loaders=self.type_loaders,
         )
 
         self.source = source
@@ -161,13 +156,13 @@ class _PatchContext:
         # probe_retort is created early so adaptix sees the original signature
         self.probe_retort: Retort | None = None
         if source.skip_if_invalid:
-            self.probe_retort = create_probe_retort(source, resolved_type_loaders=self.resolved.type_loaders)
+            self.probe_retort = create_probe_retort(source, resolved_type_loaders=self.type_loaders)
             self.probe_retort.get_loader(cls)
 
 
 def _load_single_source(ctx: _PatchContext) -> DataclassInstance:
     load_result = handle_load_errors(
-        func=lambda: load_source_raw(ctx.source, ctx.resolved),
+        func=ctx.source.load_raw,
         ctx=ctx.error_ctx,
     )
     raw_data = load_result.data
@@ -193,14 +188,14 @@ def _load_single_source(ctx: _PatchContext) -> DataclassInstance:
     raw_data = coerce_flag_fields(raw_data, ctx.cls)
 
     skipped_fields: dict[str, list[SkippedFieldSource]] = {}
-    file_content = read_file_content(ctx.error_ctx.file_path)
+    file_content = read_file_content(ctx.error_ctx.source.file_path_for_errors())
     for path in filter_result.skipped_paths:
         skipped_fields.setdefault(path, []).append(
             SkippedFieldSource(source=ctx.source, error_ctx=ctx.error_ctx, file_content=file_content),
         )
 
     def _transform(data: JSONValue = raw_data) -> DataclassInstance:
-        return transform_to_dataclass(ctx.source, data, ctx.cls, resolved_type_loaders=ctx.resolved.type_loaders)
+        return transform_to_dataclass(ctx.source, data, ctx.cls, resolved_type_loaders=ctx.type_loaders)
 
     try:
         loaded_data = handle_load_errors(
@@ -233,7 +228,7 @@ def _make_new_init(ctx: _PatchContext) -> Callable[..., None]:
             _log_single_source_load(
                 dataclass_name=ctx.cls.__name__,
                 loader_type=ctx.loader_type,
-                file_path=ctx.source.file_display() or "<env>",
+                file_path=ctx.source.display_name(),
                 data=asdict(loaded_data),
                 secret_paths=ctx.secret_paths,
             )
@@ -249,7 +244,7 @@ def _make_new_init(ctx: _PatchContext) -> Callable[..., None]:
             report = _build_single_source_report(
                 dataclass_name=ctx.cls.__name__,
                 loader_type=ctx.loader_type,
-                file_path=str(path) if (path := ctx.source.file_path_for_errors()) else None,
+                file_path=str(path) if (path := ctx.source.file_path_for_errors()) else ctx.source.display_name(),
                 raw_data=result_dict,
                 secret_paths=ctx.secret_paths,
             )
@@ -268,18 +263,11 @@ def load_as_function(  # noqa: C901, PLR0913
     debug: bool,
     secret_field_names: tuple[str, ...] | None = None,
     mask_secrets: bool | None = None,
-    expand_env_vars: "ExpandEnvVarsMode | None" = None,
+    source_params: SourceParams | None = None,
     type_loaders: "TypeLoaderMap | None" = None,
-    nested_resolve_strategy: "NestedResolveStrategy | None" = None,
-    nested_resolve: "NestedResolve | None" = None,
 ) -> DataclassInstance:
-    resolved = resolve_source_params(
-        source,
-        load_expand_env_vars=expand_env_vars,
-        load_type_loaders=type_loaders,
-        load_nested_resolve_strategy=nested_resolve_strategy,
-        load_nested_resolve=nested_resolve,
-    )
+    source = _apply_source_init_params(source, source_params or SourceParams())
+    resolved_type_loaders = _resolve_type_loaders(source, type_loaders)
     format_name = source.format_name
 
     secret_paths: frozenset[str] = frozenset()
@@ -295,7 +283,7 @@ def load_as_function(  # noqa: C901, PLR0913
     )
 
     load_result = handle_load_errors(
-        func=lambda: load_source_raw(source, resolved),
+        func=source.load_raw,
         ctx=error_ctx,
     )
     raw_data = load_result.data
@@ -319,7 +307,7 @@ def load_as_function(  # noqa: C901, PLR0913
     raw_data = filter_result.cleaned_dict
 
     skipped_fields: dict[str, list[SkippedFieldSource]] = {}
-    file_content = read_file_content(error_ctx.file_path)
+    file_content = read_file_content(error_ctx.source.file_path_for_errors())
     for path in filter_result.skipped_paths:
         skipped_fields.setdefault(path, []).append(
             SkippedFieldSource(source=source, error_ctx=error_ctx, file_content=file_content),
@@ -328,7 +316,7 @@ def load_as_function(  # noqa: C901, PLR0913
     report: LoadReport | None = None
     if debug:
         source_path = source.file_path_for_errors()
-        report_file_path = str(source_path) if source_path is not None else None
+        report_file_path = str(source_path) if source_path is not None else source.display_name()
         report = _build_single_source_report(
             dataclass_name=schema.__name__,
             loader_type=format_name,
@@ -340,7 +328,7 @@ def load_as_function(  # noqa: C901, PLR0913
     _log_single_source_load(
         dataclass_name=schema.__name__,
         loader_type=format_name,
-        file_path=source.file_display() or "<env>",
+        file_path=source.display_name(),
         data=raw_data if isinstance(raw_data, dict) else {},
         secret_paths=secret_paths,
     )
@@ -348,7 +336,7 @@ def load_as_function(  # noqa: C901, PLR0913
     validating_retort = create_validating_retort(
         source,
         schema,
-        resolved_type_loaders=resolved.type_loaders,
+        resolved_type_loaders=resolved_type_loaders,
     )
     validation_loader = validating_retort.get_loader(schema)
     raw_data = coerce_flag_fields(raw_data, schema)
@@ -371,7 +359,7 @@ def load_as_function(  # noqa: C901, PLR0913
                 source,
                 raw_data,
                 schema,
-                resolved_type_loaders=resolved.type_loaders,
+                resolved_type_loaders=resolved_type_loaders,
             ),
             ctx=error_ctx,
         )
@@ -395,18 +383,11 @@ def make_decorator(  # noqa: PLR0913
     debug: bool,
     secret_field_names: tuple[str, ...] | None = None,
     mask_secrets: bool | None = None,
-    expand_env_vars: "ExpandEnvVarsMode | None" = None,
+    source_params: SourceParams | None = None,
     type_loaders: "TypeLoaderMap | None" = None,
-    nested_resolve_strategy: "NestedResolveStrategy | None" = None,
-    nested_resolve: "NestedResolve | None" = None,
 ) -> Callable[[type[DataclassInstance]], type[DataclassInstance]]:
-    resolved = resolve_source_params(
-        source,
-        load_expand_env_vars=expand_env_vars,
-        load_type_loaders=type_loaders,
-        load_nested_resolve_strategy=nested_resolve_strategy,
-        load_nested_resolve=nested_resolve,
-    )
+    source = _apply_source_init_params(source, source_params or SourceParams())
+    resolved_type_loaders = _resolve_type_loaders(source, type_loaders)
 
     def decorator(cls: type[DataclassInstance]) -> type[DataclassInstance]:
         if not is_dataclass(cls):
@@ -420,7 +401,7 @@ def make_decorator(  # noqa: PLR0913
             debug=debug,
             secret_field_names=secret_field_names,
             mask_secrets=mask_secrets,
-            resolved=resolved,
+            type_loaders=resolved_type_loaders,
         )
         cls.__init__ = _make_new_init(ctx)  # type: ignore[method-assign]
         cls.__post_init__ = make_validating_post_init(ctx)  # type: ignore[attr-defined]

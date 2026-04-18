@@ -21,6 +21,7 @@ class TestDatureConfigErrorFormat:
                         line_range=LineRange(start=2, end=2),
                         line_content=['timeout = "30"'],
                         env_var_name=None,
+                        caret=(11, 2),  # "30" at pos 11 in 'timeout = "30"'
                     ),
                 ],
             ),
@@ -47,6 +48,7 @@ class TestDatureConfigErrorFormat:
                         line_range=LineRange(start=2, end=2),
                         line_content=['"timeout": "abc"'],
                         env_var_name=None,
+                        caret=(12, 3),  # "abc" at pos 12 in '"timeout": "abc"' (key-aware)
                     ),
                 ],
             ),
@@ -101,7 +103,7 @@ class TestDatureConfigErrorFormat:
 
 class TestCaretPointsToValue:
     def test_caret_points_to_value_not_key_when_same_string(self) -> None:
-        # key "name" and value "name" are identical — caret should point to the value (rfind)
+        # key "name" and value "name" are identical — caret should point to the value (rfind pos 8)
         errors = [
             FieldLoadError(
                 field_path=["name"],
@@ -114,6 +116,7 @@ class TestCaretPointsToValue:
                         line_range=LineRange(start=1, end=1),
                         line_content=['name = "name"'],
                         env_var_name=None,
+                        caret=(8, 4),  # "name" at pos 8 in 'name = "name"' (rfind)
                     ),
                 ],
             ),
@@ -139,6 +142,7 @@ class TestCaretPointsToValue:
                         line_range=LineRange(start=2, end=2),
                         line_content=['"host": "host"'],
                         env_var_name=None,
+                        caret=(9, 4),  # "host" at pos 9 in '"host": "host"' (key-aware)
                     ),
                 ],
             ),
@@ -569,6 +573,7 @@ class TestCaretTruncation:
                         line_range=LineRange(start=1, end=1),
                         line_content=[line],
                         env_var_name=None,
+                        caret=(73, 10),  # "abcdefghij" at pos 73, length 10 (truncated to 4)
                     ),
                 ],
             ),
@@ -596,6 +601,7 @@ class TestCaretTruncation:
                         line_range=LineRange(start=2, end=2),
                         line_content=[line],
                         env_var_name=None,
+                        caret=(11, 2),  # "30" at pos 11 in 'timeout = "30"...' (rfind)
                     ),
                 ],
             ),

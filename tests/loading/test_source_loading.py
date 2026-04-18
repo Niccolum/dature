@@ -8,14 +8,13 @@ import pytest
 
 from dature import EnvFileSource, IniSource, JsonSource, Toml11Source, Yaml12Source, load
 from dature.errors import DatureConfigError, EnvVarExpandError
-from dature.loading.merge_config import MergeConfig
+from dature.loading.merge_config import MergeConfig, SourceParams
 from dature.loading.source_loading import (
+    _apply_source_init_params,
     apply_merge_skip_invalid,
-    resolve_expand_env_vars,
     resolve_mask_secrets,
     resolve_secret_field_names,
     resolve_skip_invalid,
-    resolve_source_params,
     should_skip_broken,
 )
 from dature.sources.env_ import EnvSource
@@ -424,32 +423,7 @@ class TestShouldSkipBroken:
 
         should_skip_broken(source, merge)
 
-        assert "skip_if_broken has no effect on environment variable sources" in caplog.text
-
-
-class TestResolveExpandEnvVars:
-    @pytest.mark.parametrize(
-        ("source_expand", "merge_expand", "expected"),
-        [
-            ("disabled", "strict", "disabled"),
-            (None, "strict", "strict"),
-        ],
-        ids=["source-overrides", "source-none-inherits"],
-    )
-    def test_resolve(
-        self,
-        tmp_path: Path,
-        source_expand: str | None,
-        merge_expand: str,
-        expected: str,
-    ):
-        json_file = tmp_path / "c.json"
-        json_file.write_text("{}")
-        kwargs = {} if source_expand is None else {"expand_env_vars": source_expand}
-        source = JsonSource(file=json_file, **kwargs)
-        merge = MergeConfig(sources=(source,), expand_env_vars=merge_expand)
-
-        assert resolve_expand_env_vars(source, merge) == expected
+        assert "skip_if_broken has no effect on non-file sources" in caplog.text
 
 
 class TestResolveSkipInvalid:
@@ -560,7 +534,7 @@ class TestApplyMergeSkipInvalid:
         assert result.skipped_paths == []
 
 
-class TestResolveSourceParamsNestedStrategy:
+class TestApplySourceInitParamsNestedStrategy:
     @pytest.mark.parametrize(
         ("source_strategy", "load_strategy", "expected"),
         [
@@ -585,6 +559,6 @@ class TestResolveSourceParamsNestedStrategy:
         kwargs = {} if source_strategy is None else {"nested_resolve_strategy": source_strategy}
         source = EnvSource(**kwargs)
 
-        resolved = resolve_source_params(source, load_nested_resolve_strategy=load_strategy)
+        result = _apply_source_init_params(source, SourceParams(nested_resolve_strategy=load_strategy))
 
-        assert resolved.nested_resolve_strategy == expected
+        assert result.nested_resolve_strategy == expected

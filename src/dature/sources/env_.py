@@ -2,7 +2,6 @@ import io
 import os
 from collections.abc import Iterable
 from dataclasses import dataclass
-from pathlib import Path
 from typing import ClassVar, cast
 
 from dature.errors import LineRange, SourceLocation
@@ -26,29 +25,25 @@ class EnvSource(FlatKeySource):
     def _load(self) -> JSONValue:
         return cast("JSONValue", os.environ)
 
-    @classmethod
     def resolve_location(
-        cls,
+        self,
         *,
         field_path: list[str],
-        file_path: Path | None,  # noqa: ARG003
-        file_content: str | None,  # noqa: ARG003
-        prefix: str | None,
+        file_content: str | None,  # noqa: ARG002
         nested_conflict: NestedConflict | None,
-        split_symbols: str | None = None,
+        input_value: JSONValue = None,  # noqa: ARG002
     ) -> list[SourceLocation]:
-        resolved_symbols = split_symbols or "__"
-        var_name = cls._resolve_var_name(field_path, prefix, resolved_symbols, nested_conflict)
+        var_name = self._resolve_var_name(field_path, self.prefix, self.split_symbols, nested_conflict)
         env_var_value: str | None = None
         if nested_conflict is not None:
-            json_var = cls._resolve_var_name(field_path[:1], prefix, resolved_symbols, None)
+            json_var = self._resolve_var_name(field_path[:1], self.prefix, self.split_symbols, None)
             if nested_conflict.used_var == json_var:
                 env_var_value = nested_conflict.json_raw_value
         else:
             env_var_value = os.environ.get(var_name)
         return [
             SourceLocation(
-                location_label=cls.location_label,
+                location_label=self.location_label,
                 file_path=None,
                 line_range=None,
                 line_content=None,
@@ -99,30 +94,45 @@ class EnvFileSource(FileFieldMixin, EnvSource):
             return f"{display} '{file_path_display}'"
         return display
 
-    @classmethod
     def resolve_location(
-        cls,
+        self,
         *,
         field_path: list[str],
-        file_path: Path | None,
         file_content: str | None,
-        prefix: str | None,
         nested_conflict: NestedConflict | None,
-        split_symbols: str | None = None,
+        input_value: JSONValue = None,
     ) -> list[SourceLocation]:
-        resolved_symbols = split_symbols or "__"
-        var_name = cls._resolve_var_name(field_path, prefix, resolved_symbols, nested_conflict)
+        var_name = self._resolve_var_name(field_path, self.prefix, self.split_symbols, nested_conflict)
+        file_path = self.file_path_for_errors()
         line_range: LineRange | None = None
         line_content: list[str] | None = None
+        caret: tuple[int, int] | None = None
         if file_content is not None:
             line_range, line_content = _find_env_line(file_content, var_name)
+        if line_content is not None and len(line_content) == 1:
+            line = line_content[0]
+            eq_pos = line.find("=")
+            if eq_pos != -1:
+                search_from = eq_pos + 1
+                if input_value is not None:
+                    found = self._find_value_in_line(
+                        line,
+                        input_value=input_value,
+                        field_key=field_path[-1] if field_path else None,
+                        search_from=search_from,
+                    )
+                    if found is not None:
+                        caret = found
+                else:
+                    caret = (search_from, len(line) - search_from)
         return [
             SourceLocation(
-                location_label=cls.location_label,
+                location_label=self.location_label,
                 file_path=file_path,
                 line_range=line_range,
                 line_content=line_content,
                 env_var_name=var_name,
+                caret=caret,
             ),
         ]
 

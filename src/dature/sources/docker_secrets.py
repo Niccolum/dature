@@ -31,42 +31,49 @@ class DockerSecretsSource(FlatKeySource):
     def file_path_for_errors(self) -> Path | None:
         return Path(self.dir_)
 
-    @classmethod
     def resolve_location(
-        cls,
+        self,
         *,
         field_path: list[str],
-        file_path: Path | None,
-        file_content: str | None,  # noqa: ARG003
-        prefix: str | None,
+        file_content: str | None,  # noqa: ARG002
         nested_conflict: NestedConflict | None,
-        split_symbols: str | None = None,
+        input_value: JSONValue = None,
     ) -> list[SourceLocation]:
-        resolved_symbols = split_symbols or "__"
         if nested_conflict is not None:
-            json_var = cls._resolve_var_name(field_path[:1], prefix, resolved_symbols, None)
+            json_var = self._resolve_var_name(field_path[:1], self.prefix, self.split_symbols, None)
             if nested_conflict.used_var == json_var:
                 secret_name = field_path[0]
             else:
-                secret_name = resolved_symbols.join(field_path)
+                secret_name = self.split_symbols.join(field_path)
         else:
-            secret_name = resolved_symbols.join(field_path)
-        if prefix is not None:
-            secret_name = prefix + secret_name
-        secret_file = file_path / secret_name if file_path is not None else None
+            secret_name = self.split_symbols.join(field_path)
+        if self.prefix is not None:
+            secret_name = self.prefix + secret_name
+        secret_file = Path(self.dir_) / secret_name
         line_content: list[str] | None = None
-        if secret_file is not None:
-            with suppress(OSError):
-                raw = secret_file.read_text().strip()
-                if raw:
-                    line_content = [raw]
+        caret: tuple[int, int] | None = None
+        with suppress(OSError):
+            raw = secret_file.read_text().strip()
+            if raw:
+                line_content = [raw]
+                if input_value is not None:
+                    found = self._find_value_in_line(
+                        raw,
+                        input_value=input_value,
+                        field_key=field_path[-1] if field_path else None,
+                    )
+                    if found is not None:
+                        caret = found
+                else:
+                    caret = (0, len(raw))
         return [
             SourceLocation(
-                location_label=cls.location_label,
+                location_label=self.location_label,
                 file_path=secret_file,
                 line_range=None,
                 line_content=line_content,
                 env_var_name=None,
+                caret=caret,
             ),
         ]
 
