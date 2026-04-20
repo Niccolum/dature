@@ -9,7 +9,7 @@ Use the following checklist. Ask me for the format name before starting, then ex
    - Set `format_name: ClassVar[str]` and `location_label: ClassVar[str]`
    - Implement `_load_file(self, path: FileOrStream) -> JSONValue`
    - Import the optional dependency *inside* `_load_file`, not at module level
-   - For `FlatKeySource` subclasses that need custom error location: override `resolve_location(self, *, field_path, file_content, nested_conflict, input_value=None)` as an **instance method** (not classmethod). Use `self._find_value_in_line(line, input_value=input_value)` to compute caret. Set `SourceLocation.caret = (pos, length)` for single-line content.
+   - For `FlatKeySource` subclasses that need custom error location: override `resolve_location(self, *, field_path, file_content, nested_conflict, input_value=None)` as an **instance method** (not classmethod). Use `self._compute_line_carets(line_content, input_value=input_value, field_key=field_path[-1])` to compute per-line carets — returns `list[CaretSpan]` parallel to `line_content`. Assign to `SourceLocation.line_carets`. For format-specific caret placement, override classmethods `_caret_for_key_line` or `_find_value_in_line` (both return `CaretSpan`).
 
 2. **PathFinder** (if the format supports line-number error locations) — create `src/dature/path_finders/<format>_.py`
    - Subclass `PathFinder` from `dature.path_finders.base`

@@ -534,7 +534,9 @@ class TestRaiseOnConflict:
                ├── "host": "json-host",
                │   ^^^^^^^^^^^^^^^^^^^^
                └── FILE '{a}', line 2
-               └── ENV 'APP_HOST' = 'env-host'
+               ├── APP_HOST=env-host
+               │            ^^^^^^^^
+               └── ENV 'APP_HOST'
             """)
 
     def test_multiple_conflicts(self, tmp_path: Path):

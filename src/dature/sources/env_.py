@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import ClassVar, cast
 
-from dature.errors import LineRange, SourceLocation
+from dature.errors import CaretSpan, LineRange, SourceLocation
 from dature.sources.base import FileFieldMixin, FlatKeySource
 from dature.types import (
     BINARY_IO_TYPES,
@@ -41,14 +41,23 @@ class EnvSource(FlatKeySource):
                 env_var_value = nested_conflict.json_raw_value
         else:
             env_var_value = os.environ.get(var_name)
+        line_content: list[str] | None = None
+        line_carets: list[CaretSpan] | None = None
+        if env_var_value is not None:
+            value_lines = env_var_value.split("\n")
+            value_start = len(var_name) + 1  # after "VAR_NAME="
+            line_content = [f"{var_name}={value_lines[0]}", *value_lines[1:]]
+            line_carets = [CaretSpan(start=value_start, end=value_start + len(value_lines[0]))]
+            line_carets.extend(CaretSpan(start=0, end=len(line)) for line in value_lines[1:])
         return [
             SourceLocation(
                 location_label=self.location_label,
                 file_path=None,
                 line_range=None,
-                line_content=None,
+                line_content=line_content,
                 env_var_name=var_name,
                 env_var_value=env_var_value,
+                line_carets=line_carets,
             ),
         ]
 
@@ -106,12 +115,13 @@ class EnvFileSource(FileFieldMixin, EnvSource):
         file_path = self.file_path_for_errors()
         line_range: LineRange | None = None
         line_content: list[str] | None = None
-        caret: tuple[int, int] | None = None
+        line_carets: list[CaretSpan] | None = None
         if file_content is not None:
             line_range, line_content = _find_env_line(file_content, var_name)
         if line_content is not None and len(line_content) == 1:
             line = line_content[0]
             eq_pos = line.find("=")
+            caret = CaretSpan(start=0, end=0)
             if eq_pos != -1:
                 search_from = eq_pos + 1
                 if input_value is not None:
@@ -124,7 +134,8 @@ class EnvFileSource(FileFieldMixin, EnvSource):
                     if found is not None:
                         caret = found
                 else:
-                    caret = (search_from, len(line) - search_from)
+                    caret = CaretSpan(start=search_from, end=len(line))
+            line_carets = [caret]
         return [
             SourceLocation(
                 location_label=self.location_label,
@@ -132,7 +143,7 @@ class EnvFileSource(FileFieldMixin, EnvSource):
                 line_range=line_range,
                 line_content=line_content,
                 env_var_name=var_name,
-                caret=caret,
+                line_carets=line_carets,
             ),
         ]
 

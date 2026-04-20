@@ -19,6 +19,16 @@ class LineRange:
 
 
 @dataclass(frozen=True, slots=True)
+class CaretSpan:
+    start: int
+    end: int
+
+    @property
+    def length(self) -> int:
+        return self.end - self.start
+
+
+@dataclass(frozen=True, slots=True)
 class SourceLocation:
     location_label: str
     file_path: Path | None
@@ -27,7 +37,7 @@ class SourceLocation:
     env_var_name: str | None
     annotation: str | None = None
     env_var_value: str | None = None
-    caret: "tuple[int, int] | None" = None
+    line_carets: "list[CaretSpan] | None" = None
 
 
 class DatureError(Exception):
@@ -51,17 +61,9 @@ class FieldLoadError(DatureError):
 
     def _format(self) -> str:
         lines = [f"  [{format_path(self.field_path)}]  {self.message}"]
-        field_key = self.field_path[-1] if self.field_path else None
         last_idx = len(self.locations) - 1
         for i, loc in enumerate(self.locations):
-            lines.extend(
-                format_location(
-                    loc,
-                    last=i == last_idx,
-                    input_value=self.input_value,
-                    field_key=field_key,
-                ),
-            )
+            lines.extend(format_location(loc, last=i == last_idx))
         return "\n".join(lines)
 
 

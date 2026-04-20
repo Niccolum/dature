@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from dature.errors.exceptions import LineRange, SourceLocation
+from dature.errors.exceptions import CaretSpan, LineRange, SourceLocation
 from dature.masking.masking import mask_env_line
 from dature.path_finders.base import PathFinder
 from dature.types import JSONValue, NestedConflict, NestedConflicts
@@ -75,8 +75,11 @@ def _apply_masking(
     file_content: str | None,
     *,
     is_secret: bool,
+    field_path: list[str],
+    input_value: JSONValue,
 ) -> list[SourceLocation]:
     result: list[SourceLocation] = []
+    field_key = field_path[-1] if field_path else None
     for location in locations:
         should_mask = is_secret
         if (
@@ -97,6 +100,13 @@ def _apply_masking(
             masked_lines = (
                 [mask_env_line(line) for line in location.line_content] if location.line_content is not None else None
             )
+            masked_carets: list[CaretSpan] | None = None
+            if masked_lines is not None:
+                masked_carets = ctx.source._compute_line_carets(  # noqa: SLF001
+                    masked_lines,
+                    input_value=input_value,
+                    field_key=field_key,
+                )
             result.append(
                 SourceLocation(
                     location_label=location.location_label,
@@ -104,6 +114,7 @@ def _apply_masking(
                     line_range=location.line_range,
                     line_content=masked_lines,
                     env_var_name=location.env_var_name,
+                    line_carets=masked_carets,
                     # env_var_value intentionally omitted — drop it when masking
                 ),
             )
@@ -129,4 +140,11 @@ def resolve_source_location(
         input_value=input_value,
     )
 
-    return _apply_masking(locations, ctx, file_content, is_secret=is_secret)
+    return _apply_masking(
+        locations,
+        ctx,
+        file_content,
+        is_secret=is_secret,
+        field_path=field_path,
+        input_value=input_value,
+    )

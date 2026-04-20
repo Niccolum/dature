@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-from dature.errors import LineRange, SourceLocation
+from dature.errors import CaretSpan, LineRange, SourceLocation
 from dature.expansion.env_expand import expand_env_vars, expand_file_path
 from dature.field_path import FieldPath
 from dature.path_finders.base import PathFinder
@@ -170,16 +170,16 @@ class Source(abc.ABC):
             path = path[:-1]
         return None
 
-    @staticmethod
-    def _strip_common_indent(raw_lines: list[str]) -> list[str]:
+    @classmethod
+    def _strip_common_indent(cls, raw_lines: list[str]) -> list[str]:
         indents = [len(line) - len(line.lstrip()) for line in raw_lines if line.strip()]
         if not indents:
             return raw_lines
         min_indent = min(indents)
         return [line[min_indent:] for line in raw_lines]
 
-    @staticmethod
-    def _build_value_candidates(input_value: JSONValue) -> list[str]:
+    @classmethod
+    def _build_value_candidates(cls, input_value: JSONValue) -> list[str]:
         if isinstance(input_value, (list, dict)):
             return [json.dumps(input_value, ensure_ascii=False)]
         if isinstance(input_value, str) and input_value == "":
@@ -190,15 +190,16 @@ class Source(abc.ABC):
             return [text]
         return [text, lower]
 
-    @staticmethod
+    @classmethod
     def _find_value_in_line(
+        cls,
         line: str,
         *,
         input_value: JSONValue,
         field_key: str | None = None,
         search_from: int = 0,
-    ) -> "tuple[int, int] | None":
-        candidates = Source._build_value_candidates(input_value)
+    ) -> "CaretSpan | None":
+        candidates = cls._build_value_candidates(input_value)
         if field_key is not None:
             key_marker = f'"{field_key}":'
             key_pos = line.find(key_marker)
@@ -207,12 +208,59 @@ class Source(abc.ABC):
                 for candidate in candidates:
                     pos = line.find(candidate, after_key)
                     if pos != -1:
-                        return (pos, len(candidate))
+                        return CaretSpan(start=pos, end=pos + len(candidate))
         for candidate in candidates:
             pos = line.rfind(candidate, search_from)
             if pos != -1:
-                return (pos, len(candidate))
+                return CaretSpan(start=pos, end=pos + len(candidate))
         return None
+
+    @classmethod
+    def _nonwhitespace_span(cls, line: str) -> "CaretSpan":
+        stripped = line.lstrip()
+        if not stripped:
+            return CaretSpan(start=0, end=0)
+        pos = len(line) - len(stripped)
+        return CaretSpan(start=pos, end=len(line))
+
+    @classmethod
+    def _caret_for_key_line(cls, line: str) -> "CaretSpan":
+        sep_pos = max(line.rfind(":"), line.rfind("="))
+        if sep_pos != -1:
+            after = sep_pos + 1
+            while after < len(line) and line[after] == " ":
+                after += 1
+            if after < len(line):
+                return CaretSpan(start=after, end=len(line))
+        return cls._nonwhitespace_span(line)
+
+    @classmethod
+    def _caret_after_equals(cls, line: str) -> "CaretSpan":
+        eq_pos = line.find("=")
+        if eq_pos != -1:
+            return CaretSpan(start=eq_pos + 1, end=len(line))
+        return CaretSpan(start=0, end=len(line))
+
+    @classmethod
+    def _compute_line_carets(
+        cls,
+        content_lines: list[str],
+        *,
+        input_value: JSONValue,
+        field_key: str | None,
+    ) -> "list[CaretSpan]":
+        if len(content_lines) == 1:
+            if input_value is None:
+                return [cls._caret_after_equals(content_lines[0])]
+            found = cls._find_value_in_line(
+                content_lines[0],
+                input_value=input_value,
+                field_key=field_key,
+            )
+            return [found if found is not None else CaretSpan(start=0, end=0)]
+        result: list[CaretSpan] = [cls._caret_for_key_line(content_lines[0])]
+        result.extend(cls._nonwhitespace_span(line) for line in content_lines[1:])
+        return result
 
     def resolve_location(
         self,
@@ -239,14 +287,17 @@ class Source(abc.ABC):
 
         lines = file_content.splitlines()
         content_lines: list[str] | None = None
-        caret: tuple[int, int] | None = None
+        line_carets: list[CaretSpan] | None = None
         if 0 < line_range.start <= len(lines):
             end = min(line_range.end, len(lines))
             raw = lines[line_range.start - 1 : end]
             content_lines = self._strip_common_indent(raw)
-            if len(content_lines) == 1 and input_value is not None:
-                field_key = field_path[-1] if field_path else None
-                caret = self._find_value_in_line(content_lines[0], input_value=input_value, field_key=field_key)
+            field_key = field_path[-1] if field_path else None
+            line_carets = self._compute_line_carets(
+                content_lines,
+                input_value=input_value,
+                field_key=field_key,
+            )
 
         return [
             SourceLocation(
@@ -255,7 +306,7 @@ class Source(abc.ABC):
                 line_range=line_range,
                 line_content=content_lines,
                 env_var_name=None,
-                caret=caret,
+                line_carets=line_carets,
             ),
         ]
 

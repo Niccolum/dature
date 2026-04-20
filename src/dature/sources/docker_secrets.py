@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
-from dature.errors import SourceLocation
+from dature.errors import CaretSpan, SourceLocation
 from dature.expansion.env_expand import expand_file_path
 from dature.sources.base import FlatKeySource
 from dature.types import JSONValue, NestedConflict
@@ -51,21 +51,25 @@ class DockerSecretsSource(FlatKeySource):
             secret_name = self.prefix + secret_name
         secret_file = Path(self.dir_) / secret_name
         line_content: list[str] | None = None
-        caret: tuple[int, int] | None = None
+        line_carets: list[CaretSpan] | None = None
         with suppress(OSError):
             raw = secret_file.read_text().strip()
             if raw:
-                line_content = [raw]
-                if input_value is not None:
+                value_lines = raw.split("\n")
+                value_start = len(secret_name) + 3  # after "name = "
+                line_content = [f"{secret_name} = {value_lines[0]}", *value_lines[1:]]
+                first_caret = CaretSpan(start=value_start, end=value_start + len(value_lines[0]))
+                if input_value is not None and len(value_lines) == 1:
                     found = self._find_value_in_line(
-                        raw,
+                        line_content[0],
                         input_value=input_value,
                         field_key=field_path[-1] if field_path else None,
+                        search_from=value_start,
                     )
                     if found is not None:
-                        caret = found
-                else:
-                    caret = (0, len(raw))
+                        first_caret = found
+                line_carets = [first_caret]
+                line_carets.extend(CaretSpan(start=0, end=len(line)) for line in value_lines[1:])
         return [
             SourceLocation(
                 location_label=self.location_label,
@@ -73,7 +77,7 @@ class DockerSecretsSource(FlatKeySource):
                 line_range=None,
                 line_content=line_content,
                 env_var_name=None,
-                caret=caret,
+                line_carets=line_carets,
             ),
         ]
 

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from dature import EnvSource, JsonSource, Toml11Source, Yaml12Source, load
-from dature.errors import DatureConfigError, FieldLoadError, LineRange, SourceLocation
+from dature.errors import CaretSpan, DatureConfigError, FieldLoadError, LineRange, SourceLocation
 
 
 class TestDatureConfigErrorFormat:
@@ -21,7 +21,7 @@ class TestDatureConfigErrorFormat:
                         line_range=LineRange(start=2, end=2),
                         line_content=['timeout = "30"'],
                         env_var_name=None,
-                        caret=(11, 2),  # "30" at pos 11 in 'timeout = "30"'
+                        line_carets=[CaretSpan(start=11, end=13)],  # "30" at cols 11-13 in 'timeout = "30"'
                     ),
                 ],
             ),
@@ -48,7 +48,7 @@ class TestDatureConfigErrorFormat:
                         line_range=LineRange(start=2, end=2),
                         line_content=['"timeout": "abc"'],
                         env_var_name=None,
-                        caret=(12, 3),  # "abc" at pos 12 in '"timeout": "abc"' (key-aware)
+                        line_carets=[CaretSpan(start=12, end=15)],  # "abc" at cols 12-15 in '"timeout": "abc"'
                     ),
                 ],
             ),
@@ -116,7 +116,7 @@ class TestCaretPointsToValue:
                         line_range=LineRange(start=1, end=1),
                         line_content=['name = "name"'],
                         env_var_name=None,
-                        caret=(8, 4),  # "name" at pos 8 in 'name = "name"' (rfind)
+                        line_carets=[CaretSpan(start=8, end=12)],  # "name" at cols 8-12 in 'name = "name"'
                     ),
                 ],
             ),
@@ -142,7 +142,7 @@ class TestCaretPointsToValue:
                         line_range=LineRange(start=2, end=2),
                         line_content=['"host": "host"'],
                         env_var_name=None,
-                        caret=(9, 4),  # "host" at pos 9 in '"host": "host"' (key-aware)
+                        line_carets=[CaretSpan(start=9, end=13)],  # "host" at cols 9-13 in '"host": "host"'
                     ),
                 ],
             ),
@@ -290,7 +290,10 @@ class TestLoadIntegrationErrors:
         assert len(err.exceptions) == 1
         assert str(err) == "Config loading errors (1)"
         assert str(err.exceptions[0]) == (
-            "  [timeout]  invalid literal for int() with base 10: 'abc'\n   └── ENV 'APP_TIMEOUT' = 'abc'"
+            "  [timeout]  invalid literal for int() with base 10: 'abc'\n"
+            "   ├── APP_TIMEOUT=abc\n"
+            "   │               ^^^\n"
+            "   └── ENV 'APP_TIMEOUT'"
         )
 
     def test_toml_with_line_number(self, tmp_path: Path):
@@ -573,7 +576,7 @@ class TestCaretTruncation:
                         line_range=LineRange(start=1, end=1),
                         line_content=[line],
                         env_var_name=None,
-                        caret=(73, 10),  # "abcdefghij" at pos 73, length 10 (truncated to 4)
+                        line_carets=[CaretSpan(start=73, end=83)],  # "abcdefghij" at cols 73-83 (truncated to 4)
                     ),
                 ],
             ),
@@ -601,7 +604,7 @@ class TestCaretTruncation:
                         line_range=LineRange(start=2, end=2),
                         line_content=[line],
                         env_var_name=None,
-                        caret=(11, 2),  # "30" at pos 11 in 'timeout = "30"...' (rfind)
+                        line_carets=[CaretSpan(start=11, end=13)],  # "30" at cols 11-13 in 'timeout = "30"...'
                     ),
                 ],
             ),
@@ -635,7 +638,9 @@ class TestMultilineValueDisplay:
         assert str(err.exceptions[0]) == (
             "  [db]  int() argument must be a string, a bytes-like object or a real number, not 'dict'\n"
             '   ├── "db": {\n'
+            "   │         ^\n"
             '   ├──   "host": "localhost",\n'
+            "   │     ^^^^^^^^^^^^^^^^^^^^\n"
             "   ├── ...\n"
             f"   └── FILE '{json_file}', line 2-5"
         )
@@ -659,8 +664,11 @@ class TestMultilineValueDisplay:
         assert str(err.exceptions[0]) == (
             "  [db]  int() argument must be a string, a bytes-like object or a real number, not 'dict'\n"
             "   ├── db:\n"
+            "   │   ^^^\n"
             "   ├──   host: localhost\n"
+            "   │     ^^^^^^^^^^^^^^^\n"
             "   ├──   port: abc\n"
+            "   │     ^^^^^^^^^\n"
             f"   └── FILE '{yaml_file}', line 1-3"
         )
 
@@ -682,7 +690,9 @@ class TestMultilineValueDisplay:
         assert str(err.exceptions[0]) == (
             "  [tags]  int() argument must be a string, a bytes-like object or a real number, not 'list'\n"
             "   ├── tags = [\n"
+            "   │          ^\n"
             '   ├──   "a",\n'
+            "   │     ^^^^\n"
             "   ├── ...\n"
             f"   └── FILE '{toml_file}', line 1-4"
         )
@@ -705,9 +715,35 @@ class TestMultilineValueDisplay:
         assert str(err.exceptions[0]) == (
             "  [tags]  int() argument must be a string, a bytes-like object or a real number, not 'list'\n"
             '   ├── "tags": [\n'
+            "   │           ^\n"
             '   ├──   "a",\n'
+            "   │     ^^^^\n"
             "   ├── ...\n"
             f"   └── FILE '{json_file}', line 2-5"
+        )
+
+    def test_multiline_caret_underlines_each_visible_line(self, tmp_path: Path):
+        yaml_file = tmp_path / "c.yaml"
+        yaml_file.write_text("db:\n  host: x\n  port: y\nother: z\n")
+
+        @dataclass
+        class Config:
+            db: int
+            other: str
+
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(Yaml12Source(file=yaml_file), schema=Config)
+
+        err = exc_info.value
+        assert str(err.exceptions[0]) == (
+            "  [db]  int() argument must be a string, a bytes-like object or a real number, not 'dict'\n"
+            "   ├── db:\n"
+            "   │   ^^^\n"
+            "   ├──   host: x\n"
+            "   │     ^^^^^^^\n"
+            "   ├──   port: y\n"
+            "   │     ^^^^^^^\n"
+            f"   └── FILE '{yaml_file}', line 1-3"
         )
 
     def test_toml_array_of_tables_success(self, array_of_tables_toml_file: Path):

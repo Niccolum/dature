@@ -115,7 +115,7 @@ class TestDockerSecretsResolveLocation:
     @pytest.mark.parametrize(
         ("file_content", "expected_line_content"),
         [
-            pytest.param("abc", ["abc"], id="file_exists"),
+            pytest.param("abc", ["port = abc"], id="file_exists"),
             pytest.param(None, None, id="file_missing"),
         ],
     )

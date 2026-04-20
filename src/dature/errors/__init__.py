@@ -1,4 +1,5 @@
 from dature.errors.exceptions import (
+    CaretSpan,
     DatureConfigError,
     DatureError,
     EnvVarExpandError,
@@ -14,6 +15,7 @@ from dature.errors.exceptions import (
 )
 
 __all__ = [
+    "CaretSpan",
     "DatureConfigError",
     "DatureError",
     "EnvVarExpandError",
