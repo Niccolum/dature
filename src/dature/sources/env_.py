@@ -9,6 +9,8 @@ from dature.sources.base import FileFieldMixin, FlatKeySource
 from dature.types import (
     BINARY_IO_TYPES,
     TEXT_IO_TYPES,
+    FileLike,
+    FilePath,
     JSONValue,
     NestedConflict,
     NestedConflicts,
@@ -92,6 +94,7 @@ class EnvSource(FlatKeySource):
 class EnvFileSource(FileFieldMixin, EnvSource):
     format_name = "envfile"
     location_label: ClassVar[str] = "ENV FILE"
+    file: "FileLike | FilePath" = ".env"
 
     def __post_init__(self) -> None:
         self._init_file_field()
