@@ -62,3 +62,5 @@ dature auto-loads its own config from `DATURE_*` environment variables on first 
 | `DATURE_LOADING__DEBUG` | [LoadingConfig](#loadingconfig) | `debug` | Attach `LoadReport` to every loaded instance |
 | `DATURE_LOADING__NESTED_RESOLVE_STRATEGY` | [LoadingConfig](#loadingconfig) | `nested_resolve_strategy` | Default priority for JSON vs flat keys: `flat` (default) or `json`. See [Nested Resolve](nested-resolve.md) |
 | `DATURE_LOADING__EXPAND_ENV_VARS` | [LoadingConfig](#loadingconfig) | `expand_env_vars` | Default env var expansion mode: `default`, `disabled`, `empty`, or `strict`. See [Env Expansion](env-expansion.md) |
+| `DATURE_LOADING__SEARCH_SYSTEM_PATHS` | [LoadingConfig](#loadingconfig) | `search_system_paths` | Enable automatic config file search in standard system locations (`~/.config/`, `/etc/`, `%APPDATA%/`). See [Config Search](config-search.md) |
+| `DATURE_LOADING__SYSTEM_CONFIG_DIRS` | [LoadingConfig](#loadingconfig) | `system_config_dirs` | Custom colon-separated list of directories for config file search (overrides auto-detection) |

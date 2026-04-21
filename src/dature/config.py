@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, ClassVar, TypedDict, cast
 
 from dature.types import ExpandEnvVarsMode, NestedResolveStrategy, TypeLoaderMap
@@ -54,6 +55,8 @@ class LoadingConfig:
     debug: bool = False
     nested_resolve_strategy: NestedResolveStrategy = "flat"
     expand_env_vars: ExpandEnvVarsMode = "default"
+    search_system_paths: bool = True
+    system_config_dirs: tuple[Path, ...] | None = None
 
 
 # --8<-- [end:loading-config]
@@ -93,6 +96,8 @@ class LoadingOptions(TypedDict, total=False):
     debug: bool
     nested_resolve_strategy: NestedResolveStrategy
     expand_env_vars: ExpandEnvVarsMode
+    search_system_paths: bool
+    system_config_dirs: tuple[Path, ...] | None
 
 
 class _ConfigProxy:

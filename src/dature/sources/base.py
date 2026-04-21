@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
+from dature.config import config
+from dature.config_paths import iter_config_paths
 from dature.errors import CaretSpan, LineRange, SourceLocation
 from dature.expansion.env_expand import expand_env_vars, expand_file_path
 from dature.field_path import FieldPath
@@ -315,11 +317,39 @@ class Source(abc.ABC):
 @dataclass(kw_only=True, repr=False)
 class FileFieldMixin:
     file: "FileLike | FilePath | None" = None
+    search_system_paths: bool | None = None
+    system_config_dirs: "tuple[Path, ...] | None" = None
     # --8<-- [end:file-source]
 
-    def _init_file_field(self) -> None:
+    def __post_init__(self) -> None:
         if isinstance(self.file, (str, Path)):
             self.file = expand_file_path(str(self.file), mode="strict")
+
+    def _search_in_system(self, filename: str) -> Path | None:
+        """Search for file in system directories."""
+        for candidate in iter_config_paths(filename, self.system_config_dirs):
+            if candidate.exists():
+                return candidate
+        return None
+
+    def _resolve_file_path(self) -> Path | None:
+        """Resolve file path with optional system path search.
+
+        Search order:
+        1. file as-is (relative or absolute path)
+        2. If search_system_paths is True, search in system_config_dirs
+        """
+        if self.file is None or isinstance(self.file, FILE_LIKE_TYPES):
+            return None
+
+        file_path = self.file if isinstance(self.file, Path) else Path(self.file)
+        if file_path.exists():
+            return file_path
+
+        if self.search_system_paths:
+            return self._search_in_system(file_path.name)
+
+        return None
 
     @staticmethod
     def resolve_file_field(file: "FileLike | FilePath | None") -> FileOrStream:
@@ -346,19 +376,21 @@ class FileFieldMixin:
         return None
 
     def file_display(self) -> str | None:
+        resolved = self._resolve_file_path()
+        if resolved is not None:
+            return str(resolved)
         return self.file_field_display(self.file)
 
     def file_path_for_errors(self) -> Path | None:
+        resolved = self._resolve_file_path()
+        if resolved is not None:
+            return resolved
         return self.file_field_path_for_errors(self.file)
 
 
 @dataclass(kw_only=True, repr=False)
 class FileSource(FileFieldMixin, Source, abc.ABC):
     location_label: ClassVar[str] = "FILE"
-
-    def __post_init__(self) -> None:
-        self._init_file_field()
-
     def __repr__(self) -> str:
         display = self.format_name
         file_path_display = self.file_display()
@@ -367,7 +399,15 @@ class FileSource(FileFieldMixin, Source, abc.ABC):
         return display
 
     def _load(self) -> JSONValue:
-        path = self.resolve_file_field(self.file)
+        path = self._resolve_file_path()
+        if path is None:
+            # Fallback to original behavior for streams or when no file specified
+            resolved = self.resolve_file_field(self.file)
+            if isinstance(resolved, Path) and not resolved.exists():
+                # File not found anywhere, raise error
+                msg = f"Config file not found: {resolved}"
+                raise FileNotFoundError(msg)
+            return self._load_file(resolved)
         return self._load_file(path)
 
     @abc.abstractmethod
