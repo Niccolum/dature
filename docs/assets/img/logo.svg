@@ -89,4 +89,13 @@
   <path fill="#12121c" d="M250 63h6v5l-2-2c-2.57-.648-2.57-.648-5-1z"/>
   <path fill="#4b333b" d="M274 86l3 0l11 3v11h-14z"/>
   <path fill="#4b333b" d="M326 86h20v14h-20z"/>
+  <path fill="#0f0a14" d="M263 76h4v3h-4z"/>
+  <path fill="#0f0a14" d="M352 65h35v3h-35z"/>
+  <path fill="#0f0a14" d="M409 63h41v3h-41z"/>
+  <path fill="#0f0a14" d="M450 63h10v3h-10z"/>
+  <path fill="#0f0a14" d="M520 63h11v3h-11z"/>
+  <path fill="#0f0a14" d="M538 76h7v3h-7z"/>
+  <path fill="#0f0a14" d="M626 76h11v3h-11z"/>
+  <path fill="#0f0a14" d="M131 25h6v3h-6z"/>
+  <path fill="#0f0a14" d="M305 34h18v2h-18z"/>
 </svg>
