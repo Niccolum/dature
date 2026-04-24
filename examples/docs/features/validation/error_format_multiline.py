@@ -5,14 +5,14 @@ from pathlib import Path
 from typing import Annotated
 
 import dature
-from dature.validators.sequence import UniqueItems
+from dature import V
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
 
 @dataclass
 class Config:
-    tags: Annotated[list[str], UniqueItems()]
+    tags: Annotated[list[str], V.unique_items()]
 
 
 dature.load(

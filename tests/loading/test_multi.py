@@ -8,9 +8,8 @@ from typing import Annotated
 
 import pytest
 
-from dature import EnvFileSource, EnvSource, JsonSource, Yaml12Source, load
+from dature import EnvFileSource, EnvSource, JsonSource, V, Yaml12Source, load
 from dature.errors import DatureConfigError, MergeConflictError
-from dature.validators.number import Ge
 
 
 class TestMergeLoadAsFunction:
@@ -850,7 +849,7 @@ class TestFirstFound:
         @dataclass
         class Config:
             host: str
-            port: Annotated[int, Ge(1)]
+            port: Annotated[int, V >= 1]
 
         with pytest.raises(DatureConfigError) as exc_info:
             load(
@@ -886,7 +885,7 @@ class TestFirstFound:
         @dataclass
         class Config:
             host: str
-            port: Annotated[int, Ge(1)]
+            port: Annotated[int, V >= 1]
 
         with pytest.raises(DatureConfigError) as exc_info:
             Config()

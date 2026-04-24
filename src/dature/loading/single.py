@@ -282,6 +282,14 @@ def load_as_function(  # noqa: C901, PLR0913
         mask_secrets=resolved_mask_secrets,
     )
 
+    # Build the validating retort before reading raw data so that V-predicate
+    # type-compatibility errors (ValidatorTypeError) surface before any file I/O.
+    validating_retort = create_validating_retort(
+        source,
+        schema,
+        resolved_type_loaders=resolved_type_loaders,
+    )
+
     load_result = handle_load_errors(
         func=source.load_raw,
         ctx=error_ctx,
@@ -333,11 +341,6 @@ def load_as_function(  # noqa: C901, PLR0913
         secret_paths=secret_paths,
     )
 
-    validating_retort = create_validating_retort(
-        source,
-        schema,
-        resolved_type_loaders=resolved_type_loaders,
-    )
     validation_loader = validating_retort.get_loader(schema)
     raw_data = coerce_flag_fields(raw_data, schema)
 

@@ -8,7 +8,7 @@ from urllib.parse import ParseResult
 
 if TYPE_CHECKING:
     from dature.field_path import FieldPath
-    from dature.protocols import ValidatorProtocol
+    from dature.validators.predicate import Predicate
 
 type JSONValue = dict[str, JSONValue] | list[JSONValue] | str | int | float | bool | None
 
@@ -78,7 +78,7 @@ type NestedResolveStrategy = Literal["flat", "json"]
 type _NestedResolveValue = "tuple[FieldPath | Any, ...]"
 type NestedResolve = dict[NestedResolveStrategy, _NestedResolveValue]
 
-type FieldValidators = dict[FieldRef, "ValidatorProtocol | tuple[ValidatorProtocol, ...]"]
+type FieldValidators = dict[FieldRef, "Predicate | tuple[Predicate, ...]"]
 
 type FieldMergeCallable = Callable[[list[JSONValue]], JSONValue]
 

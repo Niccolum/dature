@@ -12,6 +12,7 @@ from dature.errors.exceptions import (
     MissingEnvVarError,
     SourceLoadError,
     SourceLocation,
+    ValidatorTypeError,
 )
 
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     "MissingEnvVarError",
     "SourceLoadError",
     "SourceLocation",
+    "ValidatorTypeError",
 ]

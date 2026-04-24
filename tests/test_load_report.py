@@ -8,10 +8,9 @@ from typing import Annotated
 
 import pytest
 
-from dature import JsonSource, get_load_report, load
+from dature import JsonSource, V, get_load_report, load
 from dature.errors import DatureConfigError
 from dature.load_report import FieldOrigin, LoadReport, SourceEntry
-from dature.validators.number import Ge
 
 
 class TestGetLoadReportMergeFunction:
@@ -404,7 +403,7 @@ class TestLoadReportOnError:
         @dataclass
         class Config:
             host: str
-            port: Annotated[int, Ge(0)]
+            port: Annotated[int, V >= 0]
 
         with pytest.raises(DatureConfigError):
             load(
@@ -472,7 +471,7 @@ class TestLoadReportOnError:
 
         @dataclass
         class Config:
-            port: Annotated[int, Ge(0)]
+            port: Annotated[int, V >= 0]
 
         with pytest.raises(DatureConfigError):
             load(JsonSource(file=json_file), schema=Config, debug=True)

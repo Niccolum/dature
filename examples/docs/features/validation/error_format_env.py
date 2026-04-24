@@ -5,14 +5,14 @@ from dataclasses import dataclass
 from typing import Annotated
 
 import dature
-from dature.validators.number import Ge
+from dature import V
 
 os.environ["APP_PORT"] = "0"
 
 
 @dataclass
 class Config:
-    port: Annotated[int, Ge(1)]
+    port: Annotated[int, V >= 1]
 
 
 dature.load(

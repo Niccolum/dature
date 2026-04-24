@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Annotated
 
 import dature
-from dature.validators.string import MinLength
+from dature import V
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 
@@ -14,7 +14,7 @@ SOURCES_DIR = Path(__file__).parent / "sources"
 class Config:
     host: str
     port: int
-    api_key: Annotated[str, MinLength(20)] = ""
+    api_key: Annotated[str, V.len() >= 20] = ""
 
 
 dature.load(

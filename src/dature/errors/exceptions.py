@@ -44,6 +44,25 @@ class DatureError(Exception):
     """Base dature error."""
 
 
+class ValidatorTypeError(DatureError):
+    """Raised at schema-build time when a V-predicate is incompatible with a field's type.
+
+    Unlike FieldLoadError, this is not a data-validation failure — it signals that
+    the schema itself is ill-formed (e.g., ``V.len()`` applied to an ``int`` field).
+    It is raised before any configuration data is read.
+    """
+
+    def __init__(
+        self,
+        *,
+        field_path: list[str],
+        message: str,
+    ) -> None:
+        self.field_path = field_path
+        self.message = message
+        super().__init__(message)
+
+
 class FieldLoadError(DatureError):
     def __init__(
         self,

@@ -45,7 +45,7 @@ from dature.validators.base import (
     create_metadata_validator_providers,
     create_root_validator_providers,
     create_validator_providers,
-    extract_validators_from_type,
+    extract_and_check_validators,
 )
 
 if TYPE_CHECKING:
@@ -131,7 +131,7 @@ def get_validator_providers[T](schema: type[T]) -> list[Provider]:
             continue
 
         field_type = type_hints[f.name]
-        validators_list = extract_validators_from_type(field_type)
+        validators_list = extract_and_check_validators(field_type, field_path=[f.name])
 
         if validators_list:
             field_providers = create_validator_providers(schema, f.name, validators_list)

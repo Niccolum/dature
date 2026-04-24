@@ -26,10 +26,11 @@ from dature.types import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from adaptix import Retort
     from adaptix.provider import Provider
 
-    from dature.protocols import ValidatorProtocol
     from dature.types import (
         FieldMapping,
         FieldValidators,
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
         SystemConfigDirsArg,
         TypeLoaderMap,
     )
+    from dature.validators.root import RootPredicate
 
 logger = logging.getLogger("dature")
 
@@ -49,7 +51,7 @@ class Source(abc.ABC):
     prefix: "DotSeparatedPath | None" = None
     name_style: "NameStyle | None" = None
     field_mapping: "FieldMapping | None" = None
-    root_validators: "tuple[ValidatorProtocol, ...] | None" = None
+    root_validators: "Iterable[RootPredicate] | None" = None
     validators: "FieldValidators | None" = None
     expand_env_vars: "ExpandEnvVarsMode | None" = None
     skip_if_broken: bool | None = None

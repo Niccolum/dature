@@ -1,10 +1,8 @@
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, TypedDict, cast
+from typing import TYPE_CHECKING, Any, ClassVar, TypedDict, cast
 
 from dature.types import ExpandEnvVarsMode, NestedResolveStrategy, SystemConfigDirsArg, TypeLoaderMap
-from dature.validators.number import Ge
-from dature.validators.string import MinLength
 
 if TYPE_CHECKING:
     from dature.protocols import DataclassInstance
@@ -13,10 +11,10 @@ if TYPE_CHECKING:
 # --8<-- [start:masking-config]
 @dataclass(frozen=True, slots=True)
 class MaskingConfig:
-    mask: Annotated[str, MinLength(1)] = "<REDACTED>"
-    visible_prefix: Annotated[int, Ge(0)] = 0
-    visible_suffix: Annotated[int, Ge(0)] = 0
-    min_heuristic_length: Annotated[int, Ge(1)] = 8
+    mask: str = "<REDACTED>"
+    visible_prefix: int = 0
+    visible_suffix: int = 0
+    min_heuristic_length: int = 8
     heuristic_threshold: float = 0.5
     secret_field_names: tuple[str, ...] = (
         "password",
@@ -40,8 +38,8 @@ class MaskingConfig:
 # --8<-- [start:error-display-config]
 @dataclass(frozen=True, slots=True)
 class ErrorDisplayConfig:
-    max_visible_lines: Annotated[int, Ge(1)] = 3
-    max_line_length: Annotated[int, Ge(1)] = 80
+    max_visible_lines: int = 3
+    max_line_length: int = 80
 
 
 # --8<-- [end:error-display-config]
@@ -86,10 +84,25 @@ class DatureConfig:
 
 
 def _load_config() -> DatureConfig:
+    from dature.field_path import F  # noqa: PLC0415
     from dature.main import load  # noqa: PLC0415
     from dature.sources.env_ import EnvSource  # noqa: PLC0415
+    from dature.validators.v import V  # noqa: PLC0415
 
-    return load(EnvSource(prefix="DATURE_"), schema=DatureConfig)
+    return load(
+        EnvSource(
+            prefix="DATURE_",
+            validators={
+                F[DatureConfig].masking.mask: V.len() >= 1,
+                F[DatureConfig].masking.visible_prefix: V >= 0,
+                F[DatureConfig].masking.visible_suffix: V >= 0,
+                F[DatureConfig].masking.min_heuristic_length: V >= 1,
+                F[DatureConfig].error_display.max_visible_lines: V >= 1,
+                F[DatureConfig].error_display.max_line_length: V >= 1,
+            },
+        ),
+        schema=DatureConfig,
+    )
 
 
 class MaskingOptions(TypedDict, total=False):
