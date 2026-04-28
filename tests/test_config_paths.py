@@ -56,6 +56,7 @@ class TestFindConfig:
         config_dir.mkdir()
         (config_dir / "config.yaml").write_text("a: 1")
         monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
 
         assert find_config("config.yaml", ("~/conf",)) == config_dir / "config.yaml"
 
