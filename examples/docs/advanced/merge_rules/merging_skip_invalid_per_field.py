@@ -1,4 +1,4 @@
-"""skip_if_invalid per field — restrict skipping to specific fields."""
+"""skip_field_if_invalid per field — restrict skipping to specific fields."""
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,7 +21,7 @@ config = dature.load(
     ),
     dature.Yaml12Source(
         file=SOURCES_DIR / "merging_skip_invalid_per_field_overrides.yaml",
-        skip_if_invalid=(dature.F[Config].port, dature.F[Config].timeout),
+        skip_field_if_invalid=(dature.F[Config].port, dature.F[Config].timeout),
     ),
     schema=Config,
 )

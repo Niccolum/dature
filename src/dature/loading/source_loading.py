@@ -39,8 +39,8 @@ def resolve_skip_invalid(
     source: Source,
     merge_meta: MergeConfig,
 ) -> bool | tuple[FieldPath, ...]:
-    if source.skip_if_invalid is not None:
-        return source.skip_if_invalid
+    if source.skip_field_if_invalid is not None:
+        return source.skip_field_if_invalid
     return merge_meta.skip_invalid_fields
 
 
@@ -58,7 +58,7 @@ def apply_merge_skip_invalid(
 
     return apply_skip_invalid(
         raw=raw,
-        skip_if_invalid=skip_value,
+        skip_field_if_invalid=skip_value,
         source=source,
         schema=schema,
         log_prefix=f"[{schema.__name__}] Source {source_index}:",

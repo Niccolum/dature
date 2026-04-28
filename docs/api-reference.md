@@ -76,7 +76,7 @@ Abstract base class for all sources. See [Introduction — Source Reference](int
 | `validators` | `FieldValidators \| None` | `None` | Per-field validators via `Annotated` metadata or explicit mapping. |
 | `expand_env_vars` | `ExpandEnvVarsMode \| None` | `None` | ENV variable expansion: `"disabled"`, `"default"`, `"empty"`, `"strict"`. |
 | `skip_if_broken` | `bool \| None` | `None` | Skip this source if it fails to load. |
-| `skip_if_invalid` | `bool \| tuple[FieldPath, ...] \| None` | `None` | Skip invalid fields from this source. `True` for all, or a tuple of specific fields. |
+| `skip_field_if_invalid` | `bool \| tuple[FieldPath, ...] \| None` | `None` | Skip invalid fields from this source. `True` for all, or a tuple of specific fields. |
 | `type_loaders` | `TypeLoaderMap \| None` | `None` | Custom type converters `{type: callable}` for this source. |
 
 **Public methods:**
@@ -164,7 +164,7 @@ The built-ins are also exposed as classes from `dature.strategies.field` (`Field
 
 ### `F`
 
-Factory for building type-safe field paths. Used for `field_mapping`, `field_merges`, `field_groups`, `validators`, `skip_if_invalid`, and `nested_resolve`.
+Factory for building type-safe field paths. Used for `field_mapping`, `field_merges`, `field_groups`, `validators`, `skip_field_if_invalid`, and `nested_resolve`.
 
 ```python
 --8<-- "examples/docs/api_reference/api_reference_field_path.py"

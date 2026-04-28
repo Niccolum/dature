@@ -71,16 +71,16 @@ def get_allowed_fields(
 def apply_skip_invalid(
     *,
     raw: JSONValue,
-    skip_if_invalid: bool | tuple[FieldPath, ...] | None,
+    skip_field_if_invalid: bool | tuple[FieldPath, ...] | None,
     source: Source,
     schema: type[DataclassInstance],
     log_prefix: str,
     probe_retort: Retort | None = None,
 ) -> FilterResult:
-    if not skip_if_invalid:
+    if not skip_field_if_invalid:
         return FilterResult(cleaned_dict=raw, skipped_paths=[])
 
-    allowed_fields = get_allowed_fields(skip_value=skip_if_invalid, schema=schema)
+    allowed_fields = get_allowed_fields(skip_value=skip_field_if_invalid, schema=schema)
 
     if probe_retort is None:
         probe_retort = create_probe_retort(source)

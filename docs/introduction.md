@@ -122,7 +122,7 @@ See the full list of Source classes and their extra dependencies on the [main pa
 | `validators` | Per-field validators in metadata. See [Validation](features/validation.md) |
 | `expand_env_vars` | ENV variable expansion mode. See [Advanced — ENV Expansion](advanced/env-expansion.md) |
 | `skip_if_broken` | Skip this source if it fails to load. See [Advanced — Skipping Broken Sources](advanced/merge-rules.md#skipping-broken-sources) |
-| `skip_if_invalid` | Skip invalid fields from this source. See [Advanced — Skipping Invalid Fields](advanced/merge-rules.md#skipping-invalid-fields) |
+| `skip_field_if_invalid` | Skip invalid fields from this source. See [Advanced — Skipping Invalid Fields](advanced/merge-rules.md#skipping-invalid-fields) |
 | `type_loaders` | Custom type converters for this source. See [Custom Types & Loaders](advanced/custom_types.md#custom-types) |
 
 **FileSource** subclasses (`JsonSource`, `Yaml*Source`, `Toml*Source`, `IniSource`, `Json5Source`) also have:

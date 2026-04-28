@@ -441,7 +441,7 @@ class TestResolveSkipInvalid:
     ):
         json_file = tmp_path / "c.json"
         json_file.write_text("{}")
-        kwargs = {} if source_skip is None else {"skip_if_invalid": source_skip}
+        kwargs = {} if source_skip is None else {"skip_field_if_invalid": source_skip}
         source = JsonSource(file=json_file, **kwargs)
         merge = MergeConfig(sources=(source,), skip_invalid_fields=merge_skip)
 

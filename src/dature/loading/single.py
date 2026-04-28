@@ -154,7 +154,7 @@ class _PatchContext:
 
         # probe_retort is created early so adaptix sees the original signature
         self.probe_retort: Retort | None = None
-        if source.skip_if_invalid:
+        if source.skip_field_if_invalid:
             self.probe_retort = create_probe_retort(source, resolved_type_loaders=self.type_loaders)
             self.probe_retort.get_loader(cls)
 
@@ -177,7 +177,7 @@ def _load_single_source(ctx: _PatchContext) -> DataclassInstance:
 
     filter_result = apply_skip_invalid(
         raw=raw_data,
-        skip_if_invalid=ctx.source.skip_if_invalid,
+        skip_field_if_invalid=ctx.source.skip_field_if_invalid,
         source=ctx.source,
         schema=ctx.cls,
         log_prefix=f"[{ctx.cls.__name__}]",
@@ -306,7 +306,7 @@ def load_as_function(  # noqa: C901, PLR0913
 
     filter_result = apply_skip_invalid(
         raw=raw_data,
-        skip_if_invalid=source.skip_if_invalid,
+        skip_field_if_invalid=source.skip_field_if_invalid,
         source=source,
         schema=schema,
         log_prefix=f"[{schema.__name__}]",

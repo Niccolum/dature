@@ -82,7 +82,7 @@ class LoadCtx:
 
     Encapsulates per-source pre-processing (param injection, type loaders,
     error-context construction, broken-source handling, ``nested_conflicts``
-    rebuild, ``skip_if_invalid`` filtering, masking).
+    rebuild, ``skip_field_if_invalid`` filtering, masking).
 
     Strategies call :meth:`load` for each source they want to consume; results
     are cached so repeated calls do not re-parse the source. Internal

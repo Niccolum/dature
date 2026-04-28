@@ -196,8 +196,8 @@ class TestGetAllowedFields:
 
 
 class TestApplySkipInvalid:
-    @pytest.mark.parametrize("skip_if_invalid", [False, None], ids=["false", "none"])
-    def test_falsy_returns_raw_unchanged(self, tmp_path: Path, skip_if_invalid):
+    @pytest.mark.parametrize("skip_field_if_invalid", [False, None], ids=["false", "none"])
+    def test_falsy_returns_raw_unchanged(self, tmp_path: Path, skip_field_if_invalid):
         json_file = tmp_path / "config.json"
         json_file.write_text("{}")
 
@@ -210,7 +210,7 @@ class TestApplySkipInvalid:
 
         result = apply_skip_invalid(
             raw=raw,
-            skip_if_invalid=skip_if_invalid,
+            skip_field_if_invalid=skip_field_if_invalid,
             source=source,
             schema=Cfg,
             log_prefix="[test]",
