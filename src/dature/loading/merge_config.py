@@ -1,14 +1,15 @@
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from dature.merging.strategy import MergeStrategyEnum
 from dature.sources.base import Source
 
 if TYPE_CHECKING:
+    from dature.strategies.source import SourceMergeStrategy
     from dature.types import (
         ExpandEnvVarsMode,
         FieldGroupTuple,
         FieldMergeMap,
+        MergeStrategyName,
         NestedResolve,
         NestedResolveStrategy,
         SystemConfigDirsArg,
@@ -31,7 +32,7 @@ class SourceParams:
 class MergeConfig:
     sources: tuple[Source, ...]
     source_params: SourceParams = field(default_factory=SourceParams)
-    strategy: MergeStrategyEnum = MergeStrategyEnum.LAST_WINS
+    strategy: "MergeStrategyName | SourceMergeStrategy" = "last_wins"
     field_merges: "FieldMergeMap | None" = None
     field_groups: "tuple[FieldGroupTuple, ...]" = ()
     skip_broken_sources: bool = False

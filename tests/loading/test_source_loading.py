@@ -10,8 +10,8 @@ from dature import EnvFileSource, IniSource, JsonSource, Toml11Source, Yaml12Sou
 from dature.errors import DatureConfigError, EnvVarExpandError
 from dature.loading.merge_config import MergeConfig, SourceParams
 from dature.loading.source_loading import (
-    _apply_source_init_params,
     apply_merge_skip_invalid,
+    apply_source_init_params,
     resolve_skip_invalid,
     should_skip_broken,
 )
@@ -499,6 +499,6 @@ class TestApplySourceInitParamsNestedStrategy:
         kwargs = {} if source_strategy is None else {"nested_resolve_strategy": source_strategy}
         source = EnvSource(**kwargs)
 
-        result = _apply_source_init_params(source, SourceParams(nested_resolve_strategy=load_strategy))
+        result = apply_source_init_params(source, SourceParams(nested_resolve_strategy=load_strategy))
 
         assert result.nested_resolve_strategy == expected

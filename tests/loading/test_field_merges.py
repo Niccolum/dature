@@ -180,7 +180,7 @@ class TestFieldMergesFunction:
         class Config:
             value: str
 
-        with pytest.raises(TypeError, match="APPEND strategy requires both values to be lists"):
+        with pytest.raises(TypeError, match="APPEND strategy requires every value to be a list"):
             load(
                 JsonSource(file=defaults),
                 JsonSource(file=overrides),
@@ -395,22 +395,22 @@ class TestFieldMergesErrors:
         [
             pytest.param(
                 "append",
-                "APPEND strategy requires both values to be lists",
+                "APPEND strategy requires every value to be a list",
                 id="append",
             ),
             pytest.param(
                 "append_unique",
-                "APPEND_UNIQUE strategy requires both values to be lists",
+                "APPEND_UNIQUE strategy requires every value to be a list",
                 id="append_unique",
             ),
             pytest.param(
                 "prepend",
-                "PREPEND strategy requires both values to be lists",
+                "PREPEND strategy requires every value to be a list",
                 id="prepend",
             ),
             pytest.param(
                 "prepend_unique",
-                "PREPEND_UNIQUE strategy requires both values to be lists",
+                "PREPEND_UNIQUE strategy requires every value to be a list",
                 id="prepend_unique",
             ),
         ],
@@ -444,22 +444,22 @@ class TestFieldMergesErrors:
         [
             pytest.param(
                 "append",
-                "APPEND strategy requires both values to be lists",
+                "APPEND strategy requires every value to be a list",
                 id="append",
             ),
             pytest.param(
                 "append_unique",
-                "APPEND_UNIQUE strategy requires both values to be lists",
+                "APPEND_UNIQUE strategy requires every value to be a list",
                 id="append_unique",
             ),
             pytest.param(
                 "prepend",
-                "PREPEND strategy requires both values to be lists",
+                "PREPEND strategy requires every value to be a list",
                 id="prepend",
             ),
             pytest.param(
                 "prepend_unique",
-                "PREPEND_UNIQUE strategy requires both values to be lists",
+                "PREPEND_UNIQUE strategy requires every value to be a list",
                 id="prepend_unique",
             ),
         ],
@@ -493,12 +493,12 @@ class TestFieldMergesErrors:
         [
             pytest.param(
                 "append",
-                "APPEND strategy requires both values to be lists, got list and str",
+                "APPEND strategy requires every value to be a list, got str",
                 id="append",
             ),
             pytest.param(
                 "prepend",
-                "PREPEND strategy requires both values to be lists, got list and str",
+                "PREPEND strategy requires every value to be a list, got str",
                 id="prepend",
             ),
         ],

@@ -44,13 +44,13 @@ overrides_data = (
 assert log_lines == [
     f"[Config] Source 0 loaded: loader=yaml1.2, file={defaults}, keys={keys}",
     f"[Config] Source 0 raw data: {defaults_data}",
-    f"[Config] Source 1 loaded: loader=yaml1.2, file={overrides}, keys={keys}",
-    f"[Config] Source 1 raw data: {overrides_data}",
     (
         "[Config] Merge step 0 (strategy=last_wins): "
         "added=['host', 'port', 'tags'], overwritten=[]"
     ),
     f"[Config] State after step 0: {defaults_data}",
+    f"[Config] Source 1 loaded: loader=yaml1.2, file={overrides}, keys={keys}",
+    f"[Config] Source 1 raw data: {overrides_data}",
     (
         "[Config] Merge step 1 (strategy=last_wins): "
         "added=[], overwritten=['host', 'port', 'tags']"

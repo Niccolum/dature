@@ -5,6 +5,7 @@ from pathlib import Path
 
 import dature
 from dature.errors import DatureConfigError
+from dature.strategies.source import SourceLastWins
 
 SOURCES_DIR = Path(__file__).parent / "sources"
 SHARED_DIR = Path(__file__).parents[2] / "shared"
@@ -31,7 +32,7 @@ except DatureConfigError:
     assert report is not None
 
     assert report.dataclass_name == "Config"
-    assert report.strategy == "last_wins"
+    assert isinstance(report.strategy, SourceLastWins)
     assert report.merged_data == {
         "host": "localhost",
         "port": "not_a_number",

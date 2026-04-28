@@ -419,7 +419,7 @@ class FlatKeySource(Source, abc.ABC):
             target = cast("dict[str, JSONValue]", target.setdefault(key, {}))
         target[keys[-1]] = value
 
-    def _resolve_field_strategy(
+    def _resolve_nested_strategy(
         self,
         field_name: str,
         *,
@@ -527,7 +527,7 @@ class FlatKeySource(Source, abc.ABC):
     ) -> None:
         if len(parts) > 1:
             top_field = parts[0]
-            strategy = self._resolve_field_strategy(
+            strategy = self._resolve_nested_strategy(
                 top_field,
                 resolved_nested_strategy=resolved_nested_strategy,
                 resolved_nested_resolve=resolved_nested_resolve,
@@ -546,7 +546,7 @@ class FlatKeySource(Source, abc.ABC):
                 self._set_nested(result, parts, value)
         else:
             top_field = parts[0]
-            strategy = self._resolve_field_strategy(
+            strategy = self._resolve_nested_strategy(
                 top_field,
                 resolved_nested_strategy=resolved_nested_strategy,
                 resolved_nested_resolve=resolved_nested_resolve,

@@ -4,14 +4,13 @@ from dataclasses import dataclass as stdlib_dataclass
 from dataclasses import fields, is_dataclass
 from typing import Any
 
-from dature.errors import DatureConfigError
+from dature.errors import DatureConfigError, SourceLoadError
 from dature.errors.formatter import enrich_skipped_errors, handle_load_errors
 from dature.load_report import (
     FieldOrigin,
     LoadReport,
     SourceEntry,
     attach_load_report,
-    compute_field_origins,
     get_load_report,
 )
 from dature.loading.common import resolve_mask_secrets
@@ -23,16 +22,14 @@ from dature.loading.context import (
 )
 from dature.loading.merge_config import MergeConfig
 from dature.loading.source_loading import (
-    _apply_source_init_params,
-    _resolve_type_loaders,
-    load_sources,
+    apply_source_init_params,
+    resolve_type_loaders,
 )
 from dature.masking.detection import build_secret_paths
 from dature.masking.masking import mask_field_origins, mask_json_value, mask_source_entries, mask_value
-from dature.merging.deep_merge import deep_merge, deep_merge_last_wins, raise_on_conflict
+from dature.merging.deep_merge import deep_merge_last_wins, raise_on_conflict
 from dature.merging.field_group import FieldGroupContext, validate_field_groups
 from dature.merging.predicate import ResolvedFieldGroup, build_field_group_paths, build_field_merge_map
-from dature.merging.strategy import FieldMergeStrategyEnum, MergeStrategyEnum
 from dature.protocols import DataclassInstance
 from dature.sources.base import Source
 from dature.sources.retort import (
@@ -40,7 +37,14 @@ from dature.sources.retort import (
     ensure_retort,
     transform_to_dataclass,
 )
-from dature.types import FieldMergeCallable, JSONValue, TypeLoaderMap
+from dature.strategies.source import (
+    LoadCtx,
+    MergeStepEvent,
+    SourceMergeStrategy,
+    SourceRaiseOnConflict,
+    resolve_source_strategy,
+)
+from dature.types import JSONValue, TypeLoaderMap
 
 logger = logging.getLogger("dature")
 
@@ -49,36 +53,30 @@ def _collect_extra_secret_patterns(merge_meta: MergeConfig) -> tuple[str, ...]:
     return merge_meta.secret_field_names or ()
 
 
-def _log_merge_step(  # noqa: PLR0913
+def _log_merge_step(
     *,
+    event: MergeStepEvent,
     dataclass_name: str,
-    step_idx: int,
-    strategy: MergeStrategyEnum,
-    before: JSONValue,
-    source_data: JSONValue,
-    after: JSONValue,
-    secret_paths: frozenset[str] = frozenset(),
+    strategy_label: str,
+    secret_paths: frozenset[str],
 ) -> None:
-    if isinstance(before, dict) and isinstance(source_data, dict) and isinstance(after, dict):
-        added_keys = set(source_data.keys()) - set(before.keys())
-        overwritten_keys = set(source_data.keys()) & set(before.keys())
+    if isinstance(event.before, dict) and isinstance(event.source_data, dict):
+        added = sorted(set(event.source_data.keys()) - set(event.before.keys()))
+        overwritten = sorted(set(event.source_data.keys()) & set(event.before.keys()))
         logger.debug(
             "[%s] Merge step %d (strategy=%s): added=%s, overwritten=%s",
             dataclass_name,
-            step_idx,
-            strategy,
-            sorted(added_keys),
-            sorted(overwritten_keys),
+            event.step_idx,
+            strategy_label,
+            added,
+            overwritten,
         )
-    if secret_paths:
-        masked_after = mask_json_value(after, secret_paths=secret_paths)
-    else:
-        masked_after = after
+    masked = mask_json_value(event.after, secret_paths=secret_paths) if secret_paths else event.after
     logger.debug(
         "[%s] State after step %d: %s",
         dataclass_name,
-        step_idx,
-        masked_after,
+        event.step_idx,
+        masked,
     )
 
 
@@ -113,7 +111,7 @@ def _log_field_origins(
 def _build_merge_report(
     *,
     dataclass_name: str,
-    strategy: MergeStrategyEnum,
+    strategy: SourceMergeStrategy,
     source_entries: tuple[SourceEntry, ...],
     field_origins: tuple[FieldOrigin, ...],
     merged_data: JSONValue,
@@ -170,7 +168,7 @@ def _validate_all_field_groups(
         )
         for leaf_path in _collect_leaf_paths(raw):
             field_origins[leaf_path] = step_idx
-        merged = deep_merge_last_wins(merged, raw, field_merge_map=None)
+        merged = deep_merge_last_wins(merged, raw)
 
 
 def _collect_field_values(
@@ -212,45 +210,6 @@ def _set_nested_value(
     return result
 
 
-def _merge_raw_dicts(
-    *,
-    raw_dicts: list[JSONValue],
-    strategy: MergeStrategyEnum,
-    dataclass_name: str,
-    field_merge_map: dict[str, FieldMergeStrategyEnum] | None = None,
-    callable_merge_map: dict[str, FieldMergeCallable] | None = None,
-    secret_paths: frozenset[str] = frozenset(),
-) -> JSONValue:
-    merged: JSONValue = {}
-    for step_idx, raw in enumerate(raw_dicts):
-        before = merged
-
-        if strategy == MergeStrategyEnum.RAISE_ON_CONFLICT:
-            merged = deep_merge_last_wins(merged, raw, field_merge_map=field_merge_map)
-        else:
-            merged = deep_merge(merged, raw, strategy=strategy, field_merge_map=field_merge_map)
-
-        _log_merge_step(
-            dataclass_name=dataclass_name,
-            step_idx=step_idx,
-            strategy=strategy,
-            before=before,
-            source_data=raw,
-            after=merged,
-            secret_paths=secret_paths,
-        )
-
-    if callable_merge_map:
-        for field_path, merge_fn in callable_merge_map.items():
-            values = _collect_field_values(raw_dicts, field_path)
-            if not values:
-                continue
-            aggregated = merge_fn(values)
-            merged = _set_nested_value(merged, field_path, aggregated)
-
-    return merged
-
-
 @stdlib_dataclass(frozen=True, slots=True)
 class _MergedData[T: DataclassInstance]:
     result: T
@@ -259,57 +218,102 @@ class _MergedData[T: DataclassInstance]:
     last_type_loaders: TypeLoaderMap | None
 
 
-def _load_and_merge[T: DataclassInstance](  # noqa: C901
+def _load_and_merge[T: DataclassInstance](  # noqa: C901, PLR0912, PLR0915
     *,
     merge_meta: MergeConfig,
     schema: type[T],
     debug: bool = False,
 ) -> _MergedData[T]:
     secret_paths: frozenset[str] = frozenset()
-    if resolve_mask_secrets(load_level=merge_meta.mask_secrets):
+    mask_secrets = resolve_mask_secrets(load_level=merge_meta.mask_secrets)
+    if mask_secrets:
         extra_patterns = _collect_extra_secret_patterns(merge_meta)
         secret_paths = build_secret_paths(schema, extra_patterns=extra_patterns)
 
-    loaded = load_sources(
-        merge_meta=merge_meta,
+    strategy = resolve_source_strategy(
+        merge_meta.strategy,
         dataclass_name=schema.__name__,
+    )
+    strategy_label = merge_meta.strategy if isinstance(merge_meta.strategy, str) else type(strategy).__name__
+
+    on_merge_step: Callable[[MergeStepEvent], None] | None = None
+    if logger.isEnabledFor(logging.DEBUG):
+
+        def on_merge_step(event: MergeStepEvent) -> None:
+            _log_merge_step(
+                event=event,
+                dataclass_name=schema.__name__,
+                strategy_label=strategy_label,
+                secret_paths=secret_paths,
+            )
+
+    ctx = LoadCtx(
+        merge_meta=merge_meta,
         schema=schema,
+        dataclass_name=schema.__name__,
         secret_paths=secret_paths,
-        mask_secrets=resolve_mask_secrets(load_level=merge_meta.mask_secrets),
+        mask_secrets=mask_secrets,
+        on_merge_step=on_merge_step,
     )
 
-    merge_maps = build_field_merge_map(merge_meta.field_merges, schema)
+    field_merge_strategies = build_field_merge_map(
+        merge_meta.field_merges,
+        schema,
+        dataclass_name=schema.__name__,
+    )
+    field_merge_paths = frozenset(field_merge_strategies.keys()) or None
 
     field_group_paths: tuple[ResolvedFieldGroup, ...] = ()
     if merge_meta.field_groups:
         field_group_paths = build_field_group_paths(merge_meta.field_groups, schema)
 
+    # Pre-load all sources when we need to inspect raw data before the merge
+    # happens (field-group validation, raise-on-conflict detection). The cache
+    # in LoadCtx makes the strategy's own ctx.load() calls free.
+    needs_pre_load = bool(field_group_paths) or isinstance(strategy, SourceRaiseOnConflict)
+    if needs_pre_load:
+        for src in merge_meta.sources:
+            ctx.load(src)
+
     if field_group_paths:
-        source_reprs = tuple(repr(merge_meta.sources[entry.index]) for entry in loaded.source_entries)
+        loaded_entries = ctx.build_report().source_entries
+        source_reprs = tuple(repr(merge_meta.sources[entry.index]) for entry in loaded_entries)
         _validate_all_field_groups(
-            raw_dicts=loaded.raw_dicts,
+            raw_dicts=ctx.loaded_raw_dicts(),
             field_group_paths=field_group_paths,
             dataclass_name=schema.__name__,
             source_reprs=source_reprs,
         )
 
-    if merge_meta.strategy == MergeStrategyEnum.RAISE_ON_CONFLICT:
+    if isinstance(strategy, SourceRaiseOnConflict):
         raise_on_conflict(
-            loaded.raw_dicts,
-            loaded.source_ctxs,
+            ctx.loaded_raw_dicts(),
+            ctx.loaded_source_ctxs(),
             schema.__name__,
-            field_merge_map=merge_maps.enum_map or None,
-            callable_merge_paths=merge_maps.callable_paths or None,
+            field_merge_paths=field_merge_paths,
         )
 
-    merged = _merge_raw_dicts(
-        raw_dicts=loaded.raw_dicts,
-        strategy=merge_meta.strategy,
-        dataclass_name=schema.__name__,
-        field_merge_map=merge_maps.enum_map or None,
-        callable_merge_map=merge_maps.callable_map or None,
-        secret_paths=secret_paths,
-    )
+    merged = strategy(merge_meta.sources, ctx)
+
+    if field_merge_strategies:
+        loaded_for_fields = ctx.loaded_raw_dicts()
+        for field_path, fs in field_merge_strategies.items():
+            values = _collect_field_values(loaded_for_fields, field_path)
+            if not values:
+                continue
+            aggregated = fs(values)
+            merged = _set_nested_value(merged, field_path, aggregated)
+
+    report = ctx.build_report()
+
+    if report.last_source is None:
+        if merge_meta.sources:
+            msg = f"All {len(merge_meta.sources)} source(s) failed to load"
+        else:
+            msg = "load() requires at least one Source for merge"
+        source_error = SourceLoadError(message=msg)
+        raise DatureConfigError(schema.__name__, [source_error])
+    last_source = report.last_source
 
     if secret_paths:
         masked_merged = mask_json_value(merged, secret_paths=secret_paths)
@@ -318,17 +322,13 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901
     logger.debug(
         "[%s] Merged result (strategy=%s, %d sources): %s",
         schema.__name__,
-        merge_meta.strategy,
-        len(loaded.raw_dicts),
+        strategy_label,
+        len(report.raw_dicts),
         masked_merged,
     )
 
-    frozen_entries = tuple(loaded.source_entries)
-    field_origins = compute_field_origins(
-        raw_dicts=loaded.raw_dicts,
-        source_entries=frozen_entries,
-        strategy=merge_meta.strategy,
-    )
+    frozen_entries = tuple(report.source_entries)
+    field_origins = ctx.field_origins()
 
     _log_field_origins(
         dataclass_name=schema.__name__,
@@ -336,24 +336,24 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901
         secret_paths=secret_paths,
     )
 
-    report: LoadReport | None = None
+    report_obj: LoadReport | None = None
     if debug:
-        report = _build_merge_report(
+        report_obj = _build_merge_report(
             dataclass_name=schema.__name__,
-            strategy=merge_meta.strategy,
+            strategy=strategy,
             source_entries=frozen_entries,
             field_origins=field_origins,
             merged_data=merged,
             secret_paths=secret_paths,
         )
 
-    last_type_loaders = loaded.last_type_loaders
-    last_error_ctx = loaded.source_ctxs[-1].error_ctx
+    last_type_loaders = report.last_type_loaders
+    last_error_ctx = report.source_ctxs[-1].error_ctx
     merged = coerce_flag_fields(merged, schema)
     try:
         result = handle_load_errors(
             func=lambda: transform_to_dataclass(
-                loaded.last_source,
+                last_source,
                 merged,
                 schema,
                 resolved_type_loaders=last_type_loaders,
@@ -361,20 +361,20 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901
             ctx=last_error_ctx,
         )
     except DatureConfigError as exc:
-        if report is not None:
-            attach_load_report(schema, report)
-        if loaded.skipped_fields:
-            raise enrich_skipped_errors(exc, loaded.skipped_fields) from exc
+        if report_obj is not None:
+            attach_load_report(schema, report_obj)
+        if report.skipped_fields:
+            raise enrich_skipped_errors(exc, report.skipped_fields) from exc
         raise
 
-    if report is not None:
-        attach_load_report(result, report)
+    if report_obj is not None:
+        attach_load_report(result, report_obj)
 
     return _MergedData(
         result=result,
         merged_raw=merged,
-        last_source=loaded.last_source,
-        last_type_loaders=loaded.last_type_loaders,
+        last_source=last_source,
+        last_type_loaders=report.last_type_loaders,
     )
 
 
@@ -447,8 +447,8 @@ class _MergePatchContext:
         self.loading = False
         self.validating = False
 
-        last_source = _apply_source_init_params(merge_meta.sources[-1], merge_meta.source_params)
-        last_type_loaders = _resolve_type_loaders(last_source, merge_meta.type_loaders)
+        last_source = apply_source_init_params(merge_meta.sources[-1], merge_meta.source_params)
+        last_type_loaders = resolve_type_loaders(last_source, merge_meta.type_loaders)
         ensure_retort(last_source, cls, resolved_type_loaders=last_type_loaders)
         validating_retort = create_validating_retort(
             last_source,
@@ -478,8 +478,8 @@ class _MergePatchContext:
         cls: type[DataclassInstance],
     ) -> None:
         for raw_source in merge_meta.sources:
-            source_item = _apply_source_init_params(raw_source, merge_meta.source_params)
-            type_loaders = _resolve_type_loaders(source_item, merge_meta.type_loaders)
+            source_item = apply_source_init_params(raw_source, merge_meta.source_params)
+            type_loaders = resolve_type_loaders(source_item, merge_meta.type_loaders)
             ensure_retort(source_item, cls, resolved_type_loaders=type_loaders)
 
 

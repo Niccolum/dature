@@ -6,9 +6,9 @@ from dature.config import config
 from dature.loading.merge_config import MergeConfig, SourceParams
 from dature.loading.multi import merge_load_as_function, merge_make_decorator
 from dature.loading.single import load_as_function, make_decorator
-from dature.merging.strategy import MergeStrategyEnum
 from dature.protocols import DataclassInstance
 from dature.sources.base import Source
+from dature.strategies.source import SourceMergeStrategy
 from dature.types import (
     ExpandEnvVarsMode,
     FieldGroupTuple,
@@ -27,7 +27,7 @@ def load[T](
     *sources: Source,
     schema: type[T],
     debug: bool | None = None,
-    strategy: MergeStrategyName = "last_wins",
+    strategy: MergeStrategyName | SourceMergeStrategy = "last_wins",
     field_merges: FieldMergeMap | None = None,
     field_groups: tuple[FieldGroupTuple, ...] = (),
     skip_broken_sources: bool = False,
@@ -47,7 +47,7 @@ def load(
     schema: None = None,
     cache: bool | None = None,
     debug: bool | None = None,
-    strategy: MergeStrategyName = "last_wins",
+    strategy: MergeStrategyName | SourceMergeStrategy = "last_wins",
     field_merges: FieldMergeMap | None = None,
     field_groups: tuple[FieldGroupTuple, ...] = (),
     skip_broken_sources: bool = False,
@@ -67,7 +67,7 @@ def load(  # noqa: PLR0913
     schema: type[Any] | None = None,
     cache: bool | None = None,
     debug: bool | None = None,
-    strategy: MergeStrategyName = "last_wins",
+    strategy: MergeStrategyName | SourceMergeStrategy = "last_wins",
     field_merges: FieldMergeMap | None = None,
     field_groups: tuple[FieldGroupTuple, ...] = (),
     skip_broken_sources: bool = False,
@@ -162,7 +162,7 @@ def _load_multi(  # noqa: PLR0913
     schema: type[DataclassInstance] | None,
     cache: bool,
     debug: bool,
-    strategy: MergeStrategyName,
+    strategy: MergeStrategyName | SourceMergeStrategy,
     field_merges: FieldMergeMap | None,
     field_groups: tuple[FieldGroupTuple, ...],
     skip_broken_sources: bool,
@@ -181,7 +181,7 @@ def _load_multi(  # noqa: PLR0913
             nested_resolve_strategy=nested_resolve_strategy,
             nested_resolve=nested_resolve,
         ),
-        strategy=MergeStrategyEnum(strategy),
+        strategy=strategy,
         field_merges=field_merges,
         field_groups=field_groups,
         skip_broken_sources=skip_broken_sources,

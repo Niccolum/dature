@@ -66,7 +66,7 @@ def find_config(
 
     Returns ``None`` when no match is found or when ``system_config_dirs`` is
     ``None`` (which happens for a ``FileFieldMixin`` accessed before
-    ``_apply_source_init_params`` has merged defaults from ``LoadingConfig``).
+    ``apply_source_init_params`` has merged defaults from ``LoadingConfig``).
     """
     for d in _resolve_dirs(system_config_dirs):
         candidate = d / filename

@@ -10,7 +10,7 @@ from dature import JsonSource, Source, load
 from dature.errors import EnvVarExpandError
 from dature.field_path import F
 from dature.loading.merge_config import SourceParams
-from dature.loading.source_loading import _apply_source_init_params
+from dature.loading.source_loading import apply_source_init_params
 from dature.sources.base import FileFieldMixin
 from dature.sources.retort import string_value_loaders, transform_to_dataclass
 from dature.sources.yaml_ import Yaml12Source
@@ -530,7 +530,7 @@ class TestExpandEnvVars:
     def test_default_expands_existing(self, monkeypatch):
         monkeypatch.setenv("DATURE_TEST_HOST", "localhost")
         data = {"host": "$DATURE_TEST_HOST", "port": 8080}
-        loader = _apply_source_init_params(MockSource(test_data=data), SourceParams())
+        loader = apply_source_init_params(MockSource(test_data=data), SourceParams())
 
         load_result = loader.load_raw()
         result = transform_to_dataclass(loader, load_result.data, dict)
@@ -540,7 +540,7 @@ class TestExpandEnvVars:
     def test_default_keeps_missing(self, monkeypatch):
         monkeypatch.delenv("DATURE_MISSING", raising=False)
         data = {"host": "$DATURE_MISSING", "port": 8080}
-        loader = _apply_source_init_params(MockSource(test_data=data), SourceParams())
+        loader = apply_source_init_params(MockSource(test_data=data), SourceParams())
 
         load_result = loader.load_raw()
         result = transform_to_dataclass(loader, load_result.data, dict)

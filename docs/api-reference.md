@@ -30,8 +30,8 @@ Main entry point. Two calling patterns:
 | `schema` | `type[T] \| None` | `None` | Target dataclass. If provided → function mode. If `None` → decorator mode. |
 | `cache` | `bool \| None` | `None` | Enable caching in decorator mode. Default from `configure()`. Ignored in function mode. |
 | `debug` | `bool \| None` | `None` | Collect `LoadReport` on the result instance. Default from `configure()`. Retrieve with `get_load_report()`. |
-| `strategy` | `MergeStrategyName` | `"last_wins"` | Merge strategy. Only used with multiple sources. See [Merge Strategies](#merge-strategies). |
-| `field_merges` | `FieldMergeMap \| None` | `None` | Per-field merge strategy overrides. Maps `F[Config].field` to a strategy string or callable. See [Field Merge Strategies](#field-merge-strategies). |
+| `strategy` | `MergeStrategyName \| SourceMergeStrategy` | `"last_wins"` | Merge strategy: a built-in name or a custom object implementing `SourceMergeStrategy`. Only used with multiple sources. See [Merge Strategies](#merge-strategies). |
+| `field_merges` | `FieldMergeMap \| None` | `None` | Per-field merge strategy overrides. Maps `F[Config].field` to a strategy name, callable, or any object implementing `FieldMergeStrategy`. See [Field Merge Strategies](#field-merge-strategies). |
 | `field_groups` | `tuple[FieldGroupTuple, ...]` | `()` | Groups of fields that must change together. Each group is a tuple of `F[Config].field` references. |
 | `skip_broken_sources` | `bool` | `False` | Skip sources that fail to load instead of raising. |
 | `skip_invalid_fields` | `bool` | `False` | Skip fields that fail validation instead of raising. |
@@ -141,9 +141,11 @@ Strategies for resolving field values across multiple sources. Set via `strategy
 | `"first_found"` | Uses the first source that loads successfully. |
 | `"raise_on_conflict"` | Raises `MergeConflictError` on conflicting values. |
 
+The built-ins are also exposed as classes from `dature.strategies.source` (`SourceLastWins`, `SourceFirstWins`, `SourceFirstFound`, `SourceRaiseOnConflict`) implementing the public `SourceMergeStrategy` `Protocol`. Pass any object satisfying that protocol as `strategy` for custom merge logic — see [Custom Source Strategy](advanced/merge-rules.md#custom-source-strategy).
+
 ### Field Merge Strategies
 
-Per-field overrides via `field_merges` parameter. Maps `F[Config].field` to a strategy name or a `Callable[[list[JSONValue]], JSONValue]`.
+Per-field overrides via `field_merges` parameter. Maps `F[Config].field` to a strategy name, a plain `Callable[[list[JSONValue]], JSONValue]`, or any object implementing the public `FieldMergeStrategy` `Protocol`.
 
 | Strategy | Behavior |
 |----------|----------|
@@ -153,6 +155,8 @@ Per-field overrides via `field_merges` parameter. Maps `F[Config].field` to a st
 | `"append_unique"` | Concatenate lists, removing duplicates. |
 | `"prepend"` | Concatenate lists: `override + base`. |
 | `"prepend_unique"` | Concatenate lists in reverse order, removing duplicates. |
+
+The built-ins are also exposed as classes from `dature.strategies.field` (`FieldFirstWins`, `FieldLastWins`, `FieldAppend`, `FieldAppendUnique`, `FieldPrepend`, `FieldPrependUnique`). See [Custom Field Strategy](advanced/merge-rules.md#custom-field-strategy) and [Callable Merge](advanced/merge-rules.md#callable-merge) for examples.
 
 ---
 
@@ -675,9 +679,13 @@ Frozen dataclass for file line ranges.
 | `FieldMergeMap` | `dict[FieldRef, FieldMergeStrategyName \| Callable[..., Any]]` | `dature.types` |
 | `FieldMergeCallable` | `Callable[[list[JSONValue]], JSONValue]` | `dature.types` |
 | `FieldMergeStrategyName` | `Literal["first_wins", "last_wins", "append", "append_unique", "prepend", "prepend_unique"]` | `dature.types` |
+| `FieldMergeStrategy` | `Protocol` with `__call__(values: list[JSONValue]) -> JSONValue` | `dature.strategies.field` |
 | `FieldGroupTuple` | `tuple[FieldRef, ...]` | `dature.types` |
 | `TypeLoaderMap` | `dict[type, Callable[..., Any]]` | `dature.types` |
 | `MergeStrategyName` | `Literal["last_wins", "first_wins", "first_found", "raise_on_conflict"]` | `dature.types` |
+| `SourceMergeStrategy` | `Protocol` with `__call__(sources: Sequence[Source], ctx: LoadCtx) -> JSONValue` | `dature.strategies.source` |
+| `LoadCtx` | Helper passed to `SourceMergeStrategy.__call__`. Primary API: `ctx.merge(source=src, base=base, op=deep_merge_last_wins)` — applies one source to the running base, drives debug logs and `field_origins` automatically. Also: `ctx.load(src)` for raw access (cached), `ctx.field_origins()` for the accumulated `tuple[FieldOrigin, ...]`. | `dature.strategies.source` |
+| `MergeStepEvent` | Frozen dataclass: `step_idx: int`, `source: Source`, `source_data: JSONValue`, `before: JSONValue`, `after: JSONValue`. Delivered to `LoadCtx(on_merge_step=...)` callback for each `ctx.merge` call. | `dature.strategies.source` |
 | `NestedResolveStrategy` | `Literal["flat", "json"]` | `dature.types` |
 | `NestedResolve` | `dict[NestedResolveStrategy, tuple[FieldPath \| Any, ...]]` | `dature.types` |
 | `JSONValue` | `dict[str, JSONValue] \| list[JSONValue] \| str \| int \| float \| bool \| None` | `dature.types` |

@@ -80,8 +80,6 @@ type NestedResolve = dict[NestedResolveStrategy, _NestedResolveValue]
 
 type FieldValidators = dict[FieldRef, "Predicate | tuple[Predicate, ...]"]
 
-type FieldMergeCallable = Callable[[list[JSONValue]], JSONValue]
-
 type MergeStrategyName = Literal["last_wins", "first_wins", "first_found", "raise_on_conflict"]
 type FieldMergeStrategyName = Literal["first_wins", "last_wins", "append", "append_unique", "prepend", "prepend_unique"]
 type TypeLoaderMap = dict[type, Callable[..., Any]]

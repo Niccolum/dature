@@ -18,8 +18,8 @@ from dature.loading.context import (
 from dature.loading.merge_config import SourceParams
 from dature.loading.source_loading import (
     SkippedFieldSource,
-    _apply_source_init_params,
-    _resolve_type_loaders,
+    apply_source_init_params,
+    resolve_type_loaders,
 )
 from dature.masking.detection import build_secret_paths
 from dature.masking.masking import mask_json_value
@@ -266,8 +266,8 @@ def load_as_function(  # noqa: C901, PLR0913
     source_params: SourceParams | None = None,
     type_loaders: "TypeLoaderMap | None" = None,
 ) -> DataclassInstance:
-    source = _apply_source_init_params(source, source_params or SourceParams())
-    resolved_type_loaders = _resolve_type_loaders(source, type_loaders)
+    source = apply_source_init_params(source, source_params or SourceParams())
+    resolved_type_loaders = resolve_type_loaders(source, type_loaders)
     format_name = source.format_name
 
     secret_paths: frozenset[str] = frozenset()
@@ -389,8 +389,8 @@ def make_decorator(  # noqa: PLR0913
     source_params: SourceParams | None = None,
     type_loaders: "TypeLoaderMap | None" = None,
 ) -> Callable[[type[DataclassInstance]], type[DataclassInstance]]:
-    source = _apply_source_init_params(source, source_params or SourceParams())
-    resolved_type_loaders = _resolve_type_loaders(source, type_loaders)
+    source = apply_source_init_params(source, source_params or SourceParams())
+    resolved_type_loaders = resolve_type_loaders(source, type_loaders)
 
     def decorator(cls: type[DataclassInstance]) -> type[DataclassInstance]:
         if not is_dataclass(cls):
