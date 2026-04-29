@@ -43,7 +43,7 @@ When you specify a config file, dature searches in the following order:
 
 ## Configuration
 
-For global and per-source configuration options, see [Configure](configure.md).
+For global and per-source configuration options, see [Configure](../features/configure.md).
 
 ## Environment Variables
 

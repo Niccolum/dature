@@ -133,4 +133,4 @@ Classic `ab*****cd` style:
 
 ### Global
 
-See [Advanced — Configure](../advanced/configure.md#global-configure) for global masking defaults and all available config options.
+See [Configure](configure.md#global-configure) for global masking defaults and all available config options.
