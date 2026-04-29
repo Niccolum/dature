@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import dature
 from dature import EnvFileSource, EnvSource, load
 from examples.all_types_dataclass import EXPECTED_ALL_TYPES, AllPythonTypesCompact
 from tests.sources.checker import assert_all_types_equal
@@ -397,3 +398,70 @@ class TestEnvFileSourceStream:
 
         assert result.name == "test"
         assert result.port == 8080
+
+
+class TestEnvFileSourceSearch:
+    """Tests that EnvFileSource honors search_system_paths / system_config_dirs (FileFieldMixin)."""
+
+    @pytest.fixture(autouse=True)
+    def _reset_config(self):
+        dature.configure(loading={})
+
+    @dataclass
+    class _Cfg:
+        host: str
+
+    def test_finds_envfile_in_system_dir(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        system_dir = tmp_path / "system"
+        system_dir.mkdir()
+        (system_dir / ".env").write_text("HOST=from-system")
+
+        result = load(
+            EnvFileSource(file=".env", system_config_dirs=(system_dir,)),
+            schema=self._Cfg,
+        )
+
+        assert result.host == "from-system"
+
+    def test_priority_cwd_before_system(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".env").write_text("HOST=from-cwd")
+        system_dir = tmp_path / "system"
+        system_dir.mkdir()
+        (system_dir / ".env").write_text("HOST=from-system")
+
+        result = load(
+            EnvFileSource(file=".env", system_config_dirs=(system_dir,)),
+            schema=self._Cfg,
+        )
+
+        assert result.host == "from-cwd"
+
+    def test_search_system_paths_disabled_per_source(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        system_dir = tmp_path / "system"
+        system_dir.mkdir()
+        (system_dir / ".env").write_text("HOST=from-system")
+
+        with pytest.raises(FileNotFoundError):
+            load(
+                EnvFileSource(
+                    file=".env",
+                    search_system_paths=False,
+                    system_config_dirs=(system_dir,),
+                ),
+                schema=self._Cfg,
+            )

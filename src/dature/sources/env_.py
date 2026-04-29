@@ -149,15 +149,18 @@ class EnvFileSource(FileFieldMixin, EnvSource):
 
     def _load(self) -> JSONValue:
         """Parse .env file into a flat key=value dict (before nesting/expand/parse)."""
-        path = self.resolve_file_field(self.file)
         raw_pairs: dict[str, JSONValue] = {}
 
-        if isinstance(path, TEXT_IO_TYPES):
-            self._collect_pairs(path, raw_pairs)
-        elif isinstance(path, BINARY_IO_TYPES):
-            wrapper = io.TextIOWrapper(cast("io.BufferedReader", path))
+        if isinstance(self.file, TEXT_IO_TYPES):
+            self._collect_pairs(self.file, raw_pairs)
+        elif isinstance(self.file, BINARY_IO_TYPES):
+            wrapper = io.TextIOWrapper(cast("io.BufferedReader", self.file))
             self._collect_pairs(wrapper, raw_pairs)
         else:
+            path = self._resolved_file_path
+            if path is None:
+                msg = f"Config file not found: {self.file}"
+                raise FileNotFoundError(msg)
             with path.open() as f:
                 self._collect_pairs(f, raw_pairs)
 
