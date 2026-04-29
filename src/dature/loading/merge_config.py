@@ -56,7 +56,12 @@ def apply_source_init_params(source: Source, params: SourceParams) -> Source:
         return source
 
     new_source = copy.copy(source)
-    vars(new_source).update(overrides)
+    new_dict = vars(new_source)
+    new_dict.update(overrides)
+    # `FileFieldMixin._resolved_file_path` is a cached_property whose value lives in
+    # `__dict__`; drop it so it re-resolves against the overridden inputs
+    # (search_system_paths, system_config_dirs) instead of returning a stale result.
+    new_dict.pop("_resolved_file_path", None)
     return new_source
 
 

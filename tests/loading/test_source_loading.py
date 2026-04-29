@@ -501,3 +501,23 @@ class TestApplySourceInitParamsNestedStrategy:
         result = apply_source_init_params(source, SourceParams(nested_resolve_strategy=load_strategy))
 
         assert result.nested_resolve_strategy == expected
+
+
+class TestApplySourceInitParamsFilePathCache:
+    def test_overrides_invalidate_resolved_file_path_cache(self, tmp_path: Path):
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("key: value\n")
+
+        source = Yaml12Source(file="config.yaml")
+
+        # Before overrides: same call falls back to Path(self.file).
+        assert source.file_path_for_errors() == Path("config.yaml")
+
+        result = apply_source_init_params(
+            source,
+            SourceParams(search_system_paths=True, system_config_dirs=(tmp_path,)),
+        )
+
+        # After overrides: same call now resolves via the system-path search,
+        # proving the stale cache was invalidated.
+        assert result.file_path_for_errors() == config_file
