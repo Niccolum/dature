@@ -2,10 +2,12 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from dature import EnvSource, JsonSource, load
+from dature.field_path import F
 from dature.strategies.source import (
     LoadCtx,
     SourceFirstFound,
@@ -13,6 +15,9 @@ from dature.strategies.source import (
     SourceLastWins,
     SourceMergeStrategy,
 )
+
+if TYPE_CHECKING:
+    from dature.types import JSONValue
 
 
 @dataclass
@@ -130,3 +135,41 @@ class TestFirstFoundShortCircuit:
         )
         assert result.host == "ok"
         assert result.port == 7
+
+
+class TestLoadCtxPublicAPI:
+    """Strategies can read ``ctx.dataclass_name`` and ``ctx.field_merge_paths``."""
+
+    def test_strategy_reads_dataclass_name_and_field_merge_paths(self, tmp_path: Path):
+        a = tmp_path / "a.json"
+        a.write_text('{"host": "h1", "port": 1, "tags": ["x"]}')
+        b = tmp_path / "b.json"
+        b.write_text('{"host": "h2", "port": 2, "tags": ["y"]}')
+
+        seen: dict[str, object] = {}
+
+        class CapturingStrategy:
+            def __call__(self, sources, ctx: LoadCtx):
+                seen["dataclass_name"] = ctx.dataclass_name
+                seen["field_merge_paths"] = ctx.field_merge_paths
+                base: JSONValue = {}
+                for src in sources:
+                    base = ctx.merge(source=src, base=base)
+                return base
+
+        @dataclass
+        class WithTags:
+            host: str
+            port: int
+            tags: list[str]
+
+        load(
+            JsonSource(file=a),
+            JsonSource(file=b),
+            schema=WithTags,
+            strategy=CapturingStrategy(),
+            field_merges={F[WithTags].tags: "append"},
+        )
+
+        assert seen["dataclass_name"] == "WithTags"
+        assert seen["field_merge_paths"] == frozenset({"tags"})

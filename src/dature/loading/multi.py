@@ -24,7 +24,7 @@ from dature.loading.merge_config import MergeConfig
 from dature.loading.source_loading import resolve_type_loaders
 from dature.masking.detection import build_secret_paths
 from dature.masking.masking import mask_field_origins, mask_json_value, mask_source_entries, mask_value
-from dature.merging.deep_merge import deep_merge_last_wins, raise_on_conflict
+from dature.merging.deep_merge import deep_merge_last_wins
 from dature.merging.field_group import FieldGroupContext, validate_field_groups
 from dature.merging.predicate import ResolvedFieldGroup, build_field_group_paths, build_field_merge_map
 from dature.protocols import DataclassInstance
@@ -38,7 +38,6 @@ from dature.strategies.source import (
     LoadCtx,
     MergeStepEvent,
     SourceMergeStrategy,
-    SourceRaiseOnConflict,
     resolve_source_strategy,
 )
 from dature.types import JSONValue, TypeLoaderMap
@@ -244,21 +243,22 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901, PLR0912, PLR0915
                 secret_paths=secret_paths,
             )
 
-    ctx = LoadCtx(
-        merge_meta=merge_meta,
-        schema=schema,
-        dataclass_name=schema.__name__,
-        secret_paths=secret_paths,
-        mask_secrets=mask_secrets,
-        on_merge_step=on_merge_step,
-    )
-
     field_merge_strategies = build_field_merge_map(
         merge_meta.field_merges,
         schema,
         dataclass_name=schema.__name__,
     )
     field_merge_paths = frozenset(field_merge_strategies.keys()) or None
+
+    ctx = LoadCtx(
+        merge_meta=merge_meta,
+        schema=schema,
+        dataclass_name=schema.__name__,
+        field_merge_paths=field_merge_paths,
+        secret_paths=secret_paths,
+        mask_secrets=mask_secrets,
+        on_merge_step=on_merge_step,
+    )
 
     field_group_paths: tuple[ResolvedFieldGroup, ...] = ()
     if merge_meta.field_groups:
@@ -268,8 +268,9 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901, PLR0912, PLR0915
 
     # Validation runs after the strategy so that raw_dicts reflects exactly the
     # sources the strategy consumed — short-circuiting strategies like
-    # SourceFirstFound contribute only one source, while SourceLastWins /
-    # SourceRaiseOnConflict iterate every source via ctx.merge anyway.
+    # SourceFirstFound contribute only one source, while SourceLastWins iterates
+    # every source via ctx.merge anyway. SourceRaiseOnConflict performs its
+    # conflict check internally during its own __call__.
     if field_group_paths:
         loaded_entries = ctx.build_report().source_entries
         source_reprs = tuple(repr(merge_meta.sources[entry.index]) for entry in loaded_entries)
@@ -278,14 +279,6 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901, PLR0912, PLR0915
             field_group_paths=field_group_paths,
             dataclass_name=schema.__name__,
             source_reprs=source_reprs,
-        )
-
-    if isinstance(strategy, SourceRaiseOnConflict):
-        raise_on_conflict(
-            ctx.loaded_raw_dicts(),
-            ctx.loaded_source_ctxs(),
-            schema.__name__,
-            field_merge_paths=field_merge_paths,
         )
 
     if field_merge_strategies:

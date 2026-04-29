@@ -16,7 +16,7 @@ from dature.loading.source_loading import (
     should_skip_broken,
 )
 from dature.masking.masking import mask_json_value
-from dature.merging.deep_merge import deep_merge_first_wins, deep_merge_last_wins
+from dature.merging.deep_merge import deep_merge_first_wins, deep_merge_last_wins, raise_on_conflict
 from dature.sources.base import Source
 from dature.types import JSONValue, MergeStrategyName, TypeLoaderMap
 
@@ -90,19 +90,22 @@ class LoadCtx:
     the caller in ``multi.py``.
     """
 
-    def __init__(
+    def __init__(  # noqa:PLR0913
         self,
         *,
         merge_meta: "MergeConfig",
         schema: "type[DataclassInstance]",
         dataclass_name: str,
+        field_merge_paths: frozenset[str] | None = None,
         secret_paths: frozenset[str] = frozenset(),
         mask_secrets: bool = False,
         on_merge_step: Callable[[MergeStepEvent], None] | None = None,
     ) -> None:
+        self.dataclass_name = dataclass_name
+        self.field_merge_paths = field_merge_paths
+
         self._merge_meta = merge_meta
         self._schema = schema
-        self._dataclass_name = dataclass_name
         self._secret_paths = secret_paths
         self._mask_secrets = mask_secrets
         self._on_merge_step = on_merge_step
@@ -214,7 +217,7 @@ class LoadCtx:
         type_loaders = resolve_type_loaders(source, self._merge_meta.type_loaders)
         error_ctx = build_error_ctx(
             source,
-            self._dataclass_name,
+            self.dataclass_name,
             secret_paths=self._secret_paths,
             mask_secrets=self._mask_secrets,
         )
@@ -226,7 +229,7 @@ class LoadCtx:
                 raise
             logger.warning(
                 "[%s] Source %d skipped (broken): file=%s",
-                self._dataclass_name,
+                self.dataclass_name,
                 i,
                 source.display_name(),
             )
@@ -245,10 +248,10 @@ class LoadCtx:
                     message=str(exc),
                     location=location,
                 )
-                raise DatureConfigError(self._dataclass_name, [source_error]) from exc
+                raise DatureConfigError(self.dataclass_name, [source_error]) from exc
             logger.warning(
                 "[%s] Source %d skipped (broken): file=%s",
-                self._dataclass_name,
+                self.dataclass_name,
                 i,
                 source.display_name(),
             )
@@ -259,7 +262,7 @@ class LoadCtx:
         if load_result.nested_conflicts:
             error_ctx = build_error_ctx(
                 source,
-                self._dataclass_name,
+                self.dataclass_name,
                 secret_paths=self._secret_paths,
                 mask_secrets=self._mask_secrets,
                 nested_conflicts=load_result.nested_conflicts,
@@ -286,7 +289,7 @@ class LoadCtx:
 
         logger.debug(
             "[%s] Source %d loaded: loader=%s, file=%s, keys=%s",
-            self._dataclass_name,
+            self.dataclass_name,
             i,
             format_name,
             source.display_name(),
@@ -298,7 +301,7 @@ class LoadCtx:
             masked_raw = raw
         logger.debug(
             "[%s] Source %d raw data: %s",
-            self._dataclass_name,
+            self.dataclass_name,
             i,
             masked_raw,
         )
@@ -396,19 +399,26 @@ class SourceFirstFound:
 
 
 class SourceRaiseOnConflict:
-    """Identical to :class:`SourceLastWins` in merge behaviour.
+    """Identical to :class:`SourceLastWins` in merge behaviour, with an
+    additional post-merge conflict pass.
 
-    Conflict detection itself is performed by the caller (``multi.py``) before
-    invoking this strategy — that's where ``field_merge_paths`` and the
-    dataclass name are resolved. Custom strategies that want similar behaviour
-    can call :func:`dature.merging.deep_merge.raise_on_conflict` explicitly,
-    using the data accumulated in the load context.
+    Raises :class:`MergeConflictError` when any field has differing values
+    across sources, except for fields covered by ``field_merges``. Custom
+    strategies can replicate this behaviour by calling
+    :func:`dature.merging.deep_merge.raise_on_conflict` against
+    ``ctx.loaded_raw_dicts()`` and ``ctx.loaded_source_ctxs()``.
     """
 
     def __call__(self, sources: Sequence[Source], ctx: LoadCtx) -> JSONValue:
         base: JSONValue = {}
         for src in sources:
             base = ctx.merge(source=src, base=base)
+        raise_on_conflict(
+            ctx.loaded_raw_dicts(),
+            ctx.loaded_source_ctxs(),
+            ctx.dataclass_name,
+            field_merge_paths=ctx.field_merge_paths,
+        )
         return base
 
 
