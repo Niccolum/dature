@@ -1,1 +1,0 @@
-Removed ``LoaderProtocol`` from ``dature.protocols``. Source classes now handle loading internally.
