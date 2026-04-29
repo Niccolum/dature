@@ -264,14 +264,12 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901, PLR0912, PLR0915
     if merge_meta.field_groups:
         field_group_paths = build_field_group_paths(merge_meta.field_groups, schema)
 
-    # Pre-load all sources when we need to inspect raw data before the merge
-    # happens (field-group validation, raise-on-conflict detection). The cache
-    # in LoadCtx makes the strategy's own ctx.load() calls free.
-    needs_pre_load = bool(field_group_paths) or isinstance(strategy, SourceRaiseOnConflict)
-    if needs_pre_load:
-        for src in merge_meta.sources:
-            ctx.load(src)
+    merged = strategy(merge_meta.sources, ctx)
 
+    # Validation runs after the strategy so that raw_dicts reflects exactly the
+    # sources the strategy consumed — short-circuiting strategies like
+    # SourceFirstFound contribute only one source, while SourceLastWins /
+    # SourceRaiseOnConflict iterate every source via ctx.merge anyway.
     if field_group_paths:
         loaded_entries = ctx.build_report().source_entries
         source_reprs = tuple(repr(merge_meta.sources[entry.index]) for entry in loaded_entries)
@@ -289,8 +287,6 @@ def _load_and_merge[T: DataclassInstance](  # noqa: C901, PLR0912, PLR0915
             schema.__name__,
             field_merge_paths=field_merge_paths,
         )
-
-    merged = strategy(merge_meta.sources, ctx)
 
     if field_merge_strategies:
         loaded_for_fields = ctx.loaded_raw_dicts()
