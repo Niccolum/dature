@@ -21,7 +21,7 @@ graph TD
 
 ## Per-Field Merge Strategies
 
-Override the global strategy for individual fields using `field_merges`. Each value can be one of the built-in strategy names below, a [callable](#callable-merge), or a [custom class](#custom-field-strategy) implementing `FieldMergeStrategy`.
+Override the global strategy for individual fields using `field_merges`. Each value can be one of the built-in strategy names below, or any [callable or custom class](#custom-field-strategy) implementing `FieldMergeStrategy`.
 
 Available field merge strategies:
 
@@ -88,9 +88,7 @@ Each strategy produces a different result:
 
 Nested fields are supported: `dature.F[Config].database.host`.
 
-Per-field strategies work with `"raise_on_conflict"` — fields with an explicit strategy are excluded from conflict detection.
-
-## With raise_on_conflict
+### With `raise_on_conflict`
 
 Fields with an explicit strategy are excluded from conflict detection:
 
@@ -112,42 +110,29 @@ Fields with an explicit strategy are excluded from conflict detection:
     --8<-- "examples/docs/shared/common_overrides.yaml"
     ```
 
-## Callable Merge
+## Custom Field Strategy
 
-You can also pass a callable as the strategy:
+### The `FieldMergeStrategy` Protocol
 
-=== "Python"
+Any callable that takes a `list[JSONValue]` (one value per source) and returns the merged value satisfies the public `FieldMergeStrategy` `Protocol`:
+
+```python
+--8<-- "src/dature/strategies/field.py:field-merge-strategy"
+```
+
+The built-in field strategies are also exposed as classes from `dature.strategies.field`: `FieldFirstWins`, `FieldLastWins`, `FieldAppend`, `FieldAppendUnique`, `FieldPrepend`, `FieldPrependUnique`. They satisfy the same `Protocol`, so you can pass them directly to `field_merges` or compose them inside your own strategy.
+
+### Examples
+
+Pick a plain function for one-off logic, or a class for a named, reusable reducer:
+
+=== "Function"
 
     ```python
     --8<-- "examples/docs/advanced/merge_rules/advanced_merge_rules_callable.py"
     ```
 
-=== "common_defaults.yaml"
-
-    ```yaml
-    --8<-- "examples/docs/shared/common_defaults.yaml"
-    ```
-
-=== "common_overrides.yaml"
-
-    ```yaml
-    --8<-- "examples/docs/shared/common_overrides.yaml"
-    ```
-
-The callable receives a `list[JSONValue]` (one value per source) and returns the merged value. For a named, reusable reducer — or one that needs to compose with the built-ins — wrap it in a class implementing the `FieldMergeStrategy` `Protocol`; see [Custom Field Strategy](#custom-field-strategy).
-
-## Custom Field Strategy
-
-The built-in field strategies (`"first_wins"`, `"append"`, ...) are also exposed as classes from `dature.strategies.field`: `FieldFirstWins`, `FieldLastWins`, `FieldAppend`, `FieldAppendUnique`, `FieldPrepend`, `FieldPrependUnique`. They implement the public `FieldMergeStrategy` `Protocol`:
-
-```python
-class FieldMergeStrategy(Protocol):
-    def __call__(self, values: list[JSONValue]) -> JSONValue: ...
-```
-
-Any class with a matching `__call__` (or a plain function — see [Callable Merge](#callable-merge)) can be used wherever a strategy name is accepted. This is useful when you want a named, reusable reducer — or when you need to compose with the built-ins:
-
-=== "Python"
+=== "Class"
 
     ```python
     --8<-- "examples/docs/advanced/merge_rules/advanced_merge_rules_custom_field.py"

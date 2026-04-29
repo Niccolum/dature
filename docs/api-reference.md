@@ -156,7 +156,7 @@ Per-field overrides via `field_merges` parameter. Maps `F[Config].field` to a st
 | `"prepend"` | Concatenate lists: `override + base`. |
 | `"prepend_unique"` | Concatenate lists in reverse order, removing duplicates. |
 
-The built-ins are also exposed as classes from `dature.strategies.field` (`FieldFirstWins`, `FieldLastWins`, `FieldAppend`, `FieldAppendUnique`, `FieldPrepend`, `FieldPrependUnique`). See [Custom Field Strategy](advanced/merge-rules.md#custom-field-strategy) and [Callable Merge](advanced/merge-rules.md#callable-merge) for examples.
+The built-ins are also exposed as classes from `dature.strategies.field` (`FieldFirstWins`, `FieldLastWins`, `FieldAppend`, `FieldAppendUnique`, `FieldPrepend`, `FieldPrependUnique`). See [Custom Field Strategy](advanced/merge-rules.md#custom-field-strategy) for examples.
 
 ---
 

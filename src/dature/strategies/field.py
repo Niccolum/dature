@@ -4,9 +4,13 @@ from dature.errors import DatureConfigError, SourceLoadError
 from dature.types import FieldMergeStrategyName, JSONValue
 
 
+# --8<-- [start:field-merge-strategy]
 @runtime_checkable
 class FieldMergeStrategy(Protocol):
     def __call__(self, values: list[JSONValue]) -> JSONValue: ...
+
+
+# --8<-- [end:field-merge-strategy]
 
 
 def _ensure_all_lists(values: list[JSONValue], strategy_name: str) -> list[list[JSONValue]]:
