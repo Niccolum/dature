@@ -49,6 +49,9 @@ Repository = "https://github.com/reagento/dature"
 Issues = "https://github.com/reagento/dature/issues"
 Documentation = "https://dature.readthedocs.io/"
 
+[project.scripts]
+dature = "dature.cli:main"
+
 [project.optional-dependencies]
 yaml = ["ruamel.yaml>=0.18"]
 json5 = ["json-five>=1.1.2"]
@@ -86,6 +89,9 @@ ignore = [
 ]
 "src/dature/loaders/*.py" = [
     "FBT001",  # loader functions accept bool as scalar value, not as a flag
+]
+"src/dature/cli/*.py" = [
+    "T201",    # print (CLI output goes to stdout/stderr)
 ]
 "docs/generate_*.py" = [
     "INP001",  # implicit namespace package

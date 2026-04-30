@@ -1,0 +1,35 @@
+{
+  "schema": "Settings",
+  "strategy": null,
+  "sources": [
+    {
+      "index": 0,
+      "file_path": "sources/config.json",
+      "loader_type": "json",
+      "raw_data": {
+        "db": {
+          "host": "localhost",
+          "port": 5432
+        }
+      }
+    }
+  ],
+  "field_origins": [
+    {
+      "key": "db",
+      "value": {
+        "host": "localhost",
+        "port": 5432
+      },
+      "source_index": 0,
+      "source_file": "sources/config.json",
+      "source_loader_type": "json"
+    }
+  ],
+  "merged_data": {
+    "db": {
+      "host": "localhost",
+      "port": 5432
+    }
+  }
+}

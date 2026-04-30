@@ -1,0 +1,20 @@
+usage: dature validate [-h] --schema MODULE:ATTR --source SPEC
+                       [--strategy {last_wins,first_wins,first_found,raise_on_conflict}]
+                       [--skip-broken-sources] [--skip-invalid-fields]
+                       [--expand-env-vars {disabled,default,empty,strict}]
+                       [--secret-field-names SECRET_FIELD_NAMES]
+                       [--mask-secrets]
+
+options:
+  -h, --help            show this help message and exit
+  --schema MODULE:ATTR  Import path to dataclass schema (e.g.
+                        myapp.config:Settings).
+  --source SPEC         Source spec: 'type=Class,k=v,k=v'. Repeatable (order
+                        preserved). Use \, and \= to escape separators in
+                        values.
+  --strategy {last_wins,first_wins,first_found,raise_on_conflict}
+  --skip-broken-sources
+  --skip-invalid-fields
+  --expand-env-vars {disabled,default,empty,strict}
+  --secret-field-names SECRET_FIELD_NAMES
+  --mask-secrets
