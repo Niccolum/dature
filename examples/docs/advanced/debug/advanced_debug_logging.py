@@ -1,5 +1,6 @@
 """Debug logging — loading steps are logged at DEBUG under "dature"."""
 
+import difflib
 import io
 import logging
 from dataclasses import dataclass
@@ -41,7 +42,8 @@ defaults_data = "{'host': 'localhost', 'port': 3000, 'tags': ['default']}"
 overrides_data = (
     "{'host': 'production.example.com', 'port': 8080, 'tags': ['web', 'api']}"
 )
-assert log_lines == [
+
+expected_log_lines = [
     f"[Config] Source 0 loaded: loader=yaml1.2, file={defaults}, keys={keys}",
     f"[Config] Source 0 raw data: {defaults_data}",
     (
@@ -65,3 +67,6 @@ assert log_lines == [
     f"[Config] Field 'port' = 8080  <-- source 1 ({overrides})",
     f"[Config] Field 'tags' = ['web', 'api']  <-- source 1 ({overrides})",
 ]
+
+diff = difflib.ndiff(expected_log_lines, log_lines)
+assert log_lines == expected_log_lines, f"Difference:\n{'\n'.join(diff)}"

@@ -42,13 +42,13 @@ class TestGetLoadReportMergeFunction:
         assert report.sources == (
             SourceEntry(
                 index=0,
-                file_path=str(defaults),
+                file_path=f"{defaults!r}",
                 loader_type="json",
                 raw_data={"host": "localhost", "port": 3000},
             ),
             SourceEntry(
                 index=1,
-                file_path=str(overrides),
+                file_path=f"{overrides!r}",
                 loader_type="json",
                 raw_data={"port": 8080},
             ),
@@ -99,13 +99,13 @@ class TestGetLoadReportMergeFunction:
         assert report.sources == (
             SourceEntry(
                 index=0,
-                file_path=str(first),
+                file_path=f"{first!r}",
                 loader_type="json",
                 raw_data={"host": "first-host", "port": 1000},
             ),
             SourceEntry(
                 index=1,
-                file_path=str(second),
+                file_path=f"{second!r}",
                 loader_type="json",
                 raw_data={"host": "second-host", "port": 2000},
             ),
@@ -193,7 +193,7 @@ class TestGetLoadReportSingleSource:
             sources=(
                 SourceEntry(
                     index=0,
-                    file_path=str(json_file),
+                    file_path=f"{json_file!r}",
                     loader_type="json",
                     raw_data={"name": "test", "port": 8080},
                 ),
@@ -375,8 +375,8 @@ class TestLoadReportOnError:
         assert report.dataclass_name == "Config"
         assert isinstance(report.strategy, SourceLastWins)
         assert report.sources == (
-            SourceEntry(index=0, file_path=str(a), loader_type="json", raw_data={"host": "localhost"}),
-            SourceEntry(index=1, file_path=str(b), loader_type="json", raw_data={"host": "override"}),
+            SourceEntry(index=0, file_path=f"{a!r}", loader_type="json", raw_data={"host": "localhost"}),
+            SourceEntry(index=1, file_path=f"{b!r}", loader_type="json", raw_data={"host": "override"}),
         )
         assert report.field_origins == (
             FieldOrigin(
@@ -414,8 +414,8 @@ class TestLoadReportOnError:
         assert report.dataclass_name == "Config"
         assert isinstance(report.strategy, SourceLastWins)
         assert report.sources == (
-            SourceEntry(index=0, file_path=str(a), loader_type="json", raw_data={"port": -5}),
-            SourceEntry(index=1, file_path=str(b), loader_type="json", raw_data={"host": "localhost"}),
+            SourceEntry(index=0, file_path=f"{a!r}", loader_type="json", raw_data={"port": -5}),
+            SourceEntry(index=1, file_path=f"{b!r}", loader_type="json", raw_data={"host": "localhost"}),
         )
         assert report.field_origins == (
             FieldOrigin(
@@ -445,7 +445,7 @@ class TestLoadReportOnError:
             dataclass_name="Config",
             strategy=None,
             sources=(
-                SourceEntry(index=0, file_path=str(json_file), loader_type="json", raw_data={"host": "localhost"}),
+                SourceEntry(index=0, file_path=f"{json_file!r}", loader_type="json", raw_data={"host": "localhost"}),
             ),
             field_origins=(
                 FieldOrigin(
@@ -474,7 +474,7 @@ class TestLoadReportOnError:
         expected = LoadReport(
             dataclass_name="Config",
             strategy=None,
-            sources=(SourceEntry(index=0, file_path=str(json_file), loader_type="json", raw_data={"port": -1}),),
+            sources=(SourceEntry(index=0, file_path=f"{json_file!r}", loader_type="json", raw_data={"port": -1}),),
             field_origins=(
                 FieldOrigin(
                     key="port",

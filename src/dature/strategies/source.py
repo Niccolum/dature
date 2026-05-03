@@ -310,7 +310,7 @@ class LoadCtx:
         self._source_entries.append(
             SourceEntry(
                 index=i,
-                file_path=str(src_path)
+                file_path=f"{src_path!r}"
                 if (src_path := source.file_path_for_errors()) is not None
                 else source.display_name(),
                 loader_type=format_name,

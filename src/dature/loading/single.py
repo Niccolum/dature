@@ -243,7 +243,7 @@ def _make_new_init(ctx: _PatchContext) -> Callable[..., None]:
             report = _build_single_source_report(
                 dataclass_name=ctx.cls.__name__,
                 loader_type=ctx.loader_type,
-                file_path=str(path) if (path := ctx.source.file_path_for_errors()) else ctx.source.display_name(),
+                file_path=f"{path!r}" if (path := ctx.source.file_path_for_errors()) else ctx.source.display_name(),
                 raw_data=result_dict,
                 secret_paths=ctx.secret_paths,
             )
