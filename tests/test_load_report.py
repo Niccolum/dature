@@ -308,21 +308,23 @@ class TestDebugLogging:
 
         messages = [r.message for r in caplog.records if r.name == "dature"]
 
+        defaults_p = defaults.as_posix()
+        overrides_p = overrides.as_posix()
         expected = [
-            f"[JsonSource] load_raw: source={defaults},"
+            f"[JsonSource] load_raw: source={defaults_p},"
             " raw_keys=['host', 'port'], after_preprocessing_keys=['host', 'port']",
-            f"[Config] Source 0 loaded: loader=json, file={defaults}, keys=['host', 'port']",
+            f"[Config] Source 0 loaded: loader=json, file={defaults_p}, keys=['host', 'port']",
             "[Config] Source 0 raw data: {'host': 'localhost', 'port': 3000}",
             "[Config] Merge step 0 (strategy=last_wins): added=['host', 'port'], overwritten=[]",
             "[Config] State after step 0: {'host': 'localhost', 'port': 3000}",
-            f"[JsonSource] load_raw: source={overrides}, raw_keys=['port'], after_preprocessing_keys=['port']",
-            f"[Config] Source 1 loaded: loader=json, file={overrides}, keys=['port']",
+            f"[JsonSource] load_raw: source={overrides_p}, raw_keys=['port'], after_preprocessing_keys=['port']",
+            f"[Config] Source 1 loaded: loader=json, file={overrides_p}, keys=['port']",
             "[Config] Source 1 raw data: {'port': 8080}",
             "[Config] Merge step 1 (strategy=last_wins): added=[], overwritten=['port']",
             "[Config] State after step 1: {'host': 'localhost', 'port': 8080}",
             "[Config] Merged result (strategy=last_wins, 2 sources): {'host': 'localhost', 'port': 8080}",
-            f"[Config] Field 'host' = 'localhost'  <-- source 0 ({defaults})",
-            f"[Config] Field 'port' = 8080  <-- source 1 ({overrides})",
+            f"[Config] Field 'host' = 'localhost'  <-- source 0 ({defaults_p})",
+            f"[Config] Field 'port' = 8080  <-- source 1 ({overrides_p})",
         ]
         assert expected == messages
 

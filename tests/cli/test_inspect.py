@@ -47,7 +47,7 @@ class TestInspectGoldenPath:
             "sources": [
                 {
                     "index": 0,
-                    "file_path": str(cfg),
+                    "file_path": cfg.as_posix(),
                     "loader_type": "json",
                     "raw_data": {"db": {"host": "localhost", "port": 5432}},
                 },
@@ -57,7 +57,7 @@ class TestInspectGoldenPath:
                     "key": "db",
                     "value": {"host": "localhost", "port": 5432},
                     "source_index": 0,
-                    "source_file": str(cfg),
+                    "source_file": cfg.as_posix(),
                     "source_loader_type": "json",
                 },
             ],
@@ -77,14 +77,15 @@ class TestInspectGoldenPath:
             "--format",
             "text",
         )
+        cfg_posix = cfg.as_posix()
         expected_out = (
             "Schema: Settings (strategy: —)\n"
             "\n"
             "Sources:\n"
-            f"  [0] json         {cfg}\n"
+            f"  [0] json         {cfg_posix}\n"
             "\n"
             "Field origins:\n"
-            f'  db = {{"host": "localhost", "port": 5432}}   <- [0] {cfg}\n'
+            f'  db = {{"host": "localhost", "port": 5432}}   <- [0] {cfg_posix}\n'
             "\n"
             "Merged data:\n"
             "  {\n"
@@ -121,7 +122,7 @@ class TestInspectGoldenPath:
             "sources": [
                 {
                     "index": 0,
-                    "file_path": str(cfg),
+                    "file_path": cfg.as_posix(),
                     "loader_type": "json",
                     "raw_data": {"db": {"host": "localhost", "port": 5432}},
                 },
