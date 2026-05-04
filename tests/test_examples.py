@@ -90,9 +90,9 @@ def _run_example(script_path: pathlib.Path, shim_dir: pathlib.Path) -> ScriptRes
 
 
 def _resolve_placeholders(template: str, script_path: pathlib.Path) -> str:
-    sources_dir = str(script_path.parent / "sources") + os.sep
-    shared_dir = str(script_path.parents[2] / "shared") + os.sep
-    return template.replace("{SOURCES_DIR}", sources_dir).replace("{SHARED_DIR}", shared_dir).replace("{SEP}", os.sep)
+    sources_dir = (script_path.parent / "sources").as_posix() + os.sep
+    shared_dir = (script_path.parents[2] / "shared").as_posix() + os.sep
+    return template.replace("{SOURCES_DIR}", sources_dir).replace("{SHARED_DIR}", shared_dir)
 
 
 def _normalize(text: str) -> str:

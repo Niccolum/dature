@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import pytest
@@ -6,8 +5,6 @@ import pytest
 from dature import EnvSource, Toml11Source
 from dature.errors import EnvVarExpandError
 from dature.expansion.env_expand import expand_file_path
-
-SEP = os.sep
 
 
 class TestExpandFilePath:
@@ -106,7 +103,7 @@ class TestSourceFileExpansion:
             (
                 Path("$DATURE_DIR") / "config.toml",
                 {"DATURE_DIR": "/etc/app"},
-                f"$DATURE_DIR{SEP}config.toml".replace("$DATURE_DIR", "/etc/app"),
+                "$DATURE_DIR/config.toml".replace("$DATURE_DIR", "/etc/app"),
             ),
             (
                 "config.$DATURE_ENV.toml",
@@ -122,7 +119,7 @@ class TestSourceFileExpansion:
             (
                 Path("$DATURE_DIR") / "config.$DATURE_ENV.toml",
                 {"DATURE_DIR": "/etc/app", "DATURE_ENV": "prod"},
-                f"$DATURE_DIR{SEP}config.$DATURE_ENV.toml".replace("$DATURE_DIR", "/etc/app").replace(
+                "$DATURE_DIR/config.$DATURE_ENV.toml".replace("$DATURE_DIR", "/etc/app").replace(
                     "$DATURE_ENV",
                     "prod",
                 ),

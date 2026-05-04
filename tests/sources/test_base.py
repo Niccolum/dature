@@ -672,7 +672,7 @@ class TestFileFieldMixin:
         config_file.write_text("{}")
 
         src = Src(file=config_file)
-        assert src.file_display() == str(config_file)
+        assert src.file_display() == config_file.as_posix()
 
     def test_file_path_for_errors_with_resolved_path(self, tmp_path: Path):
         @dataclass

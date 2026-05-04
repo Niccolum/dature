@@ -343,9 +343,9 @@ class TestDebugLogging:
         messages = [r.message for r in caplog.records if r.name == "dature"]
 
         expected = [
-            f"[JsonSource] load_raw: source={json_file},"
+            f"[JsonSource] load_raw: source={json_file.as_posix()},"
             " raw_keys=['host', 'port'], after_preprocessing_keys=['host', 'port']",
-            f"[Config] Single-source load: loader=json, file={json_file}",
+            f"[Config] Single-source load: loader=json, file={json_file.as_posix()}",
             "[Config] Loaded data: {'host': 'localhost', 'port': 3000}",
         ]
         assert expected == messages
