@@ -224,8 +224,28 @@ def add_common_args(parser: argparse.ArgumentParser) -> None:
 
 
 def build_load_kwargs_from_dataclass(args: DataclassInstance) -> dict[str, Any]:
-    """Collect non-``None`` values for ``CLI_LOAD_PARAMS`` from a derived dataclass."""
-    return {name: v for name in CLI_LOAD_PARAMS if (v := getattr(args, name, None)) is not None}
+    """Collect non-``None`` values for ``CLI_LOAD_PARAMS`` from a derived dataclass.
+
+    Re-tuples list values whose ``load()`` annotation declares ``tuple[...]`` —
+    the CLI schema downgrades ``tuple[str, ...]`` to ``list[str]`` (argparse
+    ``action="append"`` produces a list and adaptix does not coerce list to
+    tuple), so we have to undo that before calling ``load()``.
+    """
+    hints = get_type_hints(load)
+    result: dict[str, Any] = {}
+    for name in CLI_LOAD_PARAMS:
+        value = getattr(args, name, None)
+        if value is None:
+            continue
+        if isinstance(value, list) and _orig_wants_tuple(hints[name]):
+            value = tuple(value)
+        result[name] = value
+    return result
+
+
+def _orig_wants_tuple(annotation: Any) -> bool:  # noqa: ANN401
+    """Return True if any non-None arm of ``annotation`` is ``tuple[...]``."""
+    return any(get_origin(_resolve_alias(cand)) is tuple for cand in _non_none_args(annotation))
 
 
 @cache

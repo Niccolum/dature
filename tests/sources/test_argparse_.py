@@ -398,7 +398,7 @@ class TestArgparseSourceResolveLocation:
         )
 
         assert len(locations) == 1
-        assert locations[0].env_var_name == "--HOST"
+        assert locations[0].env_var_name == "--host"
         assert locations[0].location_label == "CLI"
 
     def test_resolve_returns_flag_name_nested(self):
@@ -413,4 +413,4 @@ class TestArgparseSourceResolveLocation:
         )
 
         assert len(locations) == 1
-        assert locations[0].env_var_name == "--DB--HOST"
+        assert locations[0].env_var_name == "--db--host"

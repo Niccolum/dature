@@ -1,0 +1,5 @@
+Fix ``LoadReport.sources[*].file_path`` and ``LoadReport.field_origins[*].source_file`` to contain a path string rather than the ``repr()`` of a ``pathlib.Path`` (e.g. ``"PosixPath('...')"``). Paths are now emitted as POSIX-style strings (forward slashes regardless of the host OS), so report output and tests are consistent across Linux, macOS, and Windows.
+
+Fix ``dature ... --secret-field-names X`` crashing with ``TypeError: unhashable type: 'list'``. The CLI schema declares ``secret_field_names`` as ``list[str]`` (argparse ``action="append"`` produces a list), but ``load()`` expects ``tuple[str, ...]`` and uses it as part of a dict cache key. ``build_load_kwargs_from_dataclass`` now coerces the list back to a tuple at the load() boundary for any param whose ``load()`` annotation is tuple-shaped.
+
+Fix ``CliSource`` error messages displaying flag names in upper case (e.g. ``--DB--HOST``). The base ``FlatKeySource`` uppercases names because that matches env-var convention (``APP_DB_HOST``); ``CliSource`` now overrides this and emits the flag in its original case (``--db--host``), matching what users wrote on the command line.

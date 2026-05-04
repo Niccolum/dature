@@ -88,7 +88,7 @@ class CliSource(FlatKeySource, abc.ABC):
         nested_conflict: NestedConflict | None,
         input_value: JSONValue = None,  # noqa: ARG002
     ) -> list[SourceLocation]:
-        flag_name = self._resolve_var_name(field_path, self.prefix, self.nested_sep, nested_conflict)
+        flag_name = self._resolve_flag_name(field_path, nested_conflict)
         flag_display = f"--{flag_name}"
         line_content = [flag_display]
         line_carets = [CaretSpan(start=0, end=len(flag_display))]
@@ -102,3 +102,24 @@ class CliSource(FlatKeySource, abc.ABC):
                 line_carets=line_carets,
             ),
         ]
+
+    def _resolve_flag_name(
+        self,
+        field_path: list[str],
+        nested_conflict: NestedConflict | None,
+    ) -> str:
+        """Build the CLI flag name from a field path, preserving its case.
+
+        Mirrors :meth:`FlatKeySource._resolve_var_name` but skips the
+        ``.upper()`` step — env-var convention does not apply to CLI flags,
+        which users write in their original case (e.g. ``--db--host``).
+        """
+
+        def _build(parts: list[str]) -> str:
+            name = self.nested_sep.join(parts)
+            return self.prefix + name if self.prefix is not None else name
+
+        json_var = _build(field_path[:1])
+        if nested_conflict is not None and nested_conflict.used_var == json_var:
+            return json_var
+        return _build(field_path)

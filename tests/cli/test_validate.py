@@ -50,6 +50,30 @@ class TestValidateSuccess:
         assert out == "OK\n"
         assert err == ""
 
+    def test_secret_field_names_repeated(self, run_cli, write_schema, cfg_file):
+        """Regression: argparse ``action=append`` gives list, but ``load()`` expects
+        ``tuple[str, ...]`` for ``secret_field_names``; downstream uses it as a
+        dict cache key (must be hashable). A list crashes with ``TypeError``.
+        """
+        schema = "from dataclasses import dataclass\n@dataclass\nclass S:\n    password: str\n    host: str\n"
+        write_schema(schema)
+        cfg = cfg_file({"password": "secret123", "host": "localhost"})
+        code, out, err = run_cli(
+            "validate",
+            "--schema",
+            "myschema:S",
+            "--source",
+            f"type=dature.JsonSource,file={cfg}",
+            "--mask-secrets",
+            "--secret-field-names",
+            "password",
+            "--secret-field-names",
+            "api_key",
+        )
+        assert code == 0
+        assert out == "OK\n"
+        assert err == ""
+
 
 class TestValidateFailures:
     def test_type_mismatch(self, run_cli, write_schema, cfg_file):

@@ -173,13 +173,13 @@ class TestInspectGoldenPath:
             "sources": [
                 {
                     "index": 0,
-                    "file_path": f"{defaults!r}",
+                    "file_path": defaults.as_posix(),
                     "loader_type": "json",
                     "raw_data": {"host": "default-host", "port": 3000},
                 },
                 {
                     "index": 1,
-                    "file_path": f"{overrides!r}",
+                    "file_path": overrides.as_posix(),
                     "loader_type": "json",
                     "raw_data": {"port": 8080},
                 },
@@ -189,14 +189,14 @@ class TestInspectGoldenPath:
                     "key": "host",
                     "value": "default-host",
                     "source_index": 0,
-                    "source_file": f"{defaults!r}",
+                    "source_file": defaults.as_posix(),
                     "source_loader_type": "json",
                 },
                 {
                     "key": "port",
                     "value": 8080,
                     "source_index": 1,
-                    "source_file": f"{overrides!r}",
+                    "source_file": overrides.as_posix(),
                     "source_loader_type": "json",
                 },
             ],
