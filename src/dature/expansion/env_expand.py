@@ -1,5 +1,6 @@
 import os
 import re
+from pathlib import Path
 
 from dature.errors import EnvVarExpandError, MissingEnvVarError
 from dature.types import ExpandEnvVarsMode, FilePath, JSONValue
@@ -148,7 +149,10 @@ def _expand_string_default(text: str) -> str:
 
 
 def expand_file_path(file_path: FilePath, *, mode: ExpandEnvVarsMode) -> str:
-    return expand_string(str(file_path), mode=mode)
+    expanded = expand_string(str(file_path), mode=mode)
+    if isinstance(file_path, Path):
+        return str(Path(expanded))
+    return expanded
 
 
 def expand_env_vars(data: JSONValue, *, mode: ExpandEnvVarsMode) -> JSONValue:

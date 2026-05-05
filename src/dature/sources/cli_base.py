@@ -6,6 +6,7 @@ from typing import ClassVar, cast
 from dature.errors import CaretSpan, SourceLocation
 from dature.sources.base import FlatKeySource
 from dature.types import (
+    ExpandEnvVarsMode,
     JSONValue,
     NestedConflict,
     NestedConflicts,
@@ -37,9 +38,16 @@ class CliSource(FlatKeySource, abc.ABC):
     The flat dict produced by ``_parse_argv`` is then unfolded into a nested
     structure by :class:`FlatKeySource` using ``nested_sep`` (default ``"--"``,
     so ``--db--host`` nests as ``db.host`` in the dataclass).
+
+    ``expand_env_vars`` defaults to ``"disabled"`` (override of the base
+    :class:`Source` default): the shell has already expanded ``$VAR`` before
+    the value reaches Python, and re-expanding would silently turn quoted
+    literals like ``'$ecret'`` into empty strings. Pass ``"default"`` /
+    ``"empty"`` / ``"strict"`` explicitly if you want CLI values re-expanded.
     """
 
     nested_sep: str = "--"
+    expand_env_vars: ExpandEnvVarsMode | None = "disabled"
     location_label: ClassVar[str] = "CLI"
 
     @abc.abstractmethod
@@ -55,6 +63,18 @@ class CliSource(FlatKeySource, abc.ABC):
 
     def _load(self) -> JSONValue:
         return cast("JSONValue", self._parsed)
+
+    def _build_var_name(self, key: str) -> str:
+        """Build a CLI flag name without uppercasing.
+
+        Overrides :meth:`FlatKeySource._build_var_name` (which uppercases for
+        env-var convention). Storing the original case in ``NestedConflict``
+        objects also lets :meth:`_resolve_flag_name` compare them correctly
+        when reporting the flag in error messages.
+        """
+        if self.prefix:
+            return self.prefix + key
+        return key
 
     def _pre_process_row(
         self,

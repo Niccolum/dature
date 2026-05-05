@@ -20,7 +20,7 @@ class DockerSecretsSource(FlatKeySource):
 
     def __post_init__(self) -> None:
         if isinstance(self.dir_, (str, Path)):
-            self.dir_ = expand_file_path(str(self.dir_), mode="strict")
+            self.dir_ = expand_file_path(self.dir_, mode="strict")
 
     def __repr__(self) -> str:
         return f"{self.format_name} '{self.dir_}'"
