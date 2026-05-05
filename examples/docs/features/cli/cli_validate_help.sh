@@ -1,0 +1,1 @@
+dature validate --help

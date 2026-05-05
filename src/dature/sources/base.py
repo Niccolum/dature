@@ -324,7 +324,7 @@ class FileFieldMixin:
 
     def __post_init__(self) -> None:
         if isinstance(self.file, (str, Path)):
-            self.file = expand_file_path(str(self.file), mode="strict")
+            self.file = expand_file_path(self.file, mode="strict")
 
     @cached_property
     def _resolved_file_path(self) -> Path | None:

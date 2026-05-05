@@ -3,5 +3,5 @@
     | dature.errors.exceptions.FieldLoadError:   [port]  Value must be greater than or equal to 1
     |    ├── port = 0
     |    │          ^
-    |    └── SECRET FILE '{SOURCES_DIR}error_format_docker{SEP}port'
+    |    └── SECRET FILE '{SOURCES_DIR}error_format_docker/port'
     +------------------------------------

@@ -61,6 +61,8 @@ nav:
     - Merging: features/merging.md
     - Masking: features/masking.md
     - Configure: features/configure.md
+    - CLI: features/cli.md
+    - CLI Source: features/cli_source.md
   - Advanced:
     - Merge Rules: advanced/merge-rules.md
     - Field Groups: advanced/field-groups.md
@@ -112,6 +114,8 @@ plugins:
           - features/merging.md
           - features/masking.md
           - features/configure.md
+          - features/cli.md
+          - features/cli_source.md
         Advanced:
           - advanced/merge-rules.md
           - advanced/field-groups.md

@@ -1,0 +1,15 @@
+Schema: Settings (strategy: —)
+
+Sources:
+  [0] json         sources/config.json
+
+Field origins:
+  db = {"host": "localhost", "port": 5432}   <- [0] sources/config.json
+
+Merged data:
+  {
+    "db": {
+      "host": "localhost",
+      "port": 5432
+    }
+  }
