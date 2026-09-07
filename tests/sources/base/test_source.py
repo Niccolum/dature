@@ -3,16 +3,27 @@ from pathlib import Path
 
 import pytest
 
-from dature import Absolute, JsonSource, load
+from dature import (
+    Absolute,
+    JsonSource,
+    load,
+)
+from dature.config import DatureConfig, VaultConfig
 from dature.errors import EnvVarExpandError
 from dature.field_path import F
-from dature.loading.merge_runtime import SourceParams, apply_source_init_params
+from dature.loading.cross_source import clone_with_interpolation
+from dature.loading.merge_runtime import (
+    SourceParams,
+    apply_source_config_group,
+    apply_source_init_params,
+    prepare_sources,
+)
 from dature.loading.retort import RetortCache
-from dature.sources.base import IndexedSource, Source, string_value_loaders
+from dature.sources.base import IndexedSource, Source, clone_source, string_value_loaders
 from dature.type_aliases import JSONValue
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, repr=False)
 class MockSource(Source):
     """Mock source for testing base class functionality."""
 
@@ -21,6 +32,7 @@ class MockSource(Source):
     test_data: JSONValue = None
 
     def __post_init__(self) -> None:
+        super().__post_init__()
         if self.test_data is None:
             self.test_data = {}
 
@@ -702,3 +714,93 @@ class TestResolveLocation:
 
         assert len(locations) == 1
         assert locations[0].line_range is None
+
+
+@dataclass(kw_only=True, repr=False)
+class _ConfigGroupMockSource(MockSource):
+    """MockSource variant that opts into a config group, for apply_source_config_group tests."""
+
+    host: str = ""
+    config_group: str | None = "vault"
+
+
+class TestCascadeAwareRepr:
+    """``Source.__repr__`` hides fields the load/config cascade filled in, but shows the
+    same field when the caller set it explicitly — see changes/+source-repr-hides-cascaded."""
+
+    @pytest.mark.parametrize(
+        "field_name",
+        ["strict", "expand_env_vars"],
+    )
+    def test_init_params_cascade_hidden_from_repr(self, field_name):
+        source = apply_source_init_params(
+            MockSource(),
+            SourceParams(**{field_name: "error" if field_name == "strict" else "disabled"}),
+        )
+
+        assert repr(source) == "MockSource(test_data={})"
+
+    @pytest.mark.parametrize(
+        "field_name",
+        ["strict", "expand_env_vars"],
+    )
+    def test_explicit_value_shown_in_repr(self, field_name):
+        value = "error" if field_name == "strict" else "disabled"
+        source = MockSource(**{field_name: value})
+
+        assert repr(source) == f"MockSource({field_name}={value!r}, test_data={{}})"
+
+    def test_config_group_cascade_hidden_from_repr(self):
+        cfg = DatureConfig(vault=VaultConfig(host="from-config"))
+        source = apply_source_config_group(_ConfigGroupMockSource(), cfg)
+
+        assert repr(source) == "_ConfigGroupMockSource(test_data={})"
+
+    def test_config_group_explicit_value_shown_in_repr(self):
+        cfg = DatureConfig(vault=VaultConfig(host="from-config"))
+        source = apply_source_config_group(_ConfigGroupMockSource(host="explicit"), cfg)
+
+        assert repr(source) == "_ConfigGroupMockSource(test_data={}, host='explicit')"
+
+    def test_cascade_accumulates_across_prepare_sources_steps(self):
+        """``prepare_sources`` clones twice (init params, then config group) — the first
+        clone's cascade marks must survive into the second clone."""
+        cfg_source = _ConfigGroupMockSource()
+
+        cfg = DatureConfig(vault=VaultConfig(host="from-config"))
+        (prepared,) = prepare_sources(
+            (cfg_source,),
+            SourceParams(strict="error"),
+            cfg,
+        )
+
+        assert repr(prepared) == "_ConfigGroupMockSource(test_data={})"
+
+    def test_interpolation_clone_does_not_hide_explicit_field(self):
+        """``clone_with_interpolation`` rewrites the *value* of an explicitly-set field —
+        it must not be mistaken for a cascade fill, so the field stays visible in repr."""
+        source = MockSource(prefix="${@tag.key}")
+
+        cloned = clone_with_interpolation(source, {"tag": {"key": "resolved"}})
+
+        assert repr(cloned) == "MockSource(prefix='resolved', test_data={})"
+
+    def test_clone_source_carries_cascade_marks_forward(self):
+        source = apply_source_init_params(MockSource(), SourceParams(strict="error"))
+
+        cloned = clone_source(source, {"prefix": "app"})
+
+        assert repr(cloned) == "MockSource(prefix='app', test_data={})"
+
+    def test_source_without_cascade_awareness_clones_without_error(self):
+        """``clone_source`` narrows with ``isinstance(cloned, CascadeAwareProtocol)`` before
+        recording provenance — a dataclass lacking ``mark_cascaded``/``inherit_cascaded``/
+        ``cascaded_fields`` (i.e. not ``Source``-derived) must still clone cleanly."""
+
+        @dataclass(kw_only=True)
+        class _NotCascadeAware:
+            prefix: str | None = None
+
+        cloned = clone_source(_NotCascadeAware(), {"prefix": "app"})  # type: ignore[type-var]
+
+        assert cloned.prefix == "app"

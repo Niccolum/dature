@@ -11,7 +11,6 @@ from dature.masking.detection import (
     _is_secret_type,
     _matches_secret_pattern,
     build_secret_paths,
-    canonical_name,
     canonical_secret_paths,
     matches_secret_name,
 )
@@ -213,36 +212,6 @@ class TestMatchesSecretPattern:
     )
     def test_matching(self, name: str, patterns: tuple[str, ...], expected: bool):
         assert _matches_secret_pattern(name, patterns) is expected
-
-
-class TestCanonicalName:
-    @pytest.mark.parametrize(
-        ("name", "expected"),
-        [
-            ("secret-key", "secretkey"),
-            ("secret_key", "secretkey"),
-            ("secretKey", "secretkey"),
-            ("SecretKey", "secretkey"),
-            ("SECRET_KEY", "secretkey"),
-            ("SECRET-KEY", "secretkey"),
-            ("db.secret-key", "db.secretkey"),
-            ("", ""),
-            ("host", "host"),
-        ],
-        ids=[
-            "kebab",
-            "snake",
-            "lower-camel",
-            "upper-camel",
-            "upper-snake",
-            "upper-kebab",
-            "dotted-path",
-            "empty",
-            "unchanged",
-        ],
-    )
-    def test_canonical_name(self, name: str, expected: str):
-        assert canonical_name(name) == expected
 
 
 class TestCanonicalSecretPaths:

@@ -32,6 +32,7 @@ Main entry point. Two calling patterns:
 | `cache_engine` | `bool \| None` | `None` | Retain the compiled engine across loads (independent of `cache`, which caches the *result*). Default from `Dature` instance or `DATURE_*` env, itself defaulting to `False`. See [Caching](advanced/caching.md#cache_engine-retaining-the-compiled-engine). |
 | `stale_on_error` | `StaleOnErrorMode \| None` | `None` | What to do when a cached reload fails: `"keep"` (default, return the stale value and restart the TTL window), `"retry"` (return the stale value without restarting the window), or `"raise"` (propagate the error). Default from `Dature` instance or `DATURE_*` env. **Effective in decorator mode only** — see [Caching](advanced/caching.md#stale_on_error-keeping-the-last-good-config). |
 | `debug` | `bool \| None` | `None` | Collect `LoadReport` on the result instance. Default from `Dature` instance or `DATURE_*` env. Retrieve with `load_report()`. |
+| `strict` | `StrictMode \| None` | `None` | Unknown-key detection: `"off"` (default), `"warn"` (log via `logging.warning`), or `"error"` (raise `StrictModeError`). Checks keys from every successfully-loaded source against the schema, including `NameStyle` variants and `field_mapping` aliases. Default from `Dature` instance or `DATURE_*` env; can also be set per-`Source` (e.g. `JsonSource(file=..., strict="error")`) to override it for just that source. See [Strict Mode](advanced/strict-mode.md). |
 | `strategy` | `MergeStrategyName \| SourceMergeStrategy` | `"last_wins"` | Merge strategy: a built-in name or a custom object implementing `SourceMergeStrategy`. Only used with multiple sources. See [Merge Strategies](#merge-strategies). |
 | `field_merges` | `FieldMergeMap \| None` | `None` | Per-field merge strategy overrides. Maps `F[Config].field` to a strategy name, callable, or any object implementing `FieldMergeStrategy`. See [Field Merge Strategies](#field-merge-strategies). |
 | `field_groups` | `Sequence[FieldGroupTuple]` | `()` | Groups of fields that must change together. Each group is a sequence of `F[Config].field` references. |
@@ -94,6 +95,7 @@ Abstract base class for all sources. See [Introduction — Source Reference](int
 | `type_loaders` | `TypeLoaderMap \| None` | `None` | Custom type converters `{type: callable}` for this source. |
 | `tag` | `str \| None` | `None` | Explicit tag for `${@tag.key}` cross-refs. Defaults to the format name. See [Cross-Source References](advanced/cross_source_refs.md). |
 | `when` | `Condition \| None` | `None` | Include this source only when a condition is met, built with the `When()` DSL. A non-`Condition` value raises `TypeError`. See [Conditional Sources](advanced/conditional_sources.md). |
+| `strict` | `StrictMode \| None` | `None` | Unknown-key detection for just this source, overriding the load-level/`Dature`/`DATURE_LOADING__STRICT` default. See [Strict Mode](advanced/strict-mode.md). |
 
 **Public methods:**
 
@@ -318,7 +320,8 @@ inherit unless they override it. Values of `max_line_length` at or below 3 degra
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `max_visible_lines` | `int` | `3` | Maximum lines of source content shown in errors. |
+| `max_visible_lines` | `int` | `3` | Maximum lines of source content shown in one error block. |
+| `max_errors` | `int` | `7` | Maximum number of error blocks shown for any dature error group — validation, merge conflicts, field groups, env-var expansion, cross-source references, and [strict mode](advanced/strict-mode.md) unknown keys alike. |
 | `max_line_length` | `int` | `80` | Maximum characters per line before truncation. |
 
 ### `LoadingConfig`
@@ -334,6 +337,7 @@ Frozen dataclass controlling load behavior defaults.
 | `cache` | `bool \| timedelta` | `True` | Default caching. `True`/`False` toggle, `timedelta` sets TTL. See [Caching](advanced/caching.md). |
 | `cache_engine` | `bool` | `False` | Default engine retention. See [Caching](advanced/caching.md#cache_engine-retaining-the-compiled-engine). |
 | `debug` | `bool` | `False` | Default debug mode (collect `LoadReport`). |
+| `strict` | `StrictMode` | `"off"` | Default unknown-key detection mode: `"off"`, `"warn"`, or `"error"`. See [Strict Mode](advanced/strict-mode.md). |
 | `nested_resolve_strategy` | `NestedResolveStrategy` | `"flat"` | Default nested resolve strategy for `FlatKeySource`. |
 | `expand_env_vars` | `ExpandEnvVarsMode` | `"default"` | Default env var expansion mode applied when neither source nor load-level value is set. |
 | `search_system_paths` | `bool` | `True` | Whether file sources search OS-specific config directories by default. See [Config Search](advanced/config-search.md). |

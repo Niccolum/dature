@@ -28,6 +28,7 @@ from dature.loading.load_logging import log_field_origins, log_merge_step, log_s
 from dature.loading.merge_runtime import LoadCtx, MergeConfig, MergeStepEvent, resolve_type_loaders
 from dature.loading.retort import RetortCache
 from dature.loading.source_loading import enrich_skipped_errors, prepare_loaded_source
+from dature.loading.strict.check import StrictSourceEntry, run_strict_check
 from dature.masking.detection import build_secret_paths
 from dature.masking.masking import mask_json_value
 from dature.merging.field_group import validate_all_field_groups
@@ -143,6 +144,10 @@ def load_single[T: DataclassInstance](  # noqa: PLR0913
         field_pass_entries=[entry],
         schema=schema,
         retort_cache=retort_cache,
+    )
+    run_strict_check(
+        schema=schema,
+        entries=[StrictSourceEntry(raw=raw_data, error_ctx=error_ctx, file_content=prepared.file_content)],
     )
     return _SingleData(result=result, error_ctx=error_ctx)
 
@@ -464,6 +469,10 @@ def load_and_merge[T: DataclassInstance](  # noqa: C901, PLR0915
         field_pass_entries=field_pass_entries,
         schema=schema,
         retort_cache=retort_cache,
+    )
+    run_strict_check(
+        schema=schema,
+        entries=[StrictSourceEntry.from_source_context(raw, source_ctx) for _, raw, source_ctx in ctx.loaded_sources()],
     )
     return _MergedData(
         result=result,

@@ -205,11 +205,19 @@ def create_root_validator_providers(
     ]
 
 
-def get_validator_providers[T](schema: type[T]) -> list[Provider]:
+def get_validator_providers[T](schema: type[T], *, _seen: "set[type] | None" = None) -> list[Provider]:
     """Return adaptix ``Provider`` instances for every ``Annotated`` field validator in *schema*.
 
     Recurses into nested dataclasses so validators on nested fields are also registered.
+    ``_seen`` guards against unbounded recursion on self-referential/mutually-recursive
+    dataclasses (e.g. ``child: "Node | None"``) — such a schema has no validators past the
+    cycle, so revisiting it would only repeat work forever, never find anything new.
     """
+    seen = _seen if _seen is not None else set()
+    if schema in seen:
+        return []
+    seen.add(schema)
+
     providers: list[Provider] = []
     type_hints = get_type_hints(schema, include_extras=True)
 
@@ -225,7 +233,7 @@ def get_validator_providers[T](schema: type[T]) -> list[Provider]:
             providers.extend(field_providers)
 
         for nested_dataclass in find_nested_dataclasses(field_type):
-            nested_providers = get_validator_providers(nested_dataclass)
+            nested_providers = get_validator_providers(nested_dataclass, _seen=seen)
             providers.extend(nested_providers)
 
     return providers

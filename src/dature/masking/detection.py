@@ -7,6 +7,7 @@ from typing import Annotated, Union, get_args, get_origin, get_type_hints
 from dature.field_path import FieldPath
 from dature.fields.payment_card import PaymentCardNumber
 from dature.fields.secret_str import SecretStr
+from dature.naming import canonical_name
 from dature.type_aliases import FieldMapping, TypeAnnotation
 from dature.type_utils import find_nested_dataclasses
 
@@ -32,14 +33,6 @@ def _is_secret_type(field_type: TypeAnnotation) -> bool:
 def _matches_secret_pattern(name: str, patterns: tuple[str, ...]) -> bool:
     lower_name = name.lower()
     return any(pattern in lower_name for pattern in patterns)
-
-
-def canonical_name(name: str) -> str:
-    """Lowercase *name* and strip ``-``/``_`` so it compares equal across ``NameStyle`` variants.
-
-    Dots are preserved as path separators, so this doubles as a path canonicalizer.
-    """
-    return name.lower().replace("-", "").replace("_", "")
 
 
 @lru_cache(maxsize=128)

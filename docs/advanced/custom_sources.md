@@ -35,6 +35,10 @@ Every custom source needs:
 | `resolve_location(...)` | Uses `_build_line_index` + caret computation | Low-level escape hatch — override only when `_build_line_index` is not enough (e.g. env var name in error messages). |
 | `location_label` | inherited | Change the label in error messages (e.g. `"FILE"`, `"ENV"`, `"API"`). |
 
+If you override `__post_init__`, call `super().__post_init__()` first — it validates `when=`
+and tracks which fields the load/config cascade filled in (so `repr()` shows only what you
+set explicitly). Skipping it silently drops both.
+
 ## Example: FileSource subclass
 
 The most common case — reading a file format:

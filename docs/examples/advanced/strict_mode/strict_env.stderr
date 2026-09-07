@@ -1,0 +1,31 @@
+env has no prefix — strict mode treats the whole process environment as candidate keys. Set prefix=... and use your own prefixed variables instead.
+  + Exception Group Traceback (most recent call last):
+  |   File "{SCRIPT_PATH}", line 33, in <module>
+  |     conf.load(
+  |     ~~~~~~~~~^
+  |         dature.EnvSource(),
+  |         ^^^^^^^^^^^^^^^^^^^
+  |         schema=Config,
+  |         ^^^^^^^^^^^^^^
+  |         strict="error",
+  |         ^^^^^^^^^^^^^^^
+  |     )
+  |     ^
+  | dature.errors.exceptions.StrictModeError: Config unknown config keys (3)
+  | ... and 3 more unknown config keys (6 total)
+  +-+---------------- 1 ----------------
+    | dature.errors.exceptions.UnknownKeyError:   [lang]  Config value 'lang' was unused (from EnvSource())
+    |    ├── LANG=<REDACTED>
+    |    │   ^^^^
+    |    └── ENV 'LANG'
+    +---------------- 2 ----------------
+    | dature.errors.exceptions.UnknownKeyError:   [tz]  Config value 'tz' was unused (from EnvSource())
+    |    ├── TZ=<REDACTED>
+    |    │   ^^
+    |    └── ENV 'TZ'
+    +---------------- 3 ----------------
+    | dature.errors.exceptions.UnknownKeyError:   [shell]  Config value 'shell' was unused (from EnvSource())
+    |    ├── SHELL=<REDACTED>
+    |    │   ^^^^^
+    |    └── ENV 'SHELL'
+    +------------------------------------

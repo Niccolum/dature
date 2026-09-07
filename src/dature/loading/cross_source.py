@@ -89,11 +89,12 @@ def clone_with_interpolation(
     source: SourceProtocol,
     context: dict[str, dict[str, JSONValue]],
 ) -> SourceProtocol:
-    """Return a shallow copy of *source* with cross-refs in init fields expanded.
+    """Return a copy of *source* with cross-refs in init fields expanded.
 
-    Uses ``copy.copy`` + ``vars().update()`` — the same pattern as
-    ``apply_source_init_params`` — to avoid re-running ``__post_init__``
-    on already-processed fields.
+    Uses ``clone_source`` (``dataclasses.replace()``), same as the cascade helpers in
+    ``merge_runtime``. Unlike those, this does *not* mark the expanded fields as
+    cascade-filled — it only rewrites the value of a field the caller already set
+    explicitly, so the field should keep showing in ``repr()``.
     """
     overrides: dict[str, object] = {}
     for name, value in _init_string_fields(source).items():

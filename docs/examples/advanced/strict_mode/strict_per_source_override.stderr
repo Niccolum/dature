@@ -1,0 +1,18 @@
+  + Exception Group Traceback (most recent call last):
+  |   File "{SCRIPT_PATH}", line 21, in <module>
+  |     dature.load(
+  |     ~~~~~~~~~~~^
+  |         dature.JsonSource(file=SOURCES_DIR / "strict_json.json", strict="error"),
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |     ...<2 lines>...
+  |         schema=Config,
+  |         ^^^^^^^^^^^^^^
+  |     )
+  |     ^
+  | dature.errors.exceptions.StrictModeError: Config unknown config keys (1)
+  +-+---------------- 1 ----------------
+    | dature.errors.exceptions.UnknownKeyError:   [hostt]  Config value 'hostt' was unused (from json '{SOURCES_DIR}strict_json.json')
+    |    ├── "hostt": "<REDACTED>"
+    |    │    ^^^^^
+    |    └── FILE '{SOURCES_DIR}strict_json.json', line 3
+    +------------------------------------

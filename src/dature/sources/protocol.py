@@ -14,6 +14,7 @@ All ``SourceProtocol`` implementations must be dataclasses (signalled by
 ``dataclasses.replace()`` to work uniformly across the loading machinery.
 """
 
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, ClassVar, Protocol, runtime_checkable
 
@@ -30,6 +31,7 @@ from dature.type_aliases import (
     NameStyle,
     NestedConflict,
     SkipFieldsInvalid,
+    StrictMode,
     TypeLoaderMap,
 )
 from dature.validators.aliases import FieldValidators
@@ -61,6 +63,7 @@ class SourceProtocol(Protocol):
     type_loaders: TypeLoaderMap | None
     tag: str | None
     when: Condition | None
+    strict: StrictMode | None
 
     @property
     def resolved_tag(self) -> str: ...
@@ -70,6 +73,8 @@ class SourceProtocol(Protocol):
     def display_name(self) -> str: ...
 
     def format_loaders(self) -> list[Provider]: ...
+
+    def on_prepared(self) -> None: ...
 
     def resolve_location(
         self,
@@ -108,3 +113,21 @@ class FileSourceProtocol(Protocol):
     def file_path_for_errors(self) -> Path | None: ...
 
     def build_line_index(self, content: str) -> "dict[tuple[str, ...], LineRange] | None": ...
+
+
+@runtime_checkable
+class CascadeAwareProtocol(Protocol):
+    """Optional interface for sources that track which fields the load/config cascade filled.
+
+    ``clone_source`` checks ``isinstance(source, CascadeAwareProtocol)`` before recording
+    provenance, and a cascade-aware ``__repr__`` uses it to hide cascade-filled fields so a
+    source's repr shows only what the caller wrote. Any class exposing these members
+    satisfies the protocol — subclassing ``Source`` is sufficient but not required.
+    """
+
+    @property
+    def cascaded_fields(self) -> frozenset[str]: ...
+
+    def mark_cascaded(self, names: Iterable[str]) -> None: ...
+
+    def inherit_cascaded(self, other: object) -> None: ...

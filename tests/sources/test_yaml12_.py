@@ -177,6 +177,35 @@ class TestYaml12Source:
             f"   └── FILE '{yaml_file}', line 1"
         )  # fmt: skip
 
+    def test_error_in_list_element_points_to_its_own_line(self, tmp_path: Path):
+        """A coercion error inside a list element resolves to that element's own line,
+        not the line range of the whole list (regression test for _walk_yaml_sequence)."""
+        yaml_file = tmp_path / "config.yaml"
+        yaml_file.write_text("items:\n  - port: 1\n  - port: true\n")
+
+        @dataclass
+        class Item:
+            port: int
+
+        @dataclass
+        class Config:
+            items: list[Item]
+
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(Yaml12Source(file=yaml_file), schema=Config)
+
+        err = exc_info.value
+        assert len(err.exceptions) == 1
+        first = err.exceptions[0]
+        assert isinstance(first, FieldLoadError)
+        assert first.field_path == ["items", "1", "port"]
+        assert str(first) == (
+            f"  [items.1.port]  Expected int, got bool\n"
+            f"   ├── - port: <REDACTED>\n"
+            f"   │           ^^^^^^^^^^\n"
+            f"   └── FILE '{yaml_file}', line 3"
+        )  # fmt: skip
+
 
 def _yaml12(content: str) -> dict[tuple[str, ...], LineRange]:
     return build_yaml_line_map(content, Version(1, 2))
@@ -217,3 +246,42 @@ class TestYaml12FindLineRange:
     def test_inline_value(self):
         content = "name: test\n"
         assert _yaml12(content).get(("name",)) == LineRange(start=1, end=1)
+
+
+class TestYaml12SequenceElementLineRange:
+    """Each list element gets the line range of its own content, not the whole list."""
+
+    def test_scalar_elements_get_their_own_line(self):
+        content = "tags:\n  - a\n  - b\n  - c\n"
+
+        line_map = _yaml12(content)
+
+        assert line_map.get(("tags", "0")) == LineRange(start=2, end=2)
+        assert line_map.get(("tags", "1")) == LineRange(start=3, end=3)
+        assert line_map.get(("tags", "2")) == LineRange(start=4, end=4)
+
+    def test_mapping_elements_get_their_own_range(self):
+        content = "items:\n  - host: a\n    port: 1\n  - host: b\n    port: 2\n"
+
+        line_map = _yaml12(content)
+
+        assert line_map.get(("items", "0")) == LineRange(start=2, end=3)
+        assert line_map.get(("items", "1")) == LineRange(start=4, end=5)
+
+    def test_nested_key_inside_element_resolves_its_own_line(self):
+        content = "items:\n  - host: a\n    port: 1\n  - host: b\n    port: 2\n"
+
+        line_map = _yaml12(content)
+
+        assert line_map.get(("items", "0", "host")) == LineRange(start=2, end=2)
+        assert line_map.get(("items", "1", "port")) == LineRange(start=5, end=5)
+
+    def test_nested_sequence_inside_element(self):
+        content = "groups:\n  - - a\n    - b\n  - - c\n"
+
+        line_map = _yaml12(content)
+
+        assert line_map.get(("groups", "0")) == LineRange(start=2, end=3)
+        assert line_map.get(("groups", "0", "0")) == LineRange(start=2, end=2)
+        assert line_map.get(("groups", "0", "1")) == LineRange(start=3, end=3)
+        assert line_map.get(("groups", "1")) == LineRange(start=4, end=4)

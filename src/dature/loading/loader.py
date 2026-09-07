@@ -22,7 +22,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict, fields, is_dataclass
 from datetime import timedelta
 from functools import update_wrapper
-from typing import Any, cast
+from typing import Any, NoReturn, cast
 
 from adaptix import Retort
 
@@ -30,6 +30,7 @@ from dature.config import DatureConfig, legacy, resolve_config
 from dature.errors import DatureConfigError, DatureError, DatureErrorGroup
 from dature.errors.extraction import handle_load_errors
 from dature.errors.location import ErrorContext
+from dature.errors.truncation import raise_truncated
 from dature.loading.cache import aligned_now, cache_is_fresh
 from dature.loading.context import coerce_flag_fields, merge_fields
 from dature.loading.cross_source import clone_with_interpolation, evaluate_when_eager, when_has_cross_refs
@@ -60,6 +61,7 @@ from dature.type_aliases import (
     NestedResolveStrategy,
     SkipFieldsInvalid,
     StaleOnErrorMode,
+    StrictMode,
     TypeLoaderMap,
 )
 from dature.validators.base import create_metadata_validator_providers
@@ -81,7 +83,7 @@ def _validate_sources(sources: tuple[SourceProtocol, ...]) -> None:
 class Loader[T: DataclassInstance]:
     """Encapsulates a ``load`` call. ``.load()`` honours the cache."""
 
-    def __init__(  # noqa: PLR0913
+    def __init__(  # noqa: PLR0913, PLR0915
         self,
         *sources: SourceProtocol,
         schema: type[T],
@@ -89,6 +91,7 @@ class Loader[T: DataclassInstance]:
         cache_engine: bool | None = None,
         stale_on_error: StaleOnErrorMode | None = None,
         debug: bool | None = None,
+        strict: StrictMode | None = None,
         strategy: MergeStrategyName | SourceMergeStrategy = "last_wins",
         field_merges: FieldMergeMap | None = None,
         field_groups: Sequence[FieldGroupTuple] = (),
@@ -121,6 +124,8 @@ class Loader[T: DataclassInstance]:
             stale_on_error = self._config.loading.stale_on_error
         if debug is None:
             debug = self._config.loading.debug
+        if strict is None:
+            strict = self._config.loading.strict
 
         # All raw sources as passed — eager when= filter runs at .load() time so that
         # env state is read at invocation time, not at import/construction time.
@@ -131,6 +136,7 @@ class Loader[T: DataclassInstance]:
         self._cache_engine: bool = cache_engine
         self._stale_on_error: StaleOnErrorMode = stale_on_error
         self.debug = debug
+        self._strict: StrictMode = strict
 
         # Loader-level parameters stored for deferred MergeConfig construction in _prepare_for_load.
         self._strategy: MergeStrategyName | SourceMergeStrategy = strategy
@@ -154,6 +160,7 @@ class Loader[T: DataclassInstance]:
             expand_env_vars=expand_env_vars,
             nested_resolve_strategy=nested_resolve_strategy,
             nested_resolve=nested_resolve,
+            strict=strict,
         )
 
         self.field_list = fields(schema)
@@ -253,7 +260,7 @@ class Loader[T: DataclassInstance]:
             result = self._do_load()
         except (DatureError, DatureErrorGroup, DatureConfigError) as exc:
             if not self._should_keep_stale():
-                raise
+                self._raise_or_truncate(exc)
             return self._on_stale_fallback(exc)
         except Exception as exc:  # noqa: BLE001
             exc.__traceback__ = None  # sub-exceptions in ExceptionGroup render their own tb even when outer tb=None
@@ -264,6 +271,35 @@ class Loader[T: DataclassInstance]:
             self._cached_data = result
             self._cached_at = aligned_now(self._cache)
         return result
+
+    def _raise_or_truncate(self, exc: DatureError | DatureErrorGroup | DatureConfigError) -> NoReturn:
+        """Re-raise *exc*, truncating it first if it's a group that exceeds ``max_errors``.
+
+        Split out of ``load()``'s except clause purely to keep that method's branching
+        under the complexity threshold; ``exc`` is still the exception being handled here,
+        so both ``raise_truncated`` and the bare ``raise`` preserve the original traceback.
+        """
+        if isinstance(exc, DatureErrorGroup):
+            raise_truncated(exc, self._config.error_display)
+        raise exc
+
+    def _revalidate(self, instance: Any) -> None:  # noqa: ANN401
+        """Re-run validation on *instance* after decorator-mode caller overrides are merged in.
+
+        No-op unless the schema actually needs revalidation (``_ensure_revalidation`` decides
+        that once and caches it). Split out of ``_dature_init`` purely to keep that closure's
+        branching under the complexity threshold.
+        """
+        self._ensure_revalidation()
+        validation_loader = self.validation_loader
+        error_ctx = self.error_ctx
+        if validation_loader is None or error_ctx is None:
+            return
+        obj_dict = coerce_flag_fields(asdict(instance), self._retort_cache.flag_field_names)
+        try:
+            handle_load_errors(func=lambda: validation_loader(obj_dict), ctx=error_ctx)
+        except DatureErrorGroup as exc:
+            raise_truncated(exc, self._config.error_display)
 
     def _should_keep_stale(self) -> bool:
         """Whether a reload failure should fall back to the last good config instead of raising.
@@ -306,6 +342,7 @@ class Loader[T: DataclassInstance]:
         cache_engine: bool | None = None,
         stale_on_error: StaleOnErrorMode | None = None,
         debug: bool | None = None,
+        strict: StrictMode | None = None,
         strategy: MergeStrategyName | SourceMergeStrategy = "last_wins",
         field_merges: FieldMergeMap | None = None,
         field_groups: Sequence[FieldGroupTuple] = (),
@@ -335,6 +372,7 @@ class Loader[T: DataclassInstance]:
                 cache_engine=cache_engine,
                 stale_on_error=stale_on_error,
                 debug=debug,
+                strict=strict,
                 strategy=strategy,
                 field_merges=field_merges,
                 field_groups=field_groups,
@@ -532,12 +570,7 @@ class Loader[T: DataclassInstance]:
                 _attach_debug_report(self, loaded_data)
             if original_post_init is not None:
                 original_post_init(self)
-            loader._ensure_revalidation()
-            validation_loader = loader.validation_loader
-            error_ctx = loader.error_ctx
-            if validation_loader is not None and error_ctx is not None:
-                obj_dict = coerce_flag_fields(asdict(self), loader._retort_cache.flag_field_names)
-                handle_load_errors(func=lambda: validation_loader(obj_dict), ctx=error_ctx)
+            loader._revalidate(self)
 
         # update_wrapper sets __wrapped__ so inspect.signature follows through to the
         # original signature, and copies __name__/__qualname__/__doc__/__annotations__.

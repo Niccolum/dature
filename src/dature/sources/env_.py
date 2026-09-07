@@ -1,4 +1,5 @@
 import io
+import logging
 import os
 from collections.abc import Iterable
 from contextlib import suppress
@@ -6,7 +7,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from dature.errors import CaretSpan, LineRange, SourceLocation
-from dature.sources.base import FileFieldMixin, FlatKeySource
+from dature.sources.base import FileFieldMixin, FlatKeySource, Source
 from dature.type_aliases import (
     BINARY_IO_TYPES,
     TEXT_IO_TYPES,
@@ -19,11 +20,28 @@ from dature.type_aliases import (
     NestedResolveStrategy,
 )
 
+logger = logging.getLogger("dature")
+
 
 @dataclass(kw_only=True, repr=False)
 class EnvSource(FlatKeySource):
     format_name: str = "env"
     location_label: str = "ENV"
+
+    def on_prepared(self) -> None:
+        """Warn when strict mode is on without a prefix.
+
+        Unlike a file the caller authored, ``EnvSource``'s keys come from the whole
+        process environment — a shared, ambient space. With strict mode on and no
+        ``prefix``, every unrelated environment variable becomes a candidate "unknown key".
+        """
+        super().on_prepared()
+        if self.strict not in (None, "off") and not self.prefix:
+            logger.warning(
+                "%s has no prefix — strict mode treats the whole process environment as "
+                "candidate keys. Set prefix=... and use your own prefixed variables instead.",
+                self.display_name(),
+            )
 
     def _load(self) -> JSONValue:
         return cast("JSONValue", os.environ)
@@ -127,6 +145,18 @@ class EnvFileSource(FileFieldMixin, EnvSource):
     format_name: str = "envfile"
     location_label: str = "ENV FILE"
     file: "FileLike | FilePath | None" = ".env"
+
+    def on_prepared(self) -> None:
+        """Skip ``EnvSource``'s ambient-environment warning.
+
+        A ``.env`` file is a document the user authored for this config, not the process's
+        ambient environment — strict mode without a prefix is fine here. MRO puts
+        ``EnvSource`` ahead of ``Source`` (``EnvFileSource -> FileFieldMixin -> EnvSource ->
+        FlatKeySource -> Source``), so ``super().on_prepared()`` would still hit
+        ``EnvSource``'s warning; call ``Source.on_prepared`` directly to skip past it while
+        still picking up any future generic logic added there.
+        """
+        Source.on_prepared(self)
 
     def __repr__(self) -> str:
         display = self.format_name

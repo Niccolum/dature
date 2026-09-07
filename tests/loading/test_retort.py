@@ -34,6 +34,15 @@ from dature.sources.base import (
 from dature.type_aliases import JSONValue
 
 
+@dataclass
+class _RecursiveNode:
+    """Module-level self-referential schema for the get_validator_providers recursion-safety
+    regression test — must be module-level so get_type_hints can resolve the string annotation."""
+
+    name: str = ""
+    child: "_RecursiveNode | None" = None
+
+
 @dataclass(kw_only=True)
 class MockSource(Source):
     format_name: str = "mock"
@@ -234,6 +243,11 @@ class TestGetValidatorProviders:
             port: int
 
         result = get_validator_providers(Config)
+
+        assert result == []
+
+    def test_self_referential_schema_does_not_recurse_unboundedly(self):
+        result = get_validator_providers(_RecursiveNode)
 
         assert result == []
 

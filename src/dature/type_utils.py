@@ -1,10 +1,11 @@
 from dataclasses import is_dataclass
 from typing import Annotated, get_args, get_origin
 
+from dature.protocols import DataclassInstance
 from dature.type_aliases import TypeAnnotation
 
 
-def find_nested_dataclasses(field_type: TypeAnnotation) -> list[type]:
+def find_nested_dataclasses(field_type: TypeAnnotation) -> list[type[DataclassInstance]]:
     result: list[type] = []
     queue: list[TypeAnnotation] = [field_type]
 

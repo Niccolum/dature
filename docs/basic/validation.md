@@ -170,6 +170,12 @@ Both approaches work in function mode and decorator mode.
 
 Validation errors include field path, source location, and the offending value. The format varies by source type:
 
+When a schema has more invalid fields than `error_display.max_errors` (default `7`), only that
+many blocks are shown, followed by an `... and N more errors (M total)` note — the same capping
+behavior described for strict mode's unknown-key errors in
+[Truncating Output](../advanced/strict-mode.md#truncating-output), applied to every dature error
+group, not just strict mode.
+
 === "YAML"
 
     ```python
