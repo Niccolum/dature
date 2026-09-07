@@ -32,7 +32,7 @@ except ImportError:  # pragma: no cover
         lc: _LineCol
 
     class CommentedSeq(list[object]):  # type: ignore[no-redef]
-        ...
+        lc: _LineCol
 
     class ScalarString(str):  # type: ignore[no-redef]
         __slots__ = ()
@@ -161,6 +161,7 @@ def _walk_yaml_mapping(
                 end_1based = _last_non_empty_yaml_line_before(lines, parent_end_1based, key_line_0)
 
             line_map[current_path] = LineRange(start=start_1based, end=end_1based)
+            _walk_yaml_sequence(value, current_path, line_map, lines, end_1based)
 
         else:
             is_block_scalar = isinstance(value, ScalarString) and "\n" in str(value)
@@ -176,3 +177,37 @@ def _walk_yaml_mapping(
                     end_1based = _last_non_empty_yaml_line_before(lines, parent_end_1based, key_line_0)
 
                 line_map[current_path] = LineRange(start=start_1based, end=end_1based)
+
+
+def _walk_yaml_sequence(
+    seq: CommentedSeq,
+    parent_path: tuple[str, ...],
+    line_map: dict[tuple[str, ...], LineRange],
+    lines: list[str],
+    parent_end_1based: int,
+) -> None:
+    """Record a per-element line range for a YAML sequence, recursing into nested elements.
+
+    Mirrors ``_walk_yaml_mapping``'s next-sibling-boundary logic, but siblings are indices
+    rather than keys: the element's line comes from ``seq.lc.data[idx]`` and its end is
+    the last non-empty line before the next element (or *parent_end_1based* for the last one).
+    """
+    lc_data = seq.lc.data  # pyright: ignore[reportAttributeAccessIssue]  # CommentedSeq's MRO hides CommentedBase.lc from pyright
+
+    for idx, item in enumerate(seq):
+        line_0 = lc_data[idx][0]
+        start_1based = line_0 + 1
+        current_path = (*parent_path, str(idx))
+
+        if idx + 1 < len(seq):
+            next_line_0 = lc_data[idx + 1][0]
+            end_1based = _last_non_empty_yaml_line_before(lines, next_line_0, line_0)
+        else:
+            end_1based = _last_non_empty_yaml_line_before(lines, parent_end_1based, line_0)
+
+        line_map[current_path] = LineRange(start=start_1based, end=end_1based)
+
+        if isinstance(item, CommentedMap):
+            _walk_yaml_mapping(item, current_path, line_map, lines, end_1based)
+        elif isinstance(item, CommentedSeq):
+            _walk_yaml_sequence(item, current_path, line_map, lines, end_1based)

@@ -18,6 +18,7 @@ class DockerSecretsSource(FlatKeySource):
     location_label: str = "SECRET FILE"
 
     def __post_init__(self) -> None:
+        super().__post_init__()
         if isinstance(self.dir_, (str, Path)):
             self.dir_ = expand_file_path(self.dir_, mode="strict")
 

@@ -1,0 +1,19 @@
+  + Exception Group Traceback (most recent call last):
+  |   File "{SCRIPT_PATH}", line 16, in <module>
+  |     dature.load(
+  |     ~~~~~~~~~~~^
+  |         dature.Yaml12Source(file=SOURCES_DIR / "strict_yaml.yaml"),
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |         schema=Config,
+  |         ^^^^^^^^^^^^^^
+  |         strict="error",
+  |         ^^^^^^^^^^^^^^^
+  |     )
+  |     ^
+  | dature.errors.exceptions.StrictModeError: Config unknown config keys (1)
+  +-+---------------- 1 ----------------
+    | dature.errors.exceptions.UnknownKeyError:   [hostt]  Config value 'hostt' was unused (from yaml1.2 '{SOURCES_DIR}strict_yaml.yaml')
+    |    ├── hostt: <REDACTED>
+    |    │   ^^^^^
+    |    └── FILE '{SOURCES_DIR}strict_yaml.yaml', line 2
+    +------------------------------------

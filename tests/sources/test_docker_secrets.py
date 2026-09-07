@@ -158,6 +158,15 @@ class TestDockerSecretsDisplayProperties:
         assert DockerSecretsSource.location_label == "SECRET FILE"
 
 
+class TestDockerSecretsPostInitChain:
+    """Regression: ``DockerSecretsSource.__post_init__`` skipped ``super().__post_init__()``,
+    so ``Source``'s ``when=`` validation silently never ran for this source type."""
+
+    def test_invalid_when_raises_type_error(self, tmp_path: Path):
+        with pytest.raises(TypeError, match="when= must be a Condition"):
+            DockerSecretsSource(dir_=tmp_path, when="not-a-condition")
+
+
 class TestDockerSecretsResolveLocation:
     @pytest.mark.parametrize(
         ("field_path", "prefix", "expected_name"),

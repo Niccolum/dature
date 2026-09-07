@@ -3,7 +3,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import replace
 
 from dature.config import MaskingConfig
-from dature.masking.detection import canonical_name, canonical_secret_paths, matches_secret_name
+from dature.masking.detection import canonical_secret_paths, matches_secret_name
+from dature.naming import canonical_name
 from dature.report_types import FieldOrigin, SourceEntry
 from dature.type_aliases import JSONValue
 

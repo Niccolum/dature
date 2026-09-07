@@ -15,6 +15,7 @@ from dature.sources.base.source import (
     Source,
     bytes_value_loaders,
     clone_source,
+    mark_source_cascaded,
     remote_value_loaders,
     string_value_loaders,
 )
@@ -31,6 +32,7 @@ __all__ = [
     "SourceProtocol",
     "bytes_value_loaders",
     "clone_source",
+    "mark_source_cascaded",
     "remote_value_loaders",
     "string_value_loaders",
 ]

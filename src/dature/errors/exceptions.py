@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from types import TracebackType
-from typing import Self
+from typing import ClassVar, Self
 
 from dature.config import ErrorDisplayConfig, resolve_error_display
 from dature.errors.loc_types import SourceLocation
@@ -125,6 +125,10 @@ class MissingEnvVarError(DatureError):
 class DatureErrorGroup(ExceptionGroup[DatureError]):
     """Base for dature exception groups; subclasses add domain-specific context."""
 
+    error_noun: ClassVar[str] = "errors"
+    """Plural noun for this group's sub-exceptions, used by ``raise_truncated`` to phrase
+    the "... and N more <error_noun> (M total)" note left when output is capped."""
+
     @property
     def __traceback__(self) -> TracebackType | None:
         """Traceback with dature's own frames stripped, so only caller frames show."""
@@ -159,6 +163,8 @@ class DatureConfigError(DatureErrorGroup):
 
 
 class EnvVarExpandError(DatureErrorGroup):
+    error_noun: ClassVar[str] = "missing environment variables"
+
     def __str__(self) -> str:
         return self._format(f"Missing environment variables ({len(self.exceptions)})")
 
@@ -180,6 +186,8 @@ class ConfigEnvVarExpandError(EnvVarExpandError, DatureConfigError):
 
 
 class MergeConflictError(DatureConfigError):
+    error_noun: ClassVar[str] = "merge conflicts"
+
     def __str__(self) -> str:
         lines = [f"{self.dataclass_name} merge conflicts ({len(self.exceptions)})", ""]
         for exc in self.exceptions:
@@ -222,8 +230,43 @@ class FieldGroupViolationError(DatureError):
 
 
 class FieldGroupError(DatureConfigError):
+    error_noun: ClassVar[str] = "field group errors"
+
     def __str__(self) -> str:
         return f"{self.dataclass_name} field group errors ({len(self.exceptions)})"
+
+
+class UnknownKeyError(DatureError):
+    """Raised (or logged) under ``strict`` mode for a source key that maps to no schema field."""
+
+    def __init__(
+        self,
+        *,
+        field_path: list[str],
+        source_repr: str,
+        locations: list[SourceLocation] | None = None,
+        error_display: ErrorDisplayConfig | None = None,
+    ) -> None:
+        self.field_path = field_path
+        self.source_repr = source_repr
+        self.locations = locations or []
+        self.error_display = error_display if error_display is not None else resolve_error_display()
+        super().__init__(self._format())
+
+    def _format(self) -> str:
+        path_str = format_path(self.field_path)
+        lines = [f"  [{path_str}]  Config value '{path_str}' was unused (from {self.source_repr})"]
+        last_idx = len(self.locations) - 1
+        for i, loc in enumerate(self.locations):
+            lines.extend(format_location(loc, error_display=self.error_display, last=i == last_idx))
+        return "\n".join(lines)
+
+
+class StrictModeError(DatureConfigError):
+    error_noun: ClassVar[str] = "unknown config keys"
+
+    def __str__(self) -> str:
+        return f"{self.dataclass_name} unknown config keys ({len(self.exceptions)})"
 
 
 class CrossRefError(DatureError):
@@ -241,6 +284,8 @@ class CrossRefError(DatureError):
 
 
 class CrossRefExpandError(DatureErrorGroup):
+    error_noun: ClassVar[str] = "cross-source reference errors"
+
     def __str__(self) -> str:
         lines: list[str] = [f"Cross-source reference errors ({len(self.exceptions)})", ""]
         for err in self.exceptions:

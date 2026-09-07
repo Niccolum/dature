@@ -13,6 +13,7 @@ from dature.type_aliases import (
     MaskingMode,
     NestedResolveStrategy,
     StaleOnErrorMode,
+    StrictMode,
     SystemConfigDirsArg,
     TypeLoaderMap,
 )
@@ -48,6 +49,7 @@ class MaskingConfig:
 @dataclass(frozen=True, slots=True)
 class ErrorDisplayConfig:
     max_visible_lines: int = 3
+    max_errors: int = 7
     max_line_length: int = 80
 
 
@@ -82,6 +84,7 @@ class LoadingConfig:
     cache_engine: bool = False
     stale_on_error: StaleOnErrorMode = "keep"
     debug: bool = False
+    strict: StrictMode = "off"
     nested_resolve_strategy: NestedResolveStrategy = "flat"
     expand_env_vars: ExpandEnvVarsMode = "default"
     search_system_paths: bool = True
@@ -260,6 +263,7 @@ def default_config() -> DatureConfig:
                 F[DatureConfig].masking.visible_suffix: V >= 0,
                 F[DatureConfig].masking.min_heuristic_length: V >= 1,
                 F[DatureConfig].error_display.max_visible_lines: V >= 1,
+                F[DatureConfig].error_display.max_errors: V >= 1,
                 F[DatureConfig].error_display.max_line_length: V >= 1,
             },
         ),
@@ -281,6 +285,7 @@ class MaskingOptions(TypedDict, total=False):
 
 class ErrorDisplayOptions(TypedDict, total=False):
     max_visible_lines: int
+    max_errors: int
     max_line_length: int
 
 
@@ -289,6 +294,7 @@ class LoadingOptions(TypedDict, total=False):
     cache_engine: bool
     stale_on_error: StaleOnErrorMode
     debug: bool
+    strict: StrictMode
     nested_resolve_strategy: NestedResolveStrategy
     expand_env_vars: ExpandEnvVarsMode
     search_system_paths: bool

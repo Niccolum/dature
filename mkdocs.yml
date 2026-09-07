@@ -95,6 +95,7 @@ nav:
       - ENV Expansion: advanced/env-expansion.md
       - Special Types: advanced/special-types.md
     - Observability:
+      - Strict Mode: advanced/strict-mode.md
       - Debug & Reports: advanced/debug.md
       - Caching: advanced/caching.md
   - Comparison:
@@ -167,6 +168,7 @@ plugins:
           - advanced/conditional_sources.md
           - advanced/env-expansion.md
           - advanced/special-types.md
+          - advanced/strict-mode.md
           - advanced/debug.md
           - advanced/caching.md
         Comparison:

@@ -13,6 +13,8 @@ from dature.errors.exceptions import (
     MergeConflictFieldError,
     MissingEnvVarError,
     SourceLoadError,
+    StrictModeError,
+    UnknownKeyError,
     ValidatorTypeError,
 )
 from dature.errors.loc_types import CaretSpan, LineRange, SourceLocation
@@ -35,5 +37,7 @@ __all__ = [
     "MissingEnvVarError",
     "SourceLoadError",
     "SourceLocation",
+    "StrictModeError",
+    "UnknownKeyError",
     "ValidatorTypeError",
 ]

@@ -2,7 +2,7 @@ import pytest
 
 from dature import EnvFileSource, EnvSource, JsonSource, Toml11Source
 from dature.config import MaskingConfig
-from dature.errors import LineRange
+from dature.errors import CaretSpan, LineRange
 from dature.errors.location import ErrorContext, resolve_source_location
 
 _NO_MASKING = MaskingConfig(masking_mode="none")
@@ -195,3 +195,70 @@ class TestResolveSourceLocation:
         )
         locs = resolve_source_location(["timeout"], ctx, file_content=content)
         assert locs[0].line_content == [f'{{"{raw_key}": "<REDACTED>", "timeout": "30"}}']
+
+
+class TestCaretKey:
+    def test_json_source_caret_on_key(self, tmp_path):
+        content = '{\n  "dbHostt": "localhost"\n}'
+        config_file = tmp_path / "config.json"
+        config_file.write_text(content)
+        ctx = ErrorContext(
+            dataclass_name="Config",
+            source=JsonSource(file=config_file),
+            masking=_NO_MASKING,
+        )
+
+        locs = resolve_source_location(["dbHostt"], ctx, file_content=content, caret_key="dbHostt")
+
+        assert locs[0].line_content == ['"dbHostt": "localhost"']
+        assert locs[0].line_carets == [CaretSpan(start=1, end=8)]
+
+    def test_env_source_caret_on_key(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("APP_DB_HOST_TYPO", "x")
+        content = "APP_DB_HOST_TYPO=x"
+        env_file = tmp_path / "dummy.env"
+        env_file.write_text(content)
+        ctx = ErrorContext(
+            dataclass_name="Config",
+            source=EnvFileSource(file=env_file, prefix="APP_"),
+            masking=_NO_MASKING,
+        )
+
+        locs = resolve_source_location(["db_host_typo"], ctx, file_content=content, caret_key="db_host_typo")
+
+        assert locs[0].line_carets == [CaretSpan(start=4, end=16)]
+
+    def test_secret_masked_and_caret_still_on_key(self, tmp_path):
+        """Masking runs before the caret repoint, on the already-masked line."""
+        content = '{"secretKey": "hunter2", "hostt": "x"}'
+        config_file = tmp_path / "config.json"
+        config_file.write_text(content)
+        ctx = ErrorContext(
+            dataclass_name="Config",
+            source=JsonSource(file=config_file),
+            secret_paths=frozenset({"secret_key"}),
+            masking=_SECRETS_ONLY,
+        )
+
+        locs = resolve_source_location(["hostt"], ctx, file_content=content, caret_key="hostt")
+
+        line = locs[0].line_content[0]
+        assert line == '{"secretKey": "<REDACTED>", "hostt": "x"}'
+        start, end = locs[0].line_carets[0].start, locs[0].line_carets[0].end
+        assert line[start:end] == "hostt"
+
+    def test_no_caret_key_leaves_value_caret(self, tmp_path):
+        content = '{\n  "timeout": "30"\n}'
+        config_file = tmp_path / "config.json"
+        config_file.write_text(content)
+        ctx = ErrorContext(
+            dataclass_name="Config",
+            source=JsonSource(file=config_file),
+            masking=_NO_MASKING,
+        )
+
+        locs = resolve_source_location(["timeout"], ctx, file_content=content, input_value="30")
+
+        line = locs[0].line_content[0]
+        start, end = locs[0].line_carets[0].start, locs[0].line_carets[0].end
+        assert line[start:end] == "30"

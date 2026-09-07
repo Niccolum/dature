@@ -51,7 +51,7 @@ from dature.merging.deep_merge import deep_merge_last_wins
 from dature.nested_dict import flatten_dict
 from dature.protocols import DataclassInstance
 from dature.report_types import FieldOrigin, SourceEntry
-from dature.sources.base import IndexedSource, clone_source
+from dature.sources.base import IndexedSource, clone_source, mark_source_cascaded
 from dature.sources.protocol import FileSourceProtocol, SourceProtocol
 from dature.type_aliases import (
     ExpandEnvVarsMode,
@@ -62,6 +62,7 @@ from dature.type_aliases import (
     NestedResolve,
     NestedResolveStrategy,
     SkipFieldsInvalid,
+    StrictMode,
     SystemConfigDirsArg,
     TypeLoaderMap,
 )
@@ -73,7 +74,13 @@ _MISSING: object = object()
 
 @dataclass(frozen=True, kw_only=True)
 class SourceParams:
-    """Load-level defaults applied to every Source before loading."""
+    """Load-level defaults applied to every Source before loading.
+
+    ``strict`` lives here rather than on ``MergeConfig`` because it is a per-source
+    setting (source > load > config, applied by ``apply_source_init_params`` below) —
+    each source decides for itself whether its own unknown keys matter, not the merge
+    strategy that combines them.
+    """
 
     expand_env_vars: ExpandEnvVarsMode | None = None
     nested_resolve_strategy: NestedResolveStrategy | None = None
@@ -81,6 +88,7 @@ class SourceParams:
     search_system_paths: bool | None = None
     system_config_dirs: SystemConfigDirsArg | None = None
     encoding: str | None = None
+    strict: StrictMode | None = None
 
 
 def apply_source_init_params[T: SourceProtocol](
@@ -114,7 +122,9 @@ def apply_source_init_params[T: SourceProtocol](
     if not overrides:
         return source
 
-    return clone_source(source, overrides)
+    cloned = clone_source(source, overrides)
+    mark_source_cascaded(cloned, overrides)
+    return cloned
 
 
 def _is_unset(value: object) -> bool:
@@ -164,7 +174,9 @@ def apply_source_config_group[T: SourceProtocol](source: T, cfg: DatureConfig | 
             overrides[name] = cfg_val
 
     if overrides:
-        source = clone_source(source, overrides)
+        cloned = clone_source(source, overrides)
+        mark_source_cascaded(cloned, overrides)
+        source = cloned
 
     return source
 
@@ -174,13 +186,16 @@ def prepare_sources(
     params: SourceParams,
     cfg: DatureConfig | None = None,
 ) -> tuple[SourceProtocol, ...]:
-    """Run the two-step eager source preparation pipeline.
+    """Run the eager source preparation pipeline.
 
-    apply_source_init_params → apply_source_config_group
+    apply_source_init_params → apply_source_config_group → on_prepared()
     """
     loading = cfg.loading if cfg is not None else None
     after_params = tuple(apply_source_init_params(s, params, loading) for s in sources)
-    return tuple(apply_source_config_group(s, cfg) for s in after_params)
+    prepared = tuple(apply_source_config_group(s, cfg) for s in after_params)
+    for source in prepared:
+        source.on_prepared()
+    return prepared
 
 
 @dataclass(slots=True, kw_only=True)

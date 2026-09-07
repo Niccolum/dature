@@ -9,6 +9,7 @@ rendering helpers live in ``presentation``.
 import abc
 import json
 import logging
+from collections.abc import Iterable
 from contextlib import suppress
 from dataclasses import MISSING, dataclass, fields, replace
 from datetime import date, datetime, time
@@ -38,7 +39,7 @@ from dature.sources.presentation import (
     compute_line_carets as _compute_line_carets,
 )
 from dature.sources.presentation import empty_location
-from dature.sources.protocol import SourceProtocol
+from dature.sources.protocol import CascadeAwareProtocol, SourceProtocol
 from dature.type_aliases import (
     DotSeparatedPath,
     ExpandEnvVarsMode,
@@ -48,6 +49,7 @@ from dature.type_aliases import (
     NameStyle,
     NestedConflict,
     SkipFieldsInvalid,
+    StrictMode,
     TypeLoaderMap,
 )
 from dature.validators.aliases import FieldValidators
@@ -125,6 +127,7 @@ class Source(abc.ABC):
     type_loaders: "TypeLoaderMap | None" = None
     tag: str | None = None
     when: "Condition | None" = None
+    strict: "StrictMode | None" = None
 
     format_name: str = ""
     location_label: str = ""
@@ -150,6 +153,7 @@ class Source(abc.ABC):
             validate_root_validators(cls.__dict__["root_validators"])
 
     def __post_init__(self) -> None:
+        self._cascaded: frozenset[str] = frozenset()
         if self.when is not None and not isinstance(self.when, Condition):
             msg = (
                 f"when= must be a Condition built with the When() DSL, "
@@ -158,10 +162,34 @@ class Source(abc.ABC):
             )
             raise TypeError(msg)
 
+    @property
+    def cascaded_fields(self) -> frozenset[str]:
+        """Field names filled by the load/config cascade rather than set by the caller.
+
+        ``__repr__`` hides these, so a source's repr shows only what the caller wrote.
+        See :class:`~dature.sources.protocol.CascadeAwareProtocol`.
+        """
+        return self._cascaded
+
+    def mark_cascaded(self, names: "Iterable[str]") -> None:
+        """Record *names* as filled by the load/config cascade, not set by the caller."""
+        self._cascaded |= frozenset(names)
+
+    def inherit_cascaded(self, other: object) -> None:
+        """Carry cascade provenance over from *other*.
+
+        ``dataclasses.replace()`` (used by :func:`clone_source`) reruns ``__post_init__``,
+        which resets ``_cascaded`` — so a clone must re-inherit its source's provenance
+        explicitly. *other* is checked structurally rather than via ``isinstance(other,
+        Source)``, since custom sources need not subclass ``Source``.
+        """
+        if isinstance(other, CascadeAwareProtocol):
+            self.mark_cascaded(other.cascaded_fields)
+
     def __repr__(self) -> str:
         parts = []
         for f in fields(self):
-            if not f.init or not f.repr:
+            if not f.init or not f.repr or f.name in self._cascaded:
                 continue
             value = getattr(self, f.name, MISSING)
             if value is MISSING:
@@ -309,6 +337,15 @@ class Source(abc.ABC):
         )
         return LoadRawResult(data=processed, loaded_data=data)
 
+    def on_prepared(self) -> None:  # noqa: B027
+        """Called once per source after load-level/config-group params are injected.
+
+        Runs before ``load_raw()``, once ``self.strict`` (and every other
+        ``SourceParams``-cascaded field) has its final, resolved value. No-op by default —
+        override to warn about configurations that make a source unreliable for some
+        feature (e.g. ``EnvSource`` warns when strict mode is on without a ``prefix``).
+        """
+
     def build_line_index(self, content: str) -> "dict[tuple[str, ...], LineRange] | None":  # noqa: ARG002
         """Return a mapping from field-path tuples to line ranges within *content*.
 
@@ -360,6 +397,17 @@ def clone_source[T: SourceProtocol](source: T, overrides: dict[str, object]) -> 
     """Return a copy of *source* with *overrides* applied.
 
     Uses ``dataclasses.replace()`` so ``__post_init__`` runs and ``init=False``
-    fields reset to their defaults (e.g. ``_resolved_file_path`` → ``None``).
+    fields reset to their defaults (e.g. ``_resolved_file_path`` → ``None``). This also
+    resets any cascade provenance the source tracked (see ``CascadeAwareProtocol``), so
+    the clone re-inherits it from *source* before it's lost.
     """
-    return replace(source, **overrides)
+    cloned = replace(source, **overrides)
+    if isinstance(cloned, CascadeAwareProtocol):
+        cloned.inherit_cascaded(source)
+    return cloned
+
+
+def mark_source_cascaded(source: SourceProtocol, names: Iterable[str]) -> None:
+    """Record *names* on *source* as cascade-filled; no-op if it isn't cascade-aware."""
+    if isinstance(source, CascadeAwareProtocol):
+        source.mark_cascaded(names)

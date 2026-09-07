@@ -1,0 +1,4 @@
+[Config]   [hostt]  Config value 'hostt' was unused (from json '{SOURCES_DIR}strict_json.json')
+   ├── "hostt": "<REDACTED>"
+   │    ^^^^^
+   └── FILE '{SOURCES_DIR}strict_json.json', line 3

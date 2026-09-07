@@ -10,6 +10,6 @@ Traceback (most recent call last):
     )
     ^
 dature.errors.exceptions.DatureError: Tag collision: multiple sources share resolved_tag='env':
-  EnvSource(expand_env_vars='default', nested_resolve_strategy='flat')
-  EnvSource(prefix='BACKUP_', expand_env_vars='default', nested_resolve_strategy='flat')
+  EnvSource()
+  EnvSource(prefix='BACKUP_')
 Set an explicit tag= on at least one of them.

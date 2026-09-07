@@ -1,0 +1,19 @@
+  + Exception Group Traceback (most recent call last):
+  |   File "{SCRIPT_PATH}", line 16, in <module>
+  |     dature.load(
+  |     ~~~~~~~~~~~^
+  |         dature.EnvFileSource(file=SOURCES_DIR / "strict_env_file.env"),
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |         schema=Config,
+  |         ^^^^^^^^^^^^^^
+  |         strict="error",
+  |         ^^^^^^^^^^^^^^^
+  |     )
+  |     ^
+  | dature.errors.exceptions.StrictModeError: Config unknown config keys (1)
+  +-+---------------- 1 ----------------
+    | dature.errors.exceptions.UnknownKeyError:   [hostt]  Config value 'hostt' was unused (from envfile '{SOURCES_DIR}strict_env_file.env')
+    |    ├── HOSTT=<REDACTED>
+    |    │   ^^^^^
+    |    └── ENV FILE '{SOURCES_DIR}strict_env_file.env', line 2
+    +------------------------------------

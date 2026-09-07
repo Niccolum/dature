@@ -6,10 +6,16 @@ subclasses that build custom error locations.
 """
 
 import json
+import re
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Final
 
 from dature.errors import CaretSpan, LineRange, SourceLocation
+from dature.naming import canonical_name, segment_offsets
 from dature.type_aliases import JSONValue, NestedConflict
+
+_KEY_TOKEN_RE: Final = re.compile(r"[A-Za-z0-9_-]+")
 
 
 def empty_location(location_label: str, file_path: Path | None) -> SourceLocation:
@@ -83,6 +89,59 @@ def find_value_in_line(
         pos = line.rfind(candidate, search_from)
         if pos != -1:
             return CaretSpan(start=pos, end=pos + len(candidate))
+    return None
+
+
+def _iter_key_tokens(line: str) -> Iterator[tuple[int, int]]:
+    """Yield (start, end) of each token that sits in "key position" in *line*.
+
+    A token is in key position when the next non-space character after it — after
+    skipping one closing quote, if present — is ``:`` or ``=``. This is what
+    distinguishes a key (``host: ...``, ``"host": ...``, ``HOST=...``) from a value
+    or a section header (``[app]``), without needing per-format parsing.
+    """
+    length = len(line)
+    for match in _KEY_TOKEN_RE.finditer(line):
+        pos = match.end()
+        if pos < length and line[pos] in "\"'":
+            pos += 1
+        while pos < length and line[pos] == " ":
+            pos += 1
+        if pos < length and line[pos] in ":=":
+            yield match.start(), match.end()
+
+
+def find_key_in_line(line: str, key: str) -> "CaretSpan | None":
+    """Caret over the key name itself (quotes excluded), for key-level diagnostics.
+
+    Matches whole key-position tokens against *key* via ``canonical_name``, so any
+    ``NameStyle`` variant matches regardless of how the source spells it (``dbHost``
+    <-> ``db_host`` <-> ``DB-HOST`` <-> ``DBHost``). Falls back to a prefixed match —
+    the token's suffix starting at a segment boundary — for sources that prepend a
+    prefix to the key, e.g. ``APP_DB_HOST_TYPO=...`` for a field named
+    ``db_host_typo``. Values are never matched, since they never sit in key position.
+    Returns ``None`` if *key* isn't found in key position anywhere in the line.
+
+    Note: the first line with any match (own key or prefixed) wins over a later
+    line's exact match — acceptable, since a located block rarely has two candidate
+    keys.
+    """
+    target = canonical_name(key)
+    if not target:
+        return None
+
+    tokens = list(_iter_key_tokens(line))
+
+    for start, end in tokens:
+        if canonical_name(line[start:end]) == target:
+            return CaretSpan(start=start, end=end)
+
+    for start, end in tokens:
+        token = line[start:end]
+        for offset in segment_offsets(token)[1:]:
+            if canonical_name(token[offset:]) == target:
+                return CaretSpan(start=start + offset, end=end)
+
     return None
 
 
