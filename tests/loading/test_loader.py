@@ -6,7 +6,7 @@ from datetime import timedelta
 from enum import Flag
 from io import BytesIO, StringIO
 from pathlib import Path
-from typing import Annotated, assert_type
+from typing import Annotated, assert_type, cast
 from unittest.mock import patch
 
 import pytest
@@ -15,7 +15,7 @@ import time_machine
 import dature
 import dature.sources.base
 from dature import EnvFileSource, EnvSource, JsonSource, Loader, V, When, load
-from dature.errors.exceptions import CrossRefExpandError, DatureConfigError, DatureError
+from dature.errors.exceptions import CrossRefExpandError, DatureConfigError, DatureError, FieldLoadError
 from dature.loading.cache import cache_is_fresh
 from dature.sources.base import Source
 from dature.type_aliases import JSONValue
@@ -98,6 +98,235 @@ class TestLoaderLoad:
         assert result.port == 1
 
 
+@dataclasses.dataclass
+class _TgProxyConfig:
+    url: str
+    port: int
+
+
+@dataclasses.dataclass
+class _TgConfig:
+    admins: list[int]
+    use_proxy: bool
+    proxy: _TgProxyConfig = dataclasses.field(default_factory=_TgProxyConfig)
+
+
+@dataclasses.dataclass
+class _ConfigWithDb:
+    debug: bool = False
+    db: dict[str, JSONValue] = dataclasses.field(default_factory=dict)
+    tg: _TgConfig = dataclasses.field(default_factory=_TgConfig)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _ConfigRequired:
+    """Same shape as ``_ConfigWithDb`` but ``tg`` has no ``default_factory`` at all — the
+    parity baseline: an unsafe ``default_factory`` must behave exactly like this."""
+
+    debug: bool = False
+    tg: _TgConfig
+
+
+@dataclasses.dataclass
+class _ConfigWithFactoryAndValidator:
+    debug: Annotated[bool, V == True] = False  # noqa: E712
+    tg: _TgConfig = dataclasses.field(default_factory=_TgConfig)
+
+
+@dataclasses.dataclass
+class _ConfigWithValidatorDirectlyOnFactoryField:
+    """``tg`` itself carries a validator, so the field pass constructs it for real (via
+    ``RetortCache.validator_target_types``) instead of leaving it a prunable dict — the case
+    where ``tg``'s own nested unsafe factory (``proxy``) used to leak a bare ``TypeError``."""
+
+    tg: Annotated[_TgConfig, V.check(lambda t: len(t.admins) > 0, error_message="need admins")]
+
+
+class TestMissingDefaultFactorySection:
+    """Regression: a section absent from every source, whose default_factory needs arguments,
+    must be treated exactly like the same field declared without default_factory — required,
+    with the normal missing-field error, enriched with which factory could not fill it in.
+    See changes/+default-factory-missing-section.bugfix.md."""
+
+    @pytest.mark.parametrize("schema", [_ConfigWithDb, _ConfigRequired], ids=["with-factory", "required"])
+    def test_missing_section_reports_tg_on_both_schemas(self, schema: type) -> None:
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(_Stub(data={"debug": True}), schema=schema)
+
+        errors = [cast("FieldLoadError", e) for e in exc_info.value.exceptions]
+        assert not any(isinstance(e, TypeError) for e in errors)
+        assert len(errors) == 1
+        assert errors[0].field_path == ["tg"]
+
+    def test_missing_section_message_names_factory_and_required_params(self) -> None:
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(_Stub(data={"debug": True}), schema=_ConfigWithDb)
+
+        errors = [cast("FieldLoadError", e) for e in exc_info.value.exceptions]
+        assert errors[0].message == (
+            "Missing required field (its default_factory _TgConfig() cannot fill it in — "
+            "_TgConfig itself requires admins, use_proxy)"
+        )
+
+    def test_fully_populated_section_loads_normally(self) -> None:
+        result = load(
+            _Stub(data={"debug": True, "tg": {"admins": [1], "use_proxy": True, "proxy": {"url": "x", "port": 1}}}),
+            schema=_ConfigWithDb,
+        )
+
+        assert result.tg == _TgConfig(admins=[1], use_proxy=True, proxy=_TgProxyConfig(url="x", port=1))
+
+    def test_partially_filled_section_reports_every_missing_field(self) -> None:
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(_Stub(data={"debug": True, "tg": {"admins": [1]}}), schema=_ConfigWithDb)
+
+        errors = [cast("FieldLoadError", e) for e in exc_info.value.exceptions]
+        assert {tuple(e.field_path) for e in errors} == {("tg", "use_proxy"), ("tg", "proxy")}
+
+    def test_partial_section_and_unrelated_validator_failure_both_reported(self) -> None:
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(
+                _Stub(data={"debug": False, "tg": {"admins": [1]}}),
+                schema=_ConfigWithFactoryAndValidator,
+            )
+
+        errors = [cast("FieldLoadError", e) for e in exc_info.value.exceptions]
+        assert not any(isinstance(e, TypeError) for e in errors)
+        assert {tuple(e.field_path) for e in errors} == {("debug",), ("tg", "use_proxy"), ("tg", "proxy")}
+
+    def test_nested_unsafe_factory_reports_nested_path(self) -> None:
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(_Stub(data={"debug": True, "tg": {"admins": [1], "use_proxy": True}}), schema=_ConfigWithDb)
+
+        errors = [cast("FieldLoadError", e) for e in exc_info.value.exceptions]
+        assert len(errors) == 1
+        assert errors[0].field_path == ["tg", "proxy"]
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param({"debug": True, "db": {"host": "h"}}, id="safe-factory-db-absent-fields"),
+            pytest.param({}, id="no-fields-at-all"),
+        ],
+    )
+    def test_safe_default_factories_contribute_no_errors_of_their_own(self, data: dict[str, JSONValue]) -> None:
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(_Stub(data=data), schema=_ConfigWithDb)
+
+        errors = [cast("FieldLoadError", e) for e in exc_info.value.exceptions]
+        assert all(e.field_path == ["tg"] for e in errors)
+
+    def test_section_split_across_two_sources_loads_normally(self) -> None:
+        result = load(
+            _Stub(data={"debug": True, "tg": {"admins": [1], "use_proxy": True}}),
+            _Stub(data={"tg": {"proxy": {"url": "x", "port": 1}}}),
+            schema=_ConfigWithFactoryAndValidator,
+        )
+
+        assert result.tg == _TgConfig(admins=[1], use_proxy=True, proxy=_TgProxyConfig(url="x", port=1))
+
+    def test_multisource_incomplete_section_reports_readable_message_not_typeerror(self) -> None:
+        """A validator elsewhere in the schema used to force the multi-source field pass to
+        construct ``tg`` for real from each source's partial raw dict, letting a bare
+        ``TypeError`` from ``_TgConfig()`` leak out instead of a FieldLoadError."""
+
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(
+                _Stub(data={"debug": True, "tg": {"admins": [1]}}),
+                _Stub(data={}),
+                schema=_ConfigWithFactoryAndValidator,
+            )
+
+        errors = [cast("FieldLoadError", e) for e in exc_info.value.exceptions]
+        assert not any(isinstance(e, TypeError) for e in errors)
+        assert {tuple(e.field_path) for e in errors} == {("tg", "use_proxy"), ("tg", "proxy")}
+
+    @pytest.mark.parametrize("schema", [_ConfigWithDb, _ConfigRequired], ids=["with-factory", "required"])
+    def test_field_misplaced_at_root_of_second_source_reports_readable_message(self, schema: type) -> None:
+        """The originally reported shape: two sources, no validator anywhere, and a subfield
+        (``use_proxy``) mistakenly placed at the root of the second source instead of nested
+        under ``tg``. Must report the normal missing-field error naming ``tg.use_proxy``, not a
+        bare ``TypeError`` from ``_TgConfig()`` — identically whether or not ``tg`` itself
+        declares an (unsafe) ``default_factory``."""
+
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(
+                _Stub(data={"debug": True, "tg": {"admins": [1, 2, 3]}}),
+                _Stub(data={"use_proxy": True}),
+                skip_if_missing=True,
+                schema=schema,
+            )
+
+        errors = [cast("FieldLoadError", e) for e in exc_info.value.exceptions]
+        assert not any(isinstance(e, TypeError) for e in errors)
+        by_path = {tuple(e.field_path): e.message for e in errors}
+        assert by_path.keys() == {("tg", "use_proxy"), ("tg", "proxy")}
+        assert by_path[("tg", "use_proxy")] == "Missing required field"
+        assert by_path[("tg", "proxy")] == (
+            "Missing required field (its default_factory _TgProxyConfig() cannot fill it in — "
+            "_TgProxyConfig itself requires url, port)"
+        )
+
+    def test_validator_on_factory_field_with_incomplete_nested_factory_reports_readable_message(self) -> None:
+        """Regression: a validator attached directly to a section forces the field pass to
+        construct it for real from each source's partial raw dict, so an unsafe default_factory
+        nested *inside* that section used to leak the factory's bare ``TypeError`` text under the
+        wrong field path instead of the normal missing-field error."""
+
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(
+                _Stub(data={"tg": {"admins": [1]}}),
+                _Stub(data={"tg": {"use_proxy": True}}),
+                schema=_ConfigWithValidatorDirectlyOnFactoryField,
+            )
+
+        errors = [cast("FieldLoadError", e) for e in exc_info.value.exceptions]
+        assert not any("__init__()" in e.message for e in errors)
+        assert {tuple(e.field_path) for e in errors} == {("tg", "use_proxy"), ("tg", "proxy")}
+        assert all(e.message == "Missing required field" for e in errors)
+
+
+@dataclasses.dataclass
+class _DeepInner:
+    port: Annotated[int, V >= 0]
+
+
+@dataclasses.dataclass
+class _DeepOuter:
+    inner: _DeepInner
+
+
+@dataclasses.dataclass
+class _ConfigDeepNestedValidator:
+    debug: Annotated[bool, V == True] = False  # noqa: E712
+    deep: _DeepOuter = dataclasses.field(default_factory=lambda: _DeepOuter(_DeepInner(port=0)))
+
+
+class TestNestedSectionSplitAcrossSources:
+    """Regression (C): a schema with any field validator used to break loading a valid config
+    split across multiple sources, for sections unrelated to the validator itself — because the
+    field pass constructed every nested dataclass for real from each source's partial raw dict.
+    See changes/+nested-section-split-across-sources.bugfix.md."""
+
+    def test_split_section_unrelated_to_validator_loads_normally(self) -> None:
+        result = load(
+            _Stub(data={"debug": True, "deep": {"inner": {"port": 1}}}),
+            schema=_ConfigDeepNestedValidator,
+        )
+
+        assert result.deep.inner.port == 1
+
+    def test_scalar_validator_inside_nested_dataclass_reports_deep_path(self) -> None:
+        with pytest.raises(DatureConfigError) as exc_info:
+            load(
+                _Stub(data={"debug": True, "deep": {"inner": {"port": -1}}}),
+                schema=_ConfigDeepNestedValidator,
+            )
+
+        errors = [cast("FieldLoadError", e) for e in exc_info.value.exceptions]
+        assert {tuple(e.field_path) for e in errors} == {("deep", "inner", "port")}
+
+
 class TestStaticTyping:
     """Static-only assertions — the checked behavior is verified by mypy/pyright, not at runtime."""
 
@@ -114,25 +343,16 @@ class TestStaticTyping:
 
 
 class TestLoaderCache:
-    def test_cache_true_repeats_same_instance(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize(("cache_arg", "same_instance"), [(True, True), (False, False)], ids=["true", "false"])
+    def test_cache_arg_controls_instance_reuse(self, tmp_path: Path, cache_arg: bool, same_instance: bool) -> None:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"host": "h", "port": 1}')
-        loader = Loader(JsonSource(file=json_file), schema=_Config, cache=True)
+        loader = Loader(JsonSource(file=json_file), schema=_Config, cache=cache_arg)
 
         first = loader.load()
         second = loader.load()
 
-        assert first is second
-
-    def test_cache_false_reloads_every_call(self, tmp_path: Path) -> None:
-        json_file = tmp_path / "config.json"
-        json_file.write_text('{"host": "h", "port": 1}')
-        loader = Loader(JsonSource(file=json_file), schema=_Config, cache=False)
-
-        first = loader.load()
-        second = loader.load()
-
-        assert first is not second
+        assert (first is second) is same_instance
 
     @pytest.mark.parametrize(
         ("cache_arg", "advance_seconds", "expected_second"),
@@ -236,23 +456,21 @@ class TestLoaderCacheEngine:
     independent of ``cache``, which controls whether the *loaded result* is reused.
     """
 
-    def test_default_does_not_retain_compiled_engine(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize(
+        ("cache_arg", "cache_engine_arg", "retains_engine"),
+        [(True, False, False), (False, True, True)],
+        ids=["default", "cache_engine_true"],
+    )
+    def test_cache_engine_arg_controls_engine_retention(
+        self, tmp_path: Path, cache_arg: bool, cache_engine_arg: bool, retains_engine: bool
+    ) -> None:
         json_file = tmp_path / "config.json"
         json_file.write_text('{"host": "h", "port": 1}')
-        loader = Loader(JsonSource(file=json_file), schema=_Config, cache=True)
+        loader = Loader(JsonSource(file=json_file), schema=_Config, cache=cache_arg, cache_engine=cache_engine_arg)
 
         loader.load()
 
-        assert loader._retort_cache._cache == {}
-
-    def test_cache_engine_true_retains_compiled_engine(self, tmp_path: Path) -> None:
-        json_file = tmp_path / "config.json"
-        json_file.write_text('{"host": "h", "port": 1}')
-        loader = Loader(JsonSource(file=json_file), schema=_Config, cache=False, cache_engine=True)
-
-        loader.load()
-
-        assert loader._retort_cache._cache != {}
+        assert (loader._retort_cache._cache != {}) is retains_engine
 
     def test_cache_false_cache_engine_true_reuses_engine_across_loads(self, tmp_path: Path) -> None:
         """``cache=False, cache_engine=True`` re-reads on every call, without recompiling."""
@@ -694,17 +912,6 @@ class TestRetortCacheNoCollision:
                 debug=False,
                 root_validators=(V.root(lambda cfg: cfg.value != "bad", error_message="value must not be 'bad'"),),
             ).load()
-
-    def test_path_object_directly(self, tmp_path: Path) -> None:
-        json_file = tmp_path / "config.json"
-        json_file.write_text('{"name": "direct_path"}')
-
-        @dataclass
-        class Config:
-            name: str
-
-        result = Loader(JsonSource(file=json_file), schema=Config, debug=False).load()
-        assert result.name == "direct_path"
 
 
 # ---------------------------------------------------------------------------

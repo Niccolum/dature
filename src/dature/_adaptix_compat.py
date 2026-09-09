@@ -6,7 +6,14 @@ upgrade only requires fixing imports here, not across the providers. Re-check
 every symbol whenever the pinned adaptix version changes.
 """
 
-from adaptix._internal.model_tools.definitions import DefaultValue, InputShape, Param, ParamKind
+from adaptix._internal.model_tools.definitions import (
+    DefaultFactory,
+    DefaultValue,
+    InputShape,
+    NoDefault,
+    Param,
+    ParamKind,
+)
 from adaptix._internal.morphing.model.loader_provider import ModelLoaderProvider
 from adaptix._internal.morphing.request_cls import LoaderRequest
 from adaptix._internal.provider.essential import RequestHandlerRegisterRecord
@@ -16,12 +23,14 @@ from adaptix._internal.provider.shape_provider import InputShapeRequest, provide
 
 __all__ = [
     "AlwaysTrueRequestChecker",
+    "DefaultFactory",
     "DefaultValue",
     "InputShape",
     "InputShapeRequest",
     "LoaderRequest",
     "LocatedRequest",
     "ModelLoaderProvider",
+    "NoDefault",
     "Param",
     "ParamKind",
     "RequestHandlerRegisterRecord",

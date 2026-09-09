@@ -21,6 +21,7 @@ from dature.errors.location import ErrorContext, SkippedFieldSource
 from dature.loading.context import build_error_ctx, coerce_flag_fields
 from dature.loading.field_pass import (
     compute_default_fallback_errors,
+    enrich_missing_factory_field_errors,
     merge_root_and_field_errors,
     run_source_field_pass,
 )
@@ -250,6 +251,42 @@ def _run_field_passes(
     return validated_field_names, deferred_field_errors
 
 
+def _raise_enriched_root_error[T](
+    *,
+    schema: type[T],
+    retort_cache: RetortCache,
+    ctx: _FinalizeCtx,
+    root_exc: DatureConfigError,
+    deferred_field_errors: list[FieldLoadError],
+) -> Never:
+    """Handle a ``DatureConfigError`` raised by root construction: enrich, merge, re-raise.
+
+    Rewrites "Missing required field" errors for unsafe-``default_factory`` fields via
+    ``enrich_missing_factory_field_errors``, then follows the same defer/report/skipped-fields
+    branching ``_finalize_load`` already had. When nothing was actually rewritten (the common
+    case — no unsafe-factory field in the schema), re-raises *root_exc* itself so its identity
+    and traceback are preserved instead of wrapping it in a fresh exception for no reason.
+    """
+    original_errors = cast("list[FieldLoadError]", list(root_exc.exceptions))
+    root_errors = enrich_missing_factory_field_errors(retort_cache.unsafe_default_factory_fields, original_errors)
+    if ctx.error_mode == "defer":
+        combined = merge_root_and_field_errors(schema.__name__, root_errors, deferred_field_errors)
+        _raise_config_error(combined, schema, ctx.report_obj, ctx.skipped_fields, from_none=True)
+    if ctx.report_obj is not None:
+        attach_load_report(schema, ctx.report_obj)
+    if root_errors is original_errors:
+        # Nothing was rewritten (the overwhelmingly common case: no unsafe-factory field in the
+        # schema) — re-raise the original exception object itself, preserving its traceback,
+        # instead of wrapping it in a fresh DatureConfigError for no reason.
+        if ctx.skipped_fields:
+            raise enrich_skipped_errors(root_exc, ctx.skipped_fields) from None
+        raise root_exc
+    enriched_exc = DatureConfigError(schema.__name__, root_errors)
+    if ctx.skipped_fields:
+        raise enrich_skipped_errors(enriched_exc, ctx.skipped_fields) from None
+    raise enriched_exc from None
+
+
 def _finalize_load[T: DataclassInstance](
     *,
     ctx: _FinalizeCtx,
@@ -268,6 +305,7 @@ def _finalize_load[T: DataclassInstance](
     validated_field_names, deferred_field_errors = _run_field_passes(field_pass_entries, schema, retort_cache, ctx)
 
     merged = coerce_flag_fields(ctx.merged, retort_cache.flag_field_names)
+
     try:
         result: T = handle_load_errors(
             func=lambda: retort_cache.final_retort(
@@ -278,18 +316,13 @@ def _finalize_load[T: DataclassInstance](
             loaded_data=ctx.last_loaded_data,
         )
     except DatureConfigError as root_exc:
-        if ctx.error_mode == "defer":
-            combined = merge_root_and_field_errors(
-                schema.__name__,
-                cast("list[FieldLoadError]", list(root_exc.exceptions)),
-                deferred_field_errors,
-            )
-            _raise_config_error(combined, schema, ctx.report_obj, ctx.skipped_fields, from_none=True)
-        if ctx.report_obj is not None:
-            attach_load_report(schema, ctx.report_obj)
-        if ctx.skipped_fields:
-            raise enrich_skipped_errors(root_exc, ctx.skipped_fields) from None
-        raise
+        _raise_enriched_root_error(
+            schema=schema,
+            retort_cache=retort_cache,
+            ctx=ctx,
+            root_exc=root_exc,
+            deferred_field_errors=deferred_field_errors,
+        )
 
     if deferred_field_errors:
         field_pass_error = DatureConfigError(schema.__name__, deferred_field_errors)

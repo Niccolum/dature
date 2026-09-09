@@ -26,8 +26,14 @@ from dature.field_path import FieldPath, resolve_nested_owner
 from dature.fields.byte_size import ByteSize
 from dature.fields.payment_card import PaymentCardNumber
 from dature.fields.secret_str import SecretStr
+from dature.loading.default_factory import FactoryNode, unsafe_factory_tree
 from dature.protocols import DataclassInstance
-from dature.skip_field_provider import ConstructorOverrideProvider, ModelToDictProvider, SkipFieldProvider
+from dature.skip_field_provider import (
+    ConstructorOverrideProvider,
+    ModelToDictProvider,
+    RequireUnsafeFactoryFieldsProvider,
+    SkipFieldProvider,
+)
 from dature.sources.base import IndexedSource, bytes_value_loaders, remote_value_loaders, string_value_loaders
 from dature.sources.protocol import SourceProtocol
 from dature.type_aliases import (
@@ -38,12 +44,9 @@ from dature.type_aliases import (
     NameStyle,
     TypeLoaderMap,
 )
-from dature.validators.base import (
-    create_root_validator_providers,
-    extract_and_check_validators,
-    get_validator_providers,
-)
+from dature.validators.base import create_root_validator_providers, extract_and_check_validators
 from dature.validators.predicate import Predicate
+from dature.validators.scan import scan_validators
 
 
 def get_adaptix_name_style(name_style: NameStyle | None) -> AdaptixNameStyle | None:
@@ -251,6 +254,44 @@ def _compute_annotated_default_fields[T](schema: type[T]) -> tuple[tuple[str, li
     return tuple(result)
 
 
+def _compute_unsafe_default_factory_fields[T](schema: type[T]) -> FactoryNode | None:
+    """Return the tree of *schema* fields whose ``default_factory`` needs arguments, or ``None``.
+
+    Pure static reflection — computed once per ``RetortCache`` so the load path pays only a
+    single ``is None`` check on the overwhelmingly common schema with no such field. Used to
+    enrich the "Missing required field" error such a field's absence now produces, via
+    ``RequireUnsafeFactoryFieldsProvider``.
+    """
+    if not is_dataclass(schema):
+        return None
+    try:
+        return unsafe_factory_tree(cast("type[DataclassInstance]", schema))
+    except (NameError, TypeError, AttributeError):
+        return None
+
+
+def _compute_validator_scan[T](schema: type[T]) -> tuple[list[Provider], frozenset[type]]:
+    """Return (validator providers, validator target types) for *schema*, in a single tree walk.
+
+    ``get_validator_providers`` and ``validator_target_dataclass_types`` share the exact same
+    schema walk; ``RetortCache`` needs both results, so it calls the combined ``scan_validators``
+    once instead of walking the schema tree twice. Pure static reflection — computed once per
+    ``RetortCache``. The target types are used by ``_field_pass_raw`` so ``ModelToDictProvider``
+    converts every OTHER nested model to a dict (letting a section split across sources load
+    field-by-field) while these types still receive real instances (so their validators can run).
+    The schema's own type is always excluded from the target set: a self-referential schema's own
+    top level must never be excluded from the field pass.
+
+    Deliberately does not catch validator-declaration errors (e.g. ``V.root(...)`` placed in
+    ``Annotated[...]`` metadata instead of ``root_validators=``) — those are meant to surface to
+    the caller as a clear ``TypeError``, not be silently dropped.
+    """
+    if not is_dataclass(schema):
+        return [], frozenset()
+    providers, targets = scan_validators(cast("type[DataclassInstance]", schema))
+    return providers, targets - {schema}
+
+
 class RetortCache:
     """Owns a single base ``Retort`` and builds/caches per-source variants via ``extend()``.
 
@@ -276,16 +317,19 @@ class RetortCache:
         self._cache: dict[tuple[Any, ...], Retort] = {}
         self._cache_engine = cache_engine
         self._schema = schema
-        self._has_annotated_field_validators: bool = bool(get_validator_providers(schema))
+        self._validator_providers, self.validator_target_types = _compute_validator_scan(schema)
+        self._has_annotated_field_validators: bool = bool(self._validator_providers)
         self._root_providers: list[Any] = create_root_validator_providers(schema, root_validators)
         self._metadata_providers: list[list[Provider]] = metadata_providers or []
         self.constructor: Callable[..., Any] | None = None
         # Per-schema static reflection, computed once so the load hot path does not re-run
-        # get_type_hints on every call (see coerce_flag_fields / compute_default_fallback_errors).
+        # get_type_hints on every call (see coerce_flag_fields / compute_default_fallback_errors /
+        # compute_missing_factory_section_errors).
         self.flag_field_names: frozenset[str] = _compute_flag_field_names(schema)
         self.annotated_default_fields: tuple[tuple[str, list[Predicate]], ...] = _compute_annotated_default_fields(
             schema
         )
+        self.unsafe_default_factory_fields: FactoryNode | None = _compute_unsafe_default_factory_fields(schema)
 
     @staticmethod
     def _base(rich: bool) -> Retort:  # noqa: FBT001
@@ -363,22 +407,32 @@ class RetortCache:
         """
 
         def build() -> Retort:
-            schema = self._schema
             skip_provider: list[Any] = [SkipFieldProvider()] if skip else []
             metadata_validator_providers = (
                 self._metadata_providers[indexed.index] if indexed.index < len(self._metadata_providers) else []
             )
             # When skip=True (probe mode), ModelToDictProvider must apply to ALL nested
             # dataclasses so each nested field can be individually pruned.
-            # When skip=False (validate mode), restrict to the top-level schema so that
-            # validators on Annotated[NestedDC, V.check(...)] receive real instances.
-            to_dict_provider = ModelToDictProvider() if skip else ModelToDictProvider(schema)
+            # When skip=False (validate mode), exclude only the types a field validator is
+            # directly attached to (self.validator_target_types) so Annotated[NestedDC, V.check(...)]
+            # / Annotated[list[NestedDC], V.each(...)] still receive real instances. Every other
+            # nested model becomes an optional-fields dict, so a section split across multiple
+            # sources still loads field-by-field instead of requiring each source to be complete.
+            to_dict_provider = (
+                ModelToDictProvider() if skip else ModelToDictProvider(exclude=self.validator_target_types)
+            )
+            # RequireUnsafeFactoryFieldsProvider must sit AFTER to_dict_provider (lower priority):
+            # it should only affect the types to_dict_provider declined (the validator-target
+            # types still constructed for real), not ordinary sections converted to dicts —
+            # otherwise it re-breaks loading a section split across multiple sources.
+            unsafe_factory_provider: list[Any] = [] if skip else [RequireUnsafeFactoryFieldsProvider()]
             return self.plain(indexed, rich=rich, resolved_type_loaders=resolved_type_loaders).extend(
                 recipe=[
                     *skip_provider,
-                    *get_validator_providers(schema),
+                    *self._validator_providers,
                     *metadata_validator_providers,
                     to_dict_provider,
+                    *unsafe_factory_provider,
                 ],
             )
 
@@ -457,6 +511,7 @@ class RetortCache:
                 and resolved_type_loaders is None
                 and self.constructor is None
                 and not self._root_providers
+                and self.unsafe_default_factory_fields is None
                 and self._cache_engine
                 else None
             )
@@ -464,7 +519,8 @@ class RetortCache:
                 return precomputed
             recipe = build_base_recipe(indexed.source, resolved_type_loaders=resolved_type_loaders)
             override = [ConstructorOverrideProvider(self.constructor, self._schema)] if self.constructor else []
-            return self._base(rich).extend(recipe=[*recipe, *override, *self._root_providers])
+            unsafe_factory_override = [RequireUnsafeFactoryFieldsProvider()]
+            return self._base(rich).extend(recipe=[*recipe, *unsafe_factory_override, *override, *self._root_providers])
 
         key = self._final_key(indexed.index, rich, resolved_type_loaders)
         return self._get_or_build(key, build)

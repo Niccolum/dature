@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Annotated, Any, cast
 
 import pytest
@@ -21,7 +21,6 @@ from dature.loading.retort import (
     build_base_recipe,
     get_adaptix_name_style,
     get_name_mapping_providers,
-    get_validator_providers,
 )
 from dature.sources.base import (
     FlatKeySource,
@@ -32,15 +31,6 @@ from dature.sources.base import (
     string_value_loaders,
 )
 from dature.type_aliases import JSONValue
-
-
-@dataclass
-class _RecursiveNode:
-    """Module-level self-referential schema for the get_validator_providers recursion-safety
-    regression test — must be module-level so get_type_hints can resolve the string annotation."""
-
-    name: str = ""
-    child: "_RecursiveNode | None" = None
 
 
 @dataclass(kw_only=True)
@@ -235,23 +225,6 @@ class TestGetNameMappingProviders:
         assert len(result) >= 1
 
 
-class TestGetValidatorProviders:
-    def test_no_validators_returns_empty(self):
-        @dataclass
-        class Config:
-            name: str
-            port: int
-
-        result = get_validator_providers(Config)
-
-        assert result == []
-
-    def test_self_referential_schema_does_not_recurse_unboundedly(self):
-        result = get_validator_providers(_RecursiveNode)
-
-        assert result == []
-
-
 class TestBuildBaseRecipe:
     def test_default_source(self):
         source = MockSource()
@@ -395,6 +368,55 @@ class TestRetortCache:
         result = cache.plain(indexed).load({"name": "App", "port": 9000}, Config)
 
         assert result == Config(name="App", port=9000)
+
+    def test_unsafe_default_factory_fields_none_for_plain_schema(self):
+        @dataclass
+        class Config:
+            name: str = "default"
+
+        assert RetortCache(Config).unsafe_default_factory_fields is None
+
+    def test_unsafe_default_factory_fields_populated_for_unsafe_schema(self):
+        @dataclass
+        class Nested:
+            required: int
+
+        @dataclass
+        class Config:
+            nested: Nested = field(default_factory=Nested)
+
+        node = RetortCache(Config).unsafe_default_factory_fields
+
+        assert node is not None
+        assert [f.name for f in node.unsafe] == ["nested"]
+
+    def test_validator_target_types_empty_for_schema_without_validators(self):
+        @dataclass
+        class Config:
+            name: str = "default"
+
+        assert RetortCache(Config).validator_target_types == frozenset()
+
+    def test_validator_target_types_includes_nested_type_with_annotated_validator(self):
+        @dataclass
+        class Nested:
+            port: int
+
+        @dataclass
+        class Config:
+            nested: Annotated[Nested, V.check(lambda n: n.port > 0, error_message="bad port")]
+
+        assert RetortCache(Config).validator_target_types == {Nested}
+
+    def test_validator_target_types_excludes_top_level_schema(self):
+        """Own docstring warns a self-recursive validated schema must not exclude the top level
+        (would break the field pass) — the computed set is always minus the schema itself."""
+
+        @dataclass
+        class Config:
+            name: Annotated[str, V != ""] = "default"
+
+        assert Config not in RetortCache(Config).validator_target_types
 
 
 @dataclass
