@@ -5,10 +5,13 @@ This module is the loading-time counterpart to ``dature/validators/``:
 - ``dature/validators/`` *defines* checks — the ``V`` DSL compiled into adaptix providers.
 - This module *runs* those checks against real source data at load time.
 
-Four public entry points:
+Five public entry points:
 - ``run_source_field_pass`` — validate one source's raw dict through its field validators.
 - ``merge_root_and_field_errors`` — combine root-retort and field-pass errors without double-reporting.
 - ``compute_default_fallback_errors`` — validate fields that took their dataclass default (no source).
+- ``enrich_missing_factory_field_errors`` — rewrite a plain "Missing required field" error into one
+  naming the field's ``default_factory`` and its required parameters, for fields
+  ``RequireUnsafeFactoryFieldsProvider`` made required.
 - ``build_revalidation`` — build the ``(validation_loader, error_ctx)`` pair used by the decorator
   mode so that ``Config(field=bad_value)`` re-validates on direct instantiation.
 """
@@ -22,6 +25,7 @@ from dature.errors import DatureConfigError, FieldLoadError
 from dature.errors.extraction import handle_load_errors
 from dature.errors.location import ErrorContext
 from dature.loading.context import build_error_ctx
+from dature.loading.default_factory import FactoryNode, iter_unsafe_fields
 from dature.loading.merge_runtime import resolve_type_loaders
 from dature.loading.retort import RetortCache
 from dature.protocols import DataclassInstance
@@ -52,6 +56,56 @@ def compute_default_fallback_errors(
         for predicate in predicates
         if not predicate.get_validator_func()(getattr(result, name, None))
     ]
+
+
+def _factory_missing_field_message(factory_name: str, required_params: tuple[str, ...]) -> str:
+    return (
+        f"Missing required field (its default_factory {factory_name}() cannot fill it in — "
+        f"{factory_name} itself requires {', '.join(required_params)})"
+    )
+
+
+def enrich_missing_factory_field_errors(
+    node: "FactoryNode | None",
+    errors: list[FieldLoadError],
+) -> list[FieldLoadError]:
+    """Rewrite plain "Missing required field" errors for fields with an unsafe ``default_factory``.
+
+    ``RequireUnsafeFactoryFieldsProvider`` makes such fields required, so their absence already
+    produces the normal missing-field error adaptix gives any other required field — matching a
+    field declared without ``default_factory``. This only adds the extra context that made the
+    original bug report confusing: which factory the field relied on and why it could not help.
+    *node* is the schema's precomputed tree (``RetortCache.unsafe_default_factory_fields``),
+    ``None`` for the overwhelmingly common schema with no such field (nothing to rewrite).
+
+    Returns *errors* itself (same list object) when nothing was actually rewritten — including
+    when *node* has unsafe fields but none of them match one of *errors* — so callers can tell
+    "nothing changed" apart from "rewrote in place" via an identity check, without a bare
+    unconditional copy masking the no-op case.
+    """
+    if node is None or not errors:
+        return errors
+    unsafe_by_path = dict(iter_unsafe_fields(node))
+    if not unsafe_by_path:
+        return errors
+    result: list[FieldLoadError] = []
+    changed = False
+    for error in errors:
+        unsafe_field = unsafe_by_path.get(tuple(error.field_path))
+        if unsafe_field is None or error.message != "Missing required field":
+            result.append(error)
+            continue
+        changed = True
+        result.append(
+            FieldLoadError(
+                field_path=error.field_path,
+                message=_factory_missing_field_message(unsafe_field.factory_name, unsafe_field.required_params),
+                input_value=error.input_value,
+                locations=error.locations,
+                error_display=error.error_display,
+            )
+        )
+    return result if changed else errors
 
 
 def run_source_field_pass[T: DataclassInstance](  # noqa: PLR0913

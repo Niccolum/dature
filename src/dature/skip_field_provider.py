@@ -8,20 +8,34 @@ from adaptix.load_error import LoadError
 
 from dature._adaptix_compat import (
     AlwaysTrueRequestChecker,
+    DefaultFactory,
     DefaultValue,
     InputShape,
     InputShapeRequest,
     LoaderRequest,
     LocatedRequest,
     ModelLoaderProvider,
+    NoDefault,
     Param,
     ParamKind,
     RequestHandlerRegisterRecord,
     provide_generic_resolved_shape,
 )
+from dature.loading.default_factory import required_params_of
 from dature.nested_dict import collect_not_loaded_paths, remove_path_from_dict
 from dature.protocols import DataclassInstance
 from dature.type_aliases import NOT_LOADED, JSONValue, NotLoaded, ProbeDict
+
+
+def _resolved_shape(
+    mediator: Mediator[Loader[ProbeDict]],
+    request: LocatedRequest[Loader[ProbeDict]],
+) -> InputShape[ProbeDict]:
+    return provide_generic_resolved_shape(mediator, InputShapeRequest(loc_stack=request.loc_stack))
+
+
+def _kw_only_params(ids_and_names: "Sequence[tuple[str, str]]") -> tuple[Param, ...]:
+    return tuple(Param(field_id=field_id, name=name, kind=ParamKind.KW_ONLY) for field_id, name in ids_and_names)
 
 
 class SkipFieldProvider(Provider):
@@ -53,7 +67,7 @@ class ConstructorOverrideProvider(ModelLoaderProvider):  # type: ignore[no-untyp
     ``_dature_constructor`` is called rather than the raw schema constructor.
     """
 
-    def __init__(self, constructor_fn: Callable[..., object], schema: type) -> None:
+    def __init__(self, constructor_fn: Callable[..., ProbeDict], schema: type) -> None:
         super().__init__()
         self._constructor_fn = constructor_fn
         self._schema = schema
@@ -73,38 +87,73 @@ class ConstructorOverrideProvider(ModelLoaderProvider):  # type: ignore[no-untyp
         mediator: Mediator[Loader[ProbeDict]],
         request: LocatedRequest[Loader[ProbeDict]],
     ) -> InputShape[ProbeDict]:
-        shape = provide_generic_resolved_shape(
-            mediator,
-            InputShapeRequest(loc_stack=request.loc_stack),
-        )
-        kw_only_params = tuple(Param(field_id=f.id, name=f.id, kind=ParamKind.KW_ONLY) for f in shape.fields)
+        shape = _resolved_shape(mediator, request)
+        kw_only_params = _kw_only_params([(f.id, f.id) for f in shape.fields])
         return replace(shape, params=kw_only_params, constructor=self._constructor_fn, kwargs=None)
+
+
+class RequireUnsafeFactoryFieldsProvider(ModelLoaderProvider):  # type: ignore[no-untyped-call]
+    """Treat a field's un-callable ``default_factory`` as no default at all.
+
+    ``field(default_factory=TgConfig)`` makes ``tg`` optional for adaptix: an absent/unrecognized
+    key falls back to calling ``TgConfig()``, which raises a bare ``TypeError`` when ``TgConfig``
+    has required constructor arguments. Such a factory can never actually satisfy the field, so
+    for loading purposes the field should behave exactly like the same field declared without
+    ``default_factory`` — required, with the normal "missing field" error path.
+
+    Applies at every level (root and nested), so a field with an unsafe factory anywhere in the
+    schema is affected, not just at the top. Fields whose factory *can* be called with zero
+    arguments (``list``, ``dict``, all-defaults dataclasses, zero-arg callables) are left alone.
+    No separate applicability check: ``ModelLoaderProvider.provide_loader`` calls ``_fetch_shape``
+    first thing, so raising ``CannotProvide`` there when nothing needed changing is enough — no
+    need to inspect the type twice.
+    """
+
+    def _fetch_shape(
+        self,
+        mediator: Mediator[Loader[ProbeDict]],
+        request: LocatedRequest[Loader[ProbeDict]],
+    ) -> InputShape[ProbeDict]:
+        shape = _resolved_shape(mediator, request)
+        changed_ids: set[str] = set()
+        new_fields = []
+        for f in shape.fields:
+            if isinstance(f.default, DefaultFactory) and required_params_of(f.default.factory) is not None:
+                new_fields.append(replace(f, is_required=True, default=NoDefault()))
+                changed_ids.add(f.id)
+            else:
+                new_fields.append(f)
+        if not changed_ids:
+            raise CannotProvide
+        # Rebuild every param as KW_ONLY: an optional field can precede the now-required one in
+        # declaration order (e.g. ``debug: bool = False`` before ``tg``), which would otherwise
+        # break positional ordering.
+        new_params = _kw_only_params([(p.field_id, p.name) for p in shape.params])
+        return replace(shape, fields=tuple(new_fields), params=new_params)
 
 
 class ModelToDictProvider(ModelLoaderProvider):  # type: ignore[no-untyped-call]
     """Converts dataclass model(s) to optional-fields dicts (constructor = dict).
 
-    When *schema* is ``None`` (default), applies to ALL model types — used for the
-    skip-field probe where nested models must also be individually pruneable.
-
-    When *schema* is a specific type, applies ONLY to that top-level schema and lets
-    nested dataclasses be loaded normally.  Used for ``field_pass(skip=False)`` so that
-    validators on ``Annotated[NestedDC, V.check(...)]`` receive real instances, not dicts.
+    *exclude* (default empty) lists model types this provider must NOT touch — used for
+    ``field_pass(skip=False)`` so that validators on ``Annotated[NestedDC, V.check(...)]`` or
+    ``Annotated[list[NestedDC], V.each(...)]`` receive real instances of *those* types, not dicts,
+    while every other nested model is still individually pruneable. The probe-mode call site
+    (``skip=True``) passes no *exclude* — nested models must all be prunable there.
     """
 
-    def __init__(self, schema: type | None = None) -> None:
+    def __init__(self, exclude: frozenset[type] = frozenset()) -> None:
         super().__init__()
-        self._schema = schema
+        self._exclude = exclude
 
     def provide_loader(
         self,
         mediator: Mediator[Loader[ProbeDict]],
         request: LocatedRequest[Loader[ProbeDict]],
     ) -> Loader[ProbeDict]:
-        if self._schema is not None:
-            loc_type = getattr(request.last_loc, "type", None)
-            if loc_type is not self._schema:
-                raise CannotProvide
+        loc_type = getattr(request.last_loc, "type", None)
+        if loc_type in self._exclude:
+            raise CannotProvide
         return super().provide_loader(mediator, request)  # type: ignore[arg-type]
 
     def _fetch_shape(
@@ -112,10 +161,7 @@ class ModelToDictProvider(ModelLoaderProvider):  # type: ignore[no-untyped-call]
         mediator: Mediator[Loader[ProbeDict]],
         request: LocatedRequest[Loader[ProbeDict]],
     ) -> InputShape[ProbeDict]:
-        shape = provide_generic_resolved_shape(
-            mediator,
-            InputShapeRequest(loc_stack=request.loc_stack),
-        )
+        shape = _resolved_shape(mediator, request)
         optional_fields = tuple(
             replace(
                 f,
@@ -124,7 +170,7 @@ class ModelToDictProvider(ModelLoaderProvider):  # type: ignore[no-untyped-call]
             )
             for f in shape.fields
         )
-        optional_params = tuple(Param(field_id=f.id, name=f.id, kind=ParamKind.KW_ONLY) for f in optional_fields)
+        optional_params = _kw_only_params([(f.id, f.id) for f in optional_fields])
         return replace(
             shape,
             fields=optional_fields,

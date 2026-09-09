@@ -1,5 +1,4 @@
 from collections.abc import Iterable, Mapping
-from dataclasses import fields
 from typing import Annotated, Any, cast, get_args, get_origin, get_type_hints
 
 from adaptix import P, validator
@@ -9,7 +8,6 @@ from adaptix.struct_trail import append_trail
 
 from dature.field_path import FieldPath, resolve_nested_owner
 from dature.protocols import DataclassInstance
-from dature.type_utils import find_nested_dataclasses
 from dature.validators.aliases import FieldValidators
 from dature.validators.collection import EachPredicate
 from dature.validators.predicate import AndPredicate, Predicate
@@ -203,37 +201,3 @@ def create_root_validator_providers(
         validator(P[schema], rp.get_validator_func(), rp.get_error_message())
         for rp in validate_root_validators(root_validators)
     ]
-
-
-def get_validator_providers[T](schema: type[T], *, _seen: "set[type] | None" = None) -> list[Provider]:
-    """Return adaptix ``Provider`` instances for every ``Annotated`` field validator in *schema*.
-
-    Recurses into nested dataclasses so validators on nested fields are also registered.
-    ``_seen`` guards against unbounded recursion on self-referential/mutually-recursive
-    dataclasses (e.g. ``child: "Node | None"``) — such a schema has no validators past the
-    cycle, so revisiting it would only repeat work forever, never find anything new.
-    """
-    seen = _seen if _seen is not None else set()
-    if schema in seen:
-        return []
-    seen.add(schema)
-
-    providers: list[Provider] = []
-    type_hints = get_type_hints(schema, include_extras=True)
-
-    for field in fields(cast("type[DataclassInstance]", schema)):
-        if field.name not in type_hints:
-            continue
-
-        field_type = type_hints[field.name]
-        validators_list = extract_and_check_validators(field_type, field_path=[field.name])
-
-        if validators_list:
-            field_providers = create_validator_providers(schema, field.name, validators_list)
-            providers.extend(field_providers)
-
-        for nested_dataclass in find_nested_dataclasses(field_type):
-            nested_providers = get_validator_providers(nested_dataclass, _seen=seen)
-            providers.extend(nested_providers)
-
-    return providers

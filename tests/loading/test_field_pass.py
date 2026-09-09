@@ -1,6 +1,6 @@
 """Unit tests for dature.loading.field_pass — field-pass run, error merge, and decorator replay."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Annotated, cast
 
 import pytest
@@ -10,9 +10,11 @@ from dature.config import ErrorDisplayConfig, MaskingConfig
 from dature.errors import DatureConfigError, FieldLoadError
 from dature.errors.location import ErrorContext
 from dature.loading.context import build_error_ctx
+from dature.loading.default_factory import unsafe_factory_tree
 from dature.loading.field_pass import (
     build_revalidation,
     compute_default_fallback_errors,
+    enrich_missing_factory_field_errors,
     merge_root_and_field_errors,
     run_source_field_pass,
 )
@@ -126,6 +128,87 @@ class TestComputeDefaultFallbackErrors:
         errors = compute_default_fallback_errors(annotated_default_fields, validated_field_names, result)
 
         assert [e.field_path for e in errors] == expected_paths
+
+
+@dataclass
+class _TgProxyConfig:
+    url: str
+    port: int
+
+
+@dataclass
+class _TgConfig:
+    admins: list[int]
+    use_proxy: bool
+    proxy: _TgProxyConfig = field(default_factory=_TgProxyConfig)
+
+
+@dataclass
+class _ConfigWithUnsafeFactory:
+    debug: bool = False
+    tg: _TgConfig = field(default_factory=_TgConfig)
+
+
+class TestEnrichMissingFactoryFieldErrors:
+    def _tree(self):
+        return unsafe_factory_tree(_ConfigWithUnsafeFactory)
+
+    @pytest.mark.parametrize(
+        ("node_is_none", "errors"),
+        [
+            pytest.param(True, [_make_field_error(["tg"])], id="none-node"),
+            pytest.param(False, [], id="empty-errors"),
+            pytest.param(False, [_make_field_error(["debug"])], id="unrelated-path"),
+            pytest.param(
+                False,
+                [FieldLoadError(field_path=["tg"], message="something else")],
+                id="matching-path-wrong-message",
+            ),
+        ],
+    )
+    def test_no_match_returns_same_list_object(self, node_is_none: bool, errors: list[FieldLoadError]):
+        node = None if node_is_none else self._tree()
+
+        result = enrich_missing_factory_field_errors(node, errors)
+
+        assert result is errors
+
+    def test_matching_missing_field_error_rewritten(self):
+        errors = [FieldLoadError(field_path=["tg"], message="Missing required field")]
+
+        result = enrich_missing_factory_field_errors(self._tree(), errors)
+
+        assert result is not errors
+        assert len(result) == 1
+        assert result[0].field_path == ["tg"]
+        assert result[0].message == (
+            "Missing required field (its default_factory _TgConfig() cannot fill it in — "
+            "_TgConfig itself requires admins, use_proxy)"
+        )
+
+    def test_nested_factory_field_rewritten(self):
+        errors = [FieldLoadError(field_path=["tg", "proxy"], message="Missing required field")]
+
+        result = enrich_missing_factory_field_errors(self._tree(), errors)
+
+        assert result[0].message == (
+            "Missing required field (its default_factory _TgProxyConfig() cannot fill it in — "
+            "_TgProxyConfig itself requires url, port)"
+        )
+
+    def test_mixed_errors_only_matching_one_rewritten(self):
+        errors = [
+            _make_field_error(["debug"]),
+            FieldLoadError(field_path=["tg"], message="Missing required field"),
+        ]
+
+        result = enrich_missing_factory_field_errors(self._tree(), errors)
+
+        assert result[0] is errors[0]
+        assert result[1].message == (
+            "Missing required field (its default_factory _TgConfig() cannot fill it in — "
+            "_TgConfig itself requires admins, use_proxy)"
+        )
 
 
 @dataclass
